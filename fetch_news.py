@@ -39,7 +39,7 @@ def http_get(url, timeout=20):
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return r.read()
 
-def translate(text, src="auto"):
+def translate(text, src="en"):
     """MyMemory免费翻译API，src->zh-CN"""
     if not text or len(text) < 5:
         return text
@@ -52,6 +52,8 @@ def translate(text, src="auto"):
             return data["responseData"]["translatedText"]
     except Exception as e:
         return text
+
+COUNTRY_LANG = {"UK":"en","US":"en","FR":"fr","DE":"de","JP":"ja"}
 
 def clean_html(html):
     if not html:
@@ -93,16 +95,17 @@ def fetch_one(url, source, country, hint):
                 break
         if not pub:
             pub = datetime.now(CST).isoformat()
+        lang = COUNTRY_LANG.get(country, "en")
         arts.append({
             "title_orig": title,
-            "title_zh": translate(title, "auto"),
+            "title_zh": translate(title, lang),
             "source": source,
             "country": country,
             "category": categorize(title, desc, hint),
             "published_at": pub,
-            "summary_zh": translate(desc[:200], "auto")[:200],
+            "summary_zh": translate(desc[:200], lang)[:200],
             "content_orig": desc[:1500],
-            "content_zh": translate(desc[:800], "auto"),
+            "content_zh": translate(desc[:800], lang),
             "url": link,
         })
     return arts
