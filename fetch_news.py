@@ -1,5 +1,14 @@
 # -*- coding: utf-8 -*-
-"""每小时从五国主流媒体RSS抓取新闻，翻译成中文，上传Gitee。"""
+"""每小时从五国主流媒体RSS抓取新闻，翻译成中文，上传Gitee。
+
+【踩坑记录 - 不要再犯】
+1. MyMemory翻译API的langpair不能用"auto"作源语言，否则返回"'AUTO' IS AN INVALID SOURCE LANGUAGE"。
+   必须根据国家传具体语言代码：UK/US=en, FR=fr, DE=de, JP=ja。
+2. GitHub Actions的fine-grained token要触发workflow_dispatch，必须额外给"Actions"权限，只给Contents权限会403。
+3. 翻译时每调一次sleep 0.3秒，MyMemory免费版有频率限制，连续快速调用会卡住。
+4. 上传Gitee前先GET拿最新sha，避免sha冲突；每次修改后重新GET sha再PUT。
+5. RSS源要选稳定的，NYT/WSJ等付费墙源全文抓不到，只能拿标题+导语。
+"""
 import os, re, json, base64, time, hashlib
 from datetime import datetime, timezone, timedelta
 import urllib.request
@@ -13,25 +22,26 @@ GITEE_PATH = "news.json"
 CST = timezone(timedelta(hours=8))
 
 FEEDS = [
-    # (rss_url, source, country, category_hint)
-    ("http://feeds.bbci.co.uk/news/world/rss.xml", "BBC", "UK", "world"),
-    ("https://www.theguardian.com/world/rss", "The Guardian", "UK", "world"),
-    ("https://news.sky.com/rss/world", "Sky News", "UK", "world"),
-    ("http://feeds.bbci.co.uk/news/business/rss.xml", "BBC Business", "UK", "finance"),
-    ("http://feeds.bbci.co.uk/news/technology/rss.xml", "BBC Tech", "UK", "tech"),
-    ("http://rss.cnn.com/rss/edition.rss", "CNN", "US", "world"),
-    ("https://feeds.npr.org/1001/rss.xml", "NPR", "US", "world"),
-    ("https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml", "NY Times", "US", "world"),
-    ("https://feeds.npr.org/1006/rss.xml", "NPR Business", "US", "finance"),
-    ("https://feeds.npr.org/1019/rss.xml", "NPR Tech", "US", "tech"),
-    ("https://www.lemonde.fr/rss/une.xml", "Le Monde", "FR", "world"),
-    ("http://www.lefigaro.fr/rss/figaro_actualites.xml", "Le Figaro", "FR", "world"),
-    ("https://www.rtl.fr/flash-actu/rss", "RTL", "FR", "general"),
-    ("https://www.spiegel.de/schlagzeilen/index.rss", "Der Spiegel", "DE", "world"),
-    ("https://www.welt.de/feeds/latest.rss", "Die Welt", "DE", "world"),
-    ("https://newsfeed.zeit.de/index", "Die Zeit", "DE", "world"),
-    ("https://www3.nhk.or.jp/nhkworld/en/news/feed.xml", "NHK World", "JP", "world"),
-    ("https://english.kyodonews.net/rss/news.rss", "Kyodo News", "JP", "world"),
+    # (rss_url, source, country, category_hint, priority)
+    # 五国前三媒体priority=1（重要），其他priority=2
+    ("http://feeds.bbci.co.uk/news/world/rss.xml", "BBC", "UK", "world", 1),
+    ("https://www.theguardian.com/world/rss", "The Guardian", "UK", "world", 1),
+    ("https://news.sky.com/rss/world", "Sky News", "UK", "world", 1),
+    ("http://feeds.bbci.co.uk/news/business/rss.xml", "BBC Business", "UK", "finance", 2),
+    ("http://feeds.bbci.co.uk/news/technology/rss.xml", "BBC Tech", "UK", "tech", 2),
+    ("http://rss.cnn.com/rss/edition.rss", "CNN", "US", "world", 1),
+    ("https://feeds.npr.org/1001/rss.xml", "NPR", "US", "world", 1),
+    ("https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml", "NY Times", "US", "world", 1),
+    ("https://feeds.npr.org/1006/rss.xml", "NPR Business", "US", "finance", 2),
+    ("https://feeds.npr.org/1019/rss.xml", "NPR Tech", "US", "tech", 2),
+    ("https://www.lemonde.fr/rss/une.xml", "Le Monde", "FR", "world", 1),
+    ("http://www.lefigaro.fr/rss/figaro_actualites.xml", "Le Figaro", "FR", "world", 1),
+    ("https://www.rtl.fr/flash-actu/rss", "RTL", "FR", "general", 1),
+    ("https://www.spiegel.de/schlagzeilen/index.rss", "Der Spiegel", "DE", "world", 1),
+    ("https://www.welt.de/feeds/latest.rss", "Die Welt", "DE", "world", 1),
+    ("https://newsfeed.zeit.de/index", "Die Zeit", "DE", "world", 1),
+    ("https://www3.nhk.or.jp/nhkworld/en/news/feed.xml", "NHK World", "JP", "world", 1),
+    ("https://english.kyodonews.net/rss/news.rss", "Kyodo News", "JP", "world", 1),
 ]
 
 def http_get(url, timeout=20):
@@ -43,7 +53,7 @@ def translate(text, src="en"):
     """MyMemory免费翻译API，src->zh-CN"""
     if not text or len(text) < 5:
         return text
-    text = text[:800]  # 避免超长
+    text = text[:800]
     try:
         url = f"https://api.mymemory.translated.net/get?q={urllib.parse.quote(text)}&langpair={src}|zh-CN"
         req = urllib.request.Request(url, headers={"User-Agent":"Mozilla/5.0"})
@@ -74,19 +84,19 @@ def categorize(title, summary, hint):
     if hint != "world": return hint
     return "world"
 
-def fetch_one(url, source, country, hint):
+def fetch_one(url, source, country, hint, priority=2):
     arts = []
     try:
         d = feedparser.parse(url)
     except Exception:
         return arts
-    for e in d.entries[:6]:
+    limit = 8 if priority == 1 else 5
+    for e in d.entries[:limit]:
         title = getattr(e, "title", "").strip()
         link = getattr(e, "link", "").strip()
         if not title or not link:
             continue
         desc = clean_html(getattr(e, "summary", "") or getattr(e, "description", ""))
-        # 发布时间
         pub = None
         for k in ("published_parsed","updated_parsed"):
             t = getattr(e, k, None)
@@ -107,7 +117,9 @@ def fetch_one(url, source, country, hint):
             "content_orig": desc[:1500],
             "content_zh": translate(desc[:800], lang),
             "url": link,
+            "_prio": priority,
         })
+        time.sleep(0.3)
     return arts
 
 def gitee_get():
@@ -131,40 +143,41 @@ def gitee_put(data, sha):
 
 def main():
     all_arts = []
-    for url, src, country, hint in FEEDS:
+    for url, src, country, hint, prio in FEEDS:
         try:
-            all_arts.extend(fetch_one(url, src, country, hint))
+            all_arts.extend(fetch_one(url, src, country, hint, prio))
             time.sleep(1)
         except Exception as e:
             print("ERR", src, e)
-    # 去重
-    seen = set()
+    # 去重：标题前30字符相似算同一新闻，优先保留priority=1（前三媒体）
+    all_arts.sort(key=lambda x: (x["_prio"], x["published_at"]), reverse=True)
+    seen_titles = {}
     uniq = []
     for a in all_arts:
-        key = a["url"] or a["title_orig"]
-        if key in seen: continue
-        seen.add(key)
-        a["id"] = "g" + hashlib.md5(key.encode()).hexdigest()[:8]
+        key = a["title_orig"][:30].lower()
+        if key in seen_titles:
+            continue
+        seen_titles[key] = True
+        a["id"] = "g" + hashlib.md5(a["url"].encode()).hexdigest()[:8]
         uniq.append(a)
     # 按时间倒序
     uniq.sort(key=lambda x: x["published_at"], reverse=True)
-    # 保留最近24小时，最多100条
+    # 保留最近24小时，最多80条
     now = datetime.now(CST)
     recent = [a for a in uniq if (now - datetime.fromisoformat(a["published_at"])).total_seconds() < 86400]
-    recent = recent[:100]
+    recent = recent[:80]
     # 合并到现有
     try:
         old, sha = gitee_get()
         old_ids = {a["id"] for a in old["articles"]}
         merged = old["articles"] + [a for a in recent if a["id"] not in old_ids]
-        # 去重并保留24小时
         seen2 = set()
         merged2 = []
         for a in sorted(merged, key=lambda x: x["published_at"], reverse=True):
             if a["id"] in seen2: continue
             seen2.add(a["id"])
             merged2.append(a)
-        merged2 = merged2[:100]
+        merged2 = merged2[:80]
         new_data = {"version":"1.0","updated_at": now.isoformat(), "articles": merged2}
         gitee_put(new_data, sha)
         print(f"OK total={len(merged2)} new={len(recent)}")
