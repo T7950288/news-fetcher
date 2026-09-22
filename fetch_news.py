@@ -233,6 +233,8 @@ def classify(title, desc, lang, hint):
             if m in t:
                 return hint, 2
         return hint, 3  # 财经科技栏目可信, 保留但降权
+    if lang == "ja":
+        return "world", 1  # 日文源默认时政待遇(日本媒体标题本身即要闻)
     # 普通world栏目无关键词命中 -> 降权(宁缺毋滥)
     return "world", 4
 
@@ -583,6 +585,20 @@ def pick_news(arts, target=TARGET):
 
     picks = pick_cat(world, nw)
     picks += pick_cat(rest, target - len(picks))
+    # 五国保底: 每国至少2条(优先有全文的)
+    if len(picks) < target:
+        by_c = {}
+        for a in arts:
+            by_c.setdefault(a["country"], []).append(a)
+        for c, items in by_c.items():
+            if len(picks) >= target:
+                break
+            have = sum(1 for p in picks if p["country"] == c)
+            if have < 2:
+                for a in sorted(items, key=importance):
+                    if all(p["id"] != a["id"] for p in picks):
+                        picks.append(a)
+                        break
     if len(picks) < target:
         seen_ids = {p["id"] for p in picks}
         extra = sorted([a for a in arts if a["id"] not in seen_ids], key=importance)
