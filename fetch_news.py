@@ -639,46 +639,23 @@ def pick_news(arts, target=TARGET):
         return picks
 
     picks = []
-    # 1) 五国保底: 每国至少2条(优先有全文的)
-    by_c = {}
+    # v5.14 用户配额: Google8 / 美8 / 英5 / 德4 / 法2 / 日3 (全部更新时按此分配)
+    QUOTA = [("google", 8), ("US", 8), ("UK", 5), ("DE", 4), ("FR", 2), ("JP", 3)]
+    groups = {}
     for a in arts:
-        by_c.setdefault(a["country"], []).append(a)
-    for c, items in by_c.items():
-        if len(picks) >= target:
-            break
-        for a in sorted(items, key=importance)[:2]:
-            if len(picks) >= target:
-                break
-            if all(p["id"] != a["id"] for p in picks):
+        key = "google" if a.get("_google") else a.get("country")
+        groups.setdefault(key, []).append(a)
+    for k in groups:
+        groups[k] = sorted(groups[k], key=importance)
+    seen = set()
+    for key, lim in QUOTA:
+        for a in groups.get(key, [])[:lim]:
+            if a["id"] not in seen:
+                seen.add(a["id"])
                 picks.append(a)
-
-    # 2) 剩余按"全文优先 + Google热榜强制进池 + 时政70%"填
-    remaining = [a for a in arts if all(p["id"] != a["id"] for p in picks)]
-    full = [a for a in remaining if a.get("_full")]
-    google_sum = [a for a in remaining if a.get("_google") and not a.get("_full")]
-    summary = [a for a in remaining if not a.get("_full") and not a.get("_google")]
-    # Google全球热榜是用户点名要的: 即使抓不到全文也进池(全球最热门)
-    pool = full + google_sum
-    if len(pool) < max(round(target * 0.6), 1):
-        pool = full + google_sum + summary
-    world = sorted([a for a in pool if a["category"] in ("world", "op-ed")], key=importance)
-    rest = sorted([a for a in pool if a["category"] not in ("world", "op-ed")], key=importance)
-    nw = min(len(world), max(round(target * 0.7), 1))
-    picks += pick_cat(world, nw)
-    picks += pick_cat(rest, target - len(picks))
-    # Google条目最多8条, 超出用非Google补位
-    gpicks = [a for a in picks if a.get("_google")]
-    if len(gpicks) > 8:
-        drop = [a["id"] for a in gpicks[8:]]
-        picks = [a for a in picks if a["id"] not in drop]
-        seen = {a["id"] for a in picks}
-        extra = sorted([a for a in pool if a["id"] not in seen and not a.get("_google")], key=importance)
-        picks += extra[:len(drop)]
-
-    # 3) 不足补足
+    # 某组抓不满(如日本)时: 按重要性从剩余里补足
     if len(picks) < target:
-        seen_ids = {p["id"] for p in picks}
-        extra = sorted([a for a in arts if a["id"] not in seen_ids], key=importance)
+        extra = sorted([a for a in arts if a["id"] not in seen], key=importance)
         picks += extra[:target - len(picks)]
     return picks[:target]
 
