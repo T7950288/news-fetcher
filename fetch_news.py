@@ -665,40 +665,41 @@ def main():
         old, sha = {"articles": []}, None
 
     old_ids = {a["id"] for a in old["articles"]}
-    # 只保留15家白名单媒体的旧条目
-    old["articles"] = [a for a in old["articles"] if (a.get("country"), a.get("source")) in WHITELIST]
-    # 关键修复: AI翻译过的条目必须保留(否则每轮覆盖, 翻译成果全丢)
-    keep_old = []
+    # 旧库: 只留15家白名单且有正文的条目, 用于同id带翻译/不足补位
+    old_by_id = {}
     for a in old["articles"]:
-        co = (a.get("content_orig") or "").strip()
-        cz = (a.get("content_zh") or "").strip()
-        if not co:
-            continue
-        if a.get("translate_by") == "ai" and len(cz) >= 20:
-            keep_old.append(a)  # 保留AI翻译成果, 参与30条截断
+        if (a.get("country"), a.get("source")) in WHITELIST and (a.get("content_orig") or "").strip():
+            old_by_id[a["id"]] = a
+    # 关键修复v5.9: 以本轮最新picked为主(新新闻+五国保底必进库),
+    # 同id的AI翻译成果自动带上(不重复翻译), 杜绝旧条目挤占新条目配额
+    for a in recent:
+        o = old_by_id.get(a["id"])
+        if o and o.get("translate_by") == "ai" and len((o.get("content_zh") or "").strip()) >= 20:
+            a["title_zh"] = o.get("title_zh") or a["title_orig"]
+            a["summary_zh"] = o.get("summary_zh") or ""
+            a["content_zh"] = o.get("content_zh") or ""
+            a["translate_by"] = "ai"
         else:
-            rep = dict(a)
-            rep["_lang"] = COUNTRY_LANG.get(a.get("country", "UK"), "en")
-            keep_old.append(rep)  # 非AI/空白的补翻
-
-    to_translate = [a for a in recent if a["id"] not in old_ids]
-    to_translate += [a for a in keep_old if "_lang" in a]
-    keep_old = [a for a in keep_old if "_lang" not in a]
-    print(f"translating {len(to_translate)} new/repair...")
-    if to_translate:
-        with ThreadPoolExecutor(max_workers=10) as ex:
-            to_translate = list(ex.map(translate_article, to_translate))
-
-    merged = to_translate + keep_old
-    d = {}
-    for a in merged:
-        if a["id"] not in d:
-            d[a["id"]] = a
-    merged2 = sorted(d.values(), key=lambda x: x["published_at"], reverse=True)
+            a["title_zh"] = a["title_orig"]
+            a["content_zh"] = ""
+            a["summary_zh"] = ""
+            a["translate_by"] = "none"
+    merged2 = recent[:TARGET]
+    # 新条目不足30时, 用上轮AI翻译过的旧条目补位(24h内)
+    if len(merged2) < TARGET:
+        have = {a["id"] for a in merged2}
+        for a in sorted(old_by_id.values(), key=lambda x: x.get("published_at", ""), reverse=True):
+            if len(merged2) >= TARGET:
+                break
+            if a["id"] in have:
+                continue
+            if a.get("translate_by") != "ai":
+                continue
+            merged2.append(a)
     merged2 = [a for a in merged2
                if 0 <= (now - datetime.fromisoformat(a["published_at"])).total_seconds() < 86400]
-    merged2 = merged2[:TARGET]
     print("MERGED country", dict(_C(a["country"] for a in merged2)))
+    print("MERGED ai", sum(1 for a in merged2 if a.get("translate_by") == "ai"))
     new_data = {"version": "1.0", "updated_at": now.isoformat(), "articles": merged2}
     if sha:
         try:
