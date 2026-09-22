@@ -263,6 +263,8 @@ def fetch_one(url, source, country, hint):
                 break
         if not pub:
             pub = datetime.now(CST).isoformat()
+        if country == "JP":
+            print(f"  JPRAW {source}: published={e.get('published','')!r} parsed={getattr(e,'published_parsed',None)} pub={pub[:19]}")
         arts.append({
             "title_orig": title,
             "title_zh": title,
