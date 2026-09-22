@@ -409,16 +409,16 @@ def _fetch_jina(url):
                 continue
             if r.status_code != 200:
                 return None
-        txt = r.text or ""
-        idx = txt.find("---")
-        if idx > 0:
-            txt = txt[idx + 3:]
-        lines = [ln.strip() for ln in txt.split("\n") if ln.strip()]
-        paras = [ln for ln in lines if len(ln) > 25 and not ln.startswith(
-            ("#", "![", "[", ">", "*", "-", "|", "```"))]
-        body = "\n".join(paras)
-        if len(body) >= 200:
-            return body[:MAX_BODY]
+            txt = r.text or ""
+            idx = txt.find("---")
+            if idx > 0:
+                txt = txt[idx + 3:]
+            lines = [ln.strip() for ln in txt.split("\n") if ln.strip()]
+            paras = [ln for ln in lines if len(ln) > 25 and not ln.startswith(
+                ("#", "![", "[", ">", "*", "-", "|", "```"))]
+            body = "\n".join(paras)
+            if len(body) >= 200:
+                return body[:MAX_BODY]
         except Exception:
             pass
     return None
