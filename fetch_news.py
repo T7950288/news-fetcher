@@ -69,10 +69,10 @@ FEEDS = [
     ("https://www.spiegel.de/schlagzeilen/index.rss", "明镜", "DE", "world"),
     ("https://www.spiegel.de/wirtschaft/index.rss", "明镜", "DE", "finance"),
     ("https://www.bild.de/rss-feeds/rss-16725492,feed=home.bild.html", "图片报", "DE", "world"),
-    # JP 3家 (多备选RSS)
-    (["https://www3.nhk.or.jp/nhkworld/en/news/feed.xml", "https://www3.nhk.or.jp/rss/news/cat0.xml"], "NHK", "JP", "world"),
-    (["https://www.yomiuri.co.jp/news_rss.xml", "https://japannews.yomiuri.co.jp/feed/"], "读卖新闻", "JP", "world"),
-    ("http://rss.asahi.com/rss/asahi/newsheadlines.rdf", "朝日新闻", "JP", "world"),
+    # JP 3家 (多备选RSS; 日文源常对海外IP返回旧缓存/限流, 加RSSHub聚合通道)
+    (["https://rsshub.app/nhk/news/en", "https://www3.nhk.or.jp/nhkworld/en/news/feed.xml", "https://www3.nhk.or.jp/rss/news/cat4.xml"], "NHK", "JP", "world"),
+    (["https://japannews.yomiuri.co.jp/feed", "https://www.yomiuri.co.jp/news_rss.xml"], "读卖新闻", "JP", "world"),
+    (["https://www.asahi.com/ajw/rss/", "http://rss.asahi.com/rss/asahi/newsheadlines.rdf"], "朝日新闻", "JP", "world"),
 ]
 
 COUNTRY_LANG = {"UK": "en", "US": "en", "FR": "fr", "DE": "de", "JP": "ja"}
