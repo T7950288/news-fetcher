@@ -375,6 +375,14 @@ def translate_long(text, src):
     return "\n".join(out)
 
 
+DIAG = {"resolve_ok": 0, "resolve_page": 0, "fetch_ok": 0, "jina_ok": 0,
+        "agency_search_ok": 0, "agency_fetch_ok": 0, "http_err": 0, "parse_empty": 0}
+
+
+def _log(msg):
+    print(msg, flush=True)
+
+
 PAYWALL_MARKERS = [
     "cet article est réservé aux abonnés",
     "pour sauvegarder un article vous devez être connecté",
@@ -422,6 +430,7 @@ def fetch_full_text(url, lang):
         try:
             r = requests.get(url, timeout=15, headers={"User-Agent": UA})
             if r.status_code != 200:
+                DIAG["http_err"] += 1
                 if attempt == 0:
                     time.sleep(1)
                 continue
@@ -448,12 +457,14 @@ def fetch_full_text(url, lang):
                         return None  # 正文被付费墙吞掉, 视为抓不到全文
                     return clean[:MAX_BODY]
                 return best[:MAX_BODY]
+            DIAG["parse_empty"] += 1
         except Exception:
             pass
         if attempt == 0:
             time.sleep(1)
     j = _fetch_jina(url)
     if j:
+        DIAG["jina_ok"] += 1
         return j
     return None
 
@@ -723,9 +734,11 @@ def agency_full_text(a):
     u = search_article_url(t, src)
     if not u:
         return a
+    DIAG["agency_search_ok"] += 1
     ft = fetch_full_text(u, a.get("_lang", "en"))
     if not ft:
         return a
+    DIAG["agency_fetch_ok"] += 1
     a["content_orig"] = ft
     a["agency"] = src
     a["_full"] = True
@@ -736,13 +749,13 @@ def agency_full_text(a):
 def main():
     t0 = time.time()
     load_config()
-    print("fetching sources...")
+    _log("fetching sources...")
     with ThreadPoolExecutor(max_workers=8) as ex:
         results = list(ex.map(lambda f: fetch_one(*f), FEEDS))
     all_arts = []
     for r in results:
         all_arts.extend(r)
-    print(f"fetched {len(all_arts)} raw")
+    _log(f"fetched {len(all_arts)} raw")
 
     seen = set()
     uniq = []
@@ -760,10 +773,10 @@ def main():
         if key not in best or SOURCE_RANK.get(a["source"], 9) < SOURCE_RANK.get(best[key]["source"], 9):
             best[key] = a
     uniq = sorted(best.values(), key=lambda x: x["published_at"], reverse=True)
-    print(f"unique {len(uniq)}")
+    _log(f"unique {len(uniq)}")
 
     # 全文抓取(去重后量小, 8线程并行)
-    print("fetching full text...")
+    _log("fetching full text...")
     with ThreadPoolExecutor(max_workers=8) as ex:
         def resolve_google_link(url):
             """Google中转链接 -> 真实媒体URL: 302跟随 / 200页面提取canonical/og:url"""
@@ -795,10 +808,12 @@ def main():
                     real = resolve_google_link(a["url"])
                     if real and real != a["url"]:
                         a["url"] = real
+                        DIAG["resolve_ok"] += 1
                     ft = fetch_full_text(a["url"], a["_lang"])
                     if ft:
                         a["content_orig"] = ft
                         a["_full"] = True
+                        DIAG["fetch_ok"] += 1
                         a.setdefault("agency", a.get("source"))
                 return a
             real = resolve_google_link(a["url"])
@@ -813,7 +828,8 @@ def main():
     full_n = sum(1 for a in uniq if a.get("_full"))
     agency_n = sum(1 for a in uniq if a.get("agency"))
     china_n = sum(1 for a in uniq if a.get("_china"))
-    print(f"full_text ok {full_n}/{len(uniq)}  agency {agency_n}  china {china_n}")
+    _log(f"full_text ok {full_n}/{len(uniq)}  agency {agency_n}  china {china_n}")
+    _log("DIAG " + json.dumps(DIAG))
 
     now = datetime.now(CST)
     china_list = [a for a in uniq if a.get("_china")]
@@ -829,7 +845,7 @@ def main():
                     if re.sub(r"\W+", "", a["title_orig"].lower())[:60] not in main_keys][:6]
     recent = recent_main + recent_china
     from collections import Counter as _C
-    print(f"picked {len(recent)} (main {len(recent_main)} + china {len(recent_china)})",
+    _log(f"picked {len(recent)} (main {len(recent_main)} + china {len(recent_china)})",
           dict(_C(a["country"] for a in recent)))
     print("picked cat", dict(_C(a["category"] for a in recent)))
     print("picked full", sum(1 for a in recent if a.get("_full")))
