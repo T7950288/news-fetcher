@@ -381,8 +381,8 @@ DIAG = {"resolve_ok": 0, "resolve_page": 0, "fetch_ok": 0, "jina_ok": 0,
         "agency_search_ok": 0, "agency_fetch_ok": 0, "http_err": 0, "parse_empty": 0}
 
 
-def _log(msg):
-    print(msg, flush=True)
+def _log(*args):
+    print(*args, flush=True)
 
 
 PAYWALL_MARKERS = [
@@ -399,12 +399,16 @@ PAYWALL_MARKERS = [
 
 
 def _fetch_jina(url):
-    """jina reader 兜底: 服务端渲染跟随重定向, 返回markdown文本"""
-    try:
-        r = requests.get("https://r.jina.ai/" + url, timeout=25,
-                         headers={"User-Agent": UA, "Accept": "text/plain"})
-        if r.status_code != 200:
-            return None
+    """jina reader 兜底: 服务端渲染跟随重定向, 返回markdown文本; 429限流重试2次"""
+    for _att in range(3):
+        try:
+            r = requests.get("https://r.jina.ai/" + url, timeout=25,
+                             headers={"User-Agent": UA, "Accept": "text/plain"})
+            if r.status_code == 429:
+                time.sleep(2.5)
+                continue
+            if r.status_code != 200:
+                return None
         txt = r.text or ""
         idx = txt.find("---")
         if idx > 0:
@@ -415,8 +419,8 @@ def _fetch_jina(url):
         body = "\n".join(paras)
         if len(body) >= 200:
             return body[:MAX_BODY]
-    except Exception:
-        pass
+        except Exception:
+            pass
     return None
 
 
@@ -779,27 +783,33 @@ def main():
 
     # 全文抓取(去重后量小, 8线程并行)
     _log("fetching full text...")
-    with ThreadPoolExecutor(max_workers=8) as ex:
+    with ThreadPoolExecutor(max_workers=4) as ex:
         def resolve_google_link(url):
-            """Google中转链接 -> 真实媒体URL: 302跟随 / 200页面提取canonical/og:url"""
-            if "news.google.com/rss/articles" not in url:
+            """Google中转链接 -> 真实媒体URL: /articles/CODE?oc=5 变体302跟随 + canonical/og:url提取"""
+            if "news.google.com" not in url:
                 return url
             hdrs = {"User-Agent": UA,
                     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
                     "Accept-Language": "en-US,en;q=0.9"}
-            try:
-                r = requests.get(url, timeout=15, headers=hdrs, allow_redirects=True)
-                final = (r.url or "").strip()
-                if final and final != url and "news.google.com" not in final:
-                    return final
-                # 200 HTML: canonical / og:url 里含真实媒体地址
-                for pat in (r'<link[^>]+rel="canonical"[^>]+href="([^"]+)"',
-                            r'<meta[^>]+property="og:url"[^>]+content="([^"]+)"'):
-                    m = re.search(pat, r.text or "")
-                    if m and "news.google.com" not in m.group(1):
-                        return m.group(1)
-            except Exception:
-                pass
+            cands = [url]
+            code = re.search(r'/articles/([^?&]+)', url)
+            if code:
+                c = code.group(1)
+                cands += [f"https://news.google.com/articles/{c}?oc=5",
+                          f"https://news.google.com/articles/{c}"]
+            for u in cands:
+                try:
+                    r = requests.get(u, timeout=12, headers=hdrs, allow_redirects=True)
+                    final = (r.url or "").strip()
+                    if final and "news.google.com" not in final:
+                        return final
+                    for pat in (r'<link[^>]+rel="canonical"[^>]+href="([^"]+)"',
+                                r'<meta[^>]+property="og:url"[^>]+content="([^"]+)"'):
+                        m = re.search(pat, r.text or "")
+                        if m and "news.google.com" not in m.group(1):
+                            return m.group(1)
+                except Exception:
+                    continue
             return url
 
         def enrich(a):
