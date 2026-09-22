@@ -13,7 +13,7 @@
   5. 社论/时政靠多语言关键词判定, 无聊词(娱乐/犯罪/交通/天气/健康)硬过滤; 重大灾难保留
   6. 全文抓取: 多路选择器提<p>, 失败降权, 不做硬失败
 """
-import os, re, json, base64, time, hashlib, random, sys
+import os, re, json, base64, time, hashlib, random, sys, threading
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(line_buffering=True)
 from datetime import datetime, timezone, timedelta
@@ -716,25 +716,91 @@ def _title_sim(a, b):
     return len(sa & sb) / max(len(sa), len(sb))
 
 
+GDELT_DOMAINS = {
+    "apnews.com", "reuters.com", "afp.com", "bbc.com", "theguardian.com", "npr.org",
+    "cnn.com", "cbsnews.com", "nbcnews.com", "abcnews.go.com", "usatoday.com",
+    "independent.co.uk", "yahoo.com", "aljazeera.com", "cnbc.com", "theverge.com",
+    "businessinsider.com", "fortune.com", "newsweek.com", "axios.com", "politico.com",
+    "thehill.com", "scmp.com", "dw.com", "latimes.com", "wsj.com", "nytimes.com",
+    "ft.com", "bloomberg.com", "reutersagency.com",
+}
+STOPWORDS = set(("the a an and or of in on to for with from by at is are was were be been "
+                  "this that these those it its as but not his her their our your new says said "
+                  "after before amid over under into about out off up down more most other such "
+                  "will would can could should may might has have had do does did live updates "
+                  "breaking news update updates").split())
+_gdelt_lock = threading.Lock()
+_gdelt_last = [0.0]
+
+
+def _gdelt_query(title):
+    words = [w for w in re.sub(r"[^a-z0-9 ]", " ", title.lower()).split() if w not in STOPWORDS]
+    picks = words[:3]
+    if not picks:
+        return None
+    return urllib.parse.quote(" ".join('"%s"' % w for w in picks))
+
+
+def gdelt_lookup(title):
+    """L1: GDELT DOC 2.0 全文检索 -> 真实文章URL (官方限流 5s/次, 全局串行)"""
+    q = _gdelt_query(title)
+    if not q:
+        return None
+    with _gdelt_lock:
+        wait = 5.0 - (time.time() - _gdelt_last[0])
+        if wait > 0:
+            time.sleep(wait)
+        _gdelt_last[0] = time.time()
+    try:
+        r = requests.get(
+            f"https://api.gdeltproject.org/api/v2/doc/doc?query={q}&mode=artlist&format=json&maxrecords=8&sort=datedesc",
+            timeout=20, headers={"User-Agent": UA})
+        if r.status_code != 200:
+            return None
+        for a in (r.json().get("articles") or []):
+            u = (a.get("url") or "").strip()
+            dom = (a.get("domain") or "").strip().lower()
+            if not dom and u:
+                try:
+                    dom = urllib.parse.urlparse(u).netloc
+                except Exception:
+                    dom = ""
+            if dom in GDELT_DOMAINS and _title_sim((a.get("title") or ""), title) >= 0.45:
+                return u
+    except Exception:
+        pass
+    return None
+
+
+def _order_pairs(pairs):
+    """(标题,媒体名) 对: 通讯社 -> 免费媒体 -> 其他, 保持优先级"""
+    ordered = []
+    for name in AGENCY_NAMES:
+        for t, s in pairs:
+            if name.strip() in _norm_src(s) and (t, s) not in ordered:
+                ordered.append((t, s))
+    for name in FREE_NAMES:
+        for t, s in pairs:
+            if name.strip() in _norm_src(s) and (t, s) not in ordered:
+                ordered.append((t, s))
+    for t, s in pairs:
+        if (t, s) not in ordered:
+            ordered.append((t, s))
+    return ordered
+
+
 def search_article_url(title, source):
-    """用 标题+site:域名 搜索真实文章URL; jina Google -> Bing News RSS -> DDG -> Mojeek; 失败返回 None"""
+    """四路级联找真实URL: L1 GDELT -> L2 Bing News RSS -> L3 DDG/Mojeek; 失败返回 None"""
     domain = find_domain(source)
+    hdrs = {"User-Agent": UA, "Accept-Language": "en-US,en;q=0.9"}
+    # L1: GDELT DOC 2.0 (不依赖 domain 白名单里的 source, 直接全文检索)
+    u1 = gdelt_lookup(title)
+    if u1:
+        return u1
     if not domain:
         return None
     q = urllib.parse.quote(f'{title[:120]} site:{domain}')
-    hdrs = {"User-Agent": UA, "Accept-Language": "en-US,en;q=0.9"}
-    # 1) jina 渲染 Google 搜索(服务端渲染, 绕过反爬)
-    try:
-        r = requests.get("https://r.jina.ai/https://www.google.com/search?q=" + q,
-                         timeout=30, headers={"User-Agent": UA, "Accept": "text/plain"})
-        if r.status_code == 200:
-            for m in re.finditer(r'https?://[^\s"<>]+', r.text or ""):
-                u = m.group(0).rstrip('.,);]')
-                if domain in u and "google.com" not in u.split("/")[2]:
-                    return u
-    except Exception:
-        pass
-    # 2) Bing News RSS(真实链接, 低反爬)
+    # L2: Bing News RSS(真实链接, 低反爬)
     try:
         bq = urllib.parse.quote(f'{title[:100]} {domain}')
         r = requests.get(f"https://www.bing.com/news/search?q={bq}&format=rss",
@@ -899,34 +965,40 @@ def main():
             return url
 
         def enrich(a):
-            if a.get("_google"):
-                # v7: 优先通讯社/免费媒体全文; 失败退主来源真实链接全文; 再失败保留聚合标题
-                a = agency_full_text(a)
-                if not a.get("_full"):
-                    real = resolve_google_link(a["url"])
-                    if real and real != a["url"]:
-                        a["url"] = real
-                        DIAG["resolve_ok"] += 1
-                    ft = fetch_full_text(a["url"], a["_lang"])
-                    if ft:
-                        a["content_orig"] = ft
-                        a["_full"] = True
-                        DIAG["fetch_ok"] += 1
-                        a.setdefault("agency", a.get("source"))
+            if not a.get("_google"):
                 return a
-            real = resolve_google_link(a["url"])
-            if real != a["url"]:
-                a["url"] = real  # 换成真实媒体链接(云端已抓回正文)
-            ft = fetch_full_text(a["url"], a["_lang"])
-            if ft:
-                a["content_orig"] = ft
-                a["_full"] = True
+            lang = a.get("_lang", "en")
+            # 四路级联: 通讯社/免费媒体优先逐家查真实URL, 命中才抓正文
+            pairs = parse_pairs(a.get("content_orig", ""))
+            cands = _order_pairs(pairs)[:2]
+            for t, src in cands:
+                u = search_article_url(t, src)
+                if not u:
+                    continue
+                ft = fetch_full_text(u, lang)
+                if ft:
+                    a["content_orig"] = ft
+                    a["agency"] = src
+                    a["_full"] = True
+                    a["url"] = u
+                    DIAG["fetch_ok"] += 1
+                    return a
+            # 主来源兜底
+            u = search_article_url(a.get("title_orig", ""), a.get("source", ""))
+            if u:
+                ft = fetch_full_text(u, lang)
+                if ft:
+                    a["content_orig"] = ft
+                    a["_full"] = True
+                    a["url"] = u
+                    DIAG["fetch_ok"] += 1
             return a
         uniq = list(ex.map(enrich, uniq))
     full_n = sum(1 for a in uniq if a.get("_full"))
     agency_n = sum(1 for a in uniq if a.get("agency"))
     china_n = sum(1 for a in uniq if a.get("_china"))
     _log(f"full_text ok {full_n}/{len(uniq)}  agency {agency_n}  china {china_n}")
+    DIAG["gdelt_ok"] = DIAG.get("gdelt_ok", 0)
     DIAG["src_links"] = sum(1 for a in uniq if a.get("_src_links"))
     DIAG["src_links_real"] = sum(
         1 for a in uniq if any("news.google.com" not in u for _, u in (a.get("_src_links") or [])))
