@@ -444,8 +444,7 @@ def main():
             rep = dict(a)
             rep["_lang"] = COUNTRY_LANG.get(a.get("country", "UK"), "en")
             keep_old.append(rep)  # 非AI且空白的旧条目补翻
-        else:
-            keep_old.append(a)
+        # 已翻译的旧条目不保留: 每轮只留最新30条, 旧条目淘汰不占名额
 
     to_translate = [a for a in recent if a["id"] not in old_ids]
     to_translate += [a for a in keep_old if "_lang" in a]
