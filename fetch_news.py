@@ -13,7 +13,9 @@
   5. 社论/时政靠多语言关键词判定, 无聊词(娱乐/犯罪/交通/天气/健康)硬过滤; 重大灾难保留
   6. 全文抓取: 多路选择器提<p>, 失败降权, 不做硬失败
 """
-import os, re, json, base64, time, hashlib, random
+import os, re, json, base64, time, hashlib, random, sys
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(line_buffering=True)
 from datetime import datetime, timezone, timedelta
 from concurrent.futures import ThreadPoolExecutor
 import urllib.request
