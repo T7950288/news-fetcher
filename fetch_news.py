@@ -388,6 +388,28 @@ PAYWALL_MARKERS = [
 ]
 
 
+def _fetch_jina(url):
+    """jina reader 兜底: 服务端渲染跟随重定向, 返回markdown文本"""
+    try:
+        r = requests.get("https://r.jina.ai/" + url, timeout=25,
+                         headers={"User-Agent": UA, "Accept": "text/plain"})
+        if r.status_code != 200:
+            return None
+        txt = r.text or ""
+        idx = txt.find("---")
+        if idx > 0:
+            txt = txt[idx + 3:]
+        lines = [ln.strip() for ln in txt.split("\n") if ln.strip()]
+        paras = [ln for ln in lines if len(ln) > 25 and not ln.startswith(
+            ("#", "![", "[", ">", "*", "-", "|", "```"))]
+        body = "\n".join(paras)
+        if len(body) >= 200:
+            return body[:MAX_BODY]
+    except Exception:
+        pass
+    return None
+
+
 def fetch_full_text(url, lang):
     """抓文章页全文; 成功返回正文(最多MAX_BODY), 失败返回None"""
     sels = ["article", "[itemprop='articleBody']", "[class*='article-body']",
@@ -430,6 +452,9 @@ def fetch_full_text(url, lang):
             pass
         if attempt == 0:
             time.sleep(1)
+    j = _fetch_jina(url)
+    if j:
+        return j
     return None
 
 
@@ -741,27 +766,40 @@ def main():
     print("fetching full text...")
     with ThreadPoolExecutor(max_workers=8) as ex:
         def resolve_google_link(url):
-            """Google中转链接 -> 真实媒体URL (云端能访问外网, 把真地址写回应用)"""
+            """Google中转链接 -> 真实媒体URL: 302跟随 / 200页面提取canonical/og:url"""
             if "news.google.com/rss/articles" not in url:
                 return url
+            hdrs = {"User-Agent": UA,
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                    "Accept-Language": "en-US,en;q=0.9"}
             try:
-                r = requests.get(url, timeout=15, headers={"User-Agent": UA}, allow_redirects=True)
+                r = requests.get(url, timeout=15, headers=hdrs, allow_redirects=True)
                 final = (r.url or "").strip()
                 if final and final != url and "news.google.com" not in final:
                     return final
+                # 200 HTML: canonical / og:url 里含真实媒体地址
+                for pat in (r'<link[^>]+rel="canonical"[^>]+href="([^"]+)"',
+                            r'<meta[^>]+property="og:url"[^>]+content="([^"]+)"'):
+                    m = re.search(pat, r.text or "")
+                    if m and "news.google.com" not in m.group(1):
+                        return m.group(1)
             except Exception:
                 pass
             return url
 
         def enrich(a):
             if a.get("_google"):
-                # v7: 优先通讯社/免费媒体全文, 匹配不到保留聚合标题
+                # v7: 优先通讯社/免费媒体全文; 失败退主来源真实链接全文; 再失败保留聚合标题
                 a = agency_full_text(a)
                 if not a.get("_full"):
+                    real = resolve_google_link(a["url"])
+                    if real and real != a["url"]:
+                        a["url"] = real
                     ft = fetch_full_text(a["url"], a["_lang"])
                     if ft:
                         a["content_orig"] = ft
                         a["_full"] = True
+                        a.setdefault("agency", a.get("source"))
                 return a
             real = resolve_google_link(a["url"])
             if real != a["url"]:
