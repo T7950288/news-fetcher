@@ -209,11 +209,11 @@ SKIP_KEYS = {
            "traffic accident", "house fire", "lottery", "recipe", "diet",
            "weight loss", "blood pressure", "vitamin", "health tips", "yoga",
            "garden", "pets", "dogs ", "cats ", "horoscope", "quiz"],
-    "de": ["wetter", "unfall", "verkehrsunfall", "fussball", "bundesliga", "tennis",
-           "schauspieler", "promi", "musik", "konzert", "film", "fernsehen",
+    "de": ["wetter", "unfall", "verkehrsunfall", "fussball", "fußball", "bundesliga",
+           "tennis", "schauspieler", "promi", "musik", "konzert", "film", "fernsehen",
            "tv-sendung", "penis", "ufo", "alien", "kosmetik", "abnehmen",
            "shopping", "mord", "raub", "unfall", "wetter", "rezept", "diät",
-           "horoskop", "haustier"],
+           "horoskop", "haustier", "säugling", "babys", "fussball-wm", "fußball-wm"],
     "fr": ["météo", "meteo", "accident", "circulation", "football", "ligue 1",
            "tennis", "acteur", "actrice", "star", "concert", "musique", "film",
            "télévision", "television", "temps", "meurtre", "braquage", "recette",
@@ -229,6 +229,8 @@ SKIP_URL_PARTS = [
     "/culture/", "/film/", "/music/", "/books/", "/lifeandstyle/", "/football/",
     "/faits-divers/", "/people/", "/entertainment/", "/movies/", "/celebrity/",
     "/health/", "/food/", "/artanddesign/", "/games/", "/technology/",
+    # 科学科普/健康生活(重大科技大事标题含AI/芯片等科技词会经SKIP_KEYS外的SOFT命中保留, 此处仅拦普通科普)
+    "/wissenschaft/", "/gesundheit/",
 ]
 
 
