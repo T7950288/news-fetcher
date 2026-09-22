@@ -144,7 +144,7 @@ def main():
     recent = recent[:60]
     # 并行翻译：10个线程同时翻译标题+摘要
     print(f"translating {len(recent)} articles in parallel...")
-    with ThreadPoolExecutor(max_workers=10) as ex:
+    with ThreadPoolExecutor(max_workers=20) as ex:
         recent = list(ex.map(translate_article, recent))
     # 合并到现有
     try:
