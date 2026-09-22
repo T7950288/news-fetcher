@@ -49,7 +49,7 @@ def translate(text, src="en"):
         return text
     text = text[:200]
     try:
-        url = f"https://api.mymemory.translated.net/get?q={urllib.parse.quote(text)}&langpair={src}|zh-CN"
+        url = f"https://api.mymemory.translated.net/get?q={urllib.parse.quote(text)}&langpair={src}|zh-CN&de=7950288@sina.com.cn"
         req = urllib.request.Request(url, headers={"User-Agent":"Mozilla/5.0"})
         with urllib.request.urlopen(req, timeout=5) as r:
             data = json.loads(r.read())
@@ -104,18 +104,14 @@ def fetch_one(url, source, country, hint):
     return arts
 
 def translate_article(a):
-    """并行翻译单条：标题+摘要前300字，失败重试一次"""
+    """并行翻译单条：只翻译标题，节省每日字符额度"""
     lang = a.pop("_lang", "en")
     t = translate(a["title_orig"], lang)
     if t == a["title_orig"] and len(t) > 5:
-        time.sleep(0.5)
+        time.sleep(1)
         t = translate(a["title_orig"], lang)
     a["title_zh"] = t
-    s = translate(a["content_orig"][:300], lang)
-    if s == a["content_orig"][:300] and len(s) > 10:
-        time.sleep(0.5)
-        s = translate(a["content_orig"][:300], lang)
-    a["summary_zh"] = s
+    a["summary_zh"] = a["content_orig"][:200]
     return a
 
 def gitee_get():
@@ -158,7 +154,7 @@ def main():
     recent = recent[:60]
     # 并行翻译：10个线程同时翻译标题+摘要
     print(f"translating {len(recent)} articles in parallel...")
-    with ThreadPoolExecutor(max_workers=15) as ex:
+    with ThreadPoolExecutor(max_workers=5) as ex:
         recent = list(ex.map(translate_article, recent))
     # 合并到现有
     try:
