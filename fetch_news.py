@@ -101,6 +101,10 @@ GOOGLE_SKIP_SOURCES = {
     "mirror", "the sun", "daily star", "metro", "ok! magazine", "gq",
     "marie claire", "glamour", "refinery29", "buzzfeed", "mashable",
     "the verge", "wired", "techcrunch", "engadget", "arstechnica",
+    "motorsport.com", "espn", "sky sports", "formula 1", "f1", "bleacher report",
+    "sporting news", "the athletic", "sports illustrated", "talksport",
+    "cnet", "gizmodo", "toms hardware", "pc gamer", "digital trends",
+    "screen rant", "comicbook", "cinemablend", "gamingbolt",
 }
 
 GOOGLE_COUNTRY = {
@@ -235,8 +239,17 @@ def skip_news(title, desc, lang, url=""):
     u = (url or "").lower()
     for part in SKIP_URL_PARTS:
         if part in u:
-            # 版块是娱乐/生活, 但内容命中重大时政/国际大事仍放行
-            if any(k in t for k in HARD_WORLD):
+            # 娱乐/生活/体育版块: 无条件丢弃(重大灾难已在上方DISASTER_KEYS放行)。
+            # 不做HARD_WORLD放行——正文里的deal/war/talks等泛词会把八卦误判为时政。
+            # 仅当标题含具体政要/国家专名时视为政要动态放行。
+            head = t[:160]
+            strong = ["trump", "putin", "zelensky", "macron", "merz", "starmer", "biden",
+                      "harris", "netanyahu", "erdogan", "modi", "kim jong", "yoon", "xi jinping",
+                      "china", "chinese", "beijing", "taiwan", "ukraine", "russia", "moscow",
+                      "israel", "iran", "gaza", "nato", "united nations", "联合国", "习近平",
+                      "中国", "台湾", "俄", "乌", "特朗普", "普京", "泽连斯基", "马克龙", "默茨",
+                      "トランプ", "プーチン", "習近平", "中国", "台湾", "ウクライナ", "ロシア"]
+            if any(k in head for k in strong):
                 return False
             return True
     keys = SKIP_KEYS.get(lang, []) + SKIP_KEYS.get("en", [])
