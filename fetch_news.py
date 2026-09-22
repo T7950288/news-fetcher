@@ -707,39 +707,69 @@ def find_domain(source):
     return None
 
 
+def _title_sim(a, b):
+    """标题相似度: 归一化token重叠率"""
+    sa = set(re.sub(r"[^a-z0-9 ]", "", a.lower()).split())
+    sb = set(re.sub(r"[^a-z0-9 ]", "", b.lower()).split())
+    if not sa or not sb:
+        return 0.0
+    return len(sa & sb) / max(len(sa), len(sb))
+
+
 def search_article_url(title, source):
-    """用 标题+site:域名 搜索真实文章URL; DDG html -> DDG lite -> Mojeek -> Bing; 失败返回 None"""
+    """用 标题+site:域名 搜索真实文章URL; jina Google -> Bing News RSS -> DDG -> Mojeek; 失败返回 None"""
     domain = find_domain(source)
     if not domain:
         return None
     q = urllib.parse.quote(f'{title[:120]} site:{domain}')
     hdrs = {"User-Agent": UA, "Accept-Language": "en-US,en;q=0.9"}
-    bases = [
-        "https://html.duckduckgo.com/html/?q=",
-        "https://lite.duckduckgo.com/lite/?q=",
-        "https://www.mojeek.com/search?q=",
-        "https://www.bing.com/search?q=",
-    ]
-    for base in bases:
+    # 1) jina 渲染 Google 搜索(服务端渲染, 绕过反爬)
+    try:
+        r = requests.get("https://r.jina.ai/https://www.google.com/search?q=" + q,
+                         timeout=30, headers={"User-Agent": UA, "Accept": "text/plain"})
+        if r.status_code == 200:
+            for m in re.finditer(r'https?://[^\s"<>]+', r.text or ""):
+                u = m.group(0).rstrip('.,);]')
+                if domain in u and "google.com" not in u.split("/")[2]:
+                    return u
+    except Exception:
+        pass
+    # 2) Bing News RSS(真实链接, 低反爬)
+    try:
+        bq = urllib.parse.quote(f'{title[:100]} {domain}')
+        r = requests.get(f"https://www.bing.com/news/search?q={bq}&format=rss",
+                         timeout=12, headers=hdrs)
+        if r.status_code == 200:
+            d = feedparser.parse(r.content)
+            for e in d.entries[:12]:
+                u = (e.get("link") or "").strip()
+                if not u or "bing.com" in u:
+                    continue
+                if domain in u and _title_sim(e.get("title", ""), title) >= 0.5:
+                    return u
+    except Exception:
+        pass
+    # 3) DDG html / lite
+    for base in ["https://html.duckduckgo.com/html/?q=", "https://lite.duckduckgo.com/lite/?q="]:
         try:
             r = requests.get(base + q, timeout=12, headers=hdrs)
             if r.status_code != 200:
                 continue
-            if "duckduckgo" in base:
-                for h in re.findall(r'uddg=([^&"]+)', r.text):
-                    u = urllib.parse.unquote(h)
-                    if domain in u and "duckduckgo" not in u:
-                        return u
-            elif "mojeek" in base:
-                for h in re.findall(r'<a class="ob"[^>]*href="(https?://[^"]+)"', r.text):
-                    if domain in h:
-                        return h
-            else:
-                for h in re.findall(r'href="(https?://[^"]+)"', r.text):
-                    if domain in h and "bing.com" not in h and "microsoft" not in h and "go.microsoft" not in h:
-                        return h
+            for h in re.findall(r'uddg=([^&"]+)', r.text):
+                u = urllib.parse.unquote(h)
+                if domain in u and "duckduckgo" not in u:
+                    return u
         except Exception:
             continue
+    # 4) Mojeek
+    try:
+        r = requests.get("https://www.mojeek.com/search?q=" + q, timeout=12, headers=hdrs)
+        if r.status_code == 200:
+            for h in re.findall(r'<a class="ob"[^>]*href="(https?://[^"]+)"', r.text):
+                if domain in h:
+                    return h
+    except Exception:
+        pass
     return None
 
 
