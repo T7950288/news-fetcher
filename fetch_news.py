@@ -56,6 +56,7 @@ FEEDS = [
     ("https://www.theguardian.com/world/rss", "卫报", "UK", "world"),
     ("https://www.theguardian.com/business/rss", "卫报", "UK", "finance"),
     ("https://www.theguardian.com/technology/rss", "卫报", "UK", "tech"),
+    ("https://www.theguardian.com/tone/editorials/rss", "卫报", "UK", "op-ed"),
     ("https://www.dailymail.co.uk/home/index.rss", "每日邮报", "UK", "world"),
     # US 4家
     ("http://rss.cnn.com/rss/edition.rss", "CNN", "US", "world"),
@@ -63,15 +64,19 @@ FEEDS = [
     ("https://feeds.npr.org/1006/rss.xml", "NPR", "US", "finance"),
     ("https://feeds.npr.org/1019/rss.xml", "NPR", "US", "tech"),
     ("https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml", "纽约时报", "US", "world"),
+    ("https://rss.nytimes.com/services/xml/rss/nyt/Editorials.xml", "纽约时报", "US", "op-ed"),
     ("https://feeds.a.dj.com/rss/RSSWorldNews.xml", "华尔街日报", "US", "finance"),
+    ("https://feeds.a.dj.com/rss/RSSOpinion.xml", "华尔街日报", "US", "op-ed"),
     # FR 2家
     ("https://www.lemonde.fr/rss/une.xml", "世界报", "FR", "world"),
     ("https://www.lemonde.fr/economie/rss_full.xml", "世界报", "FR", "finance"),
+    ("https://www.lemonde.fr/idees/rss_full.xml", "世界报", "FR", "op-ed"),
     ("http://www.lefigaro.fr/rss/figaro_actualites.xml", "费加罗报", "FR", "world"),
     # DE 3家
     ("https://www.welt.de/feeds/latest.rss", "世界报", "DE", "world"),
     ("https://www.spiegel.de/schlagzeilen/index.rss", "明镜", "DE", "world"),
     ("https://www.spiegel.de/wirtschaft/index.rss", "明镜", "DE", "finance"),
+    ("https://www.spiegel.de/meinung/index.rss", "明镜", "DE", "op-ed"),
     ("https://www.bild.de/rss-feeds/rss-16725492,feed=home.bild.html", "图片报", "DE", "world"),
     # JP 3家 (Google News聚合保24h最新; 原站限流/旧缓存作备选)
     (["https://news.google.com/rss/search?q=site:yomiuri.co.jp&hl=ja&gl=JP&ceid=JP:ja",
@@ -336,27 +341,37 @@ def translate_long(text, src):
 
 def fetch_full_text(url, lang):
     """抓文章页全文; 成功返回正文(最多MAX_BODY), 失败返回None"""
-    try:
-        r = requests.get(url, timeout=15, headers={"User-Agent": UA})
-        if r.status_code != 200:
-            return None
-        soup = BeautifulSoup(r.text, "lxml")
-        for tag in soup(["script", "style", "noscript", "nav", "aside", "header", "footer", "form", "iframe"]):
-            tag.decompose()
-        sels = ["article", "[itemprop='articleBody']", "[class*='article-body']",
-                "[class*='story-body']", "[class*='article__body']", "[class*='article-content']",
-                "[class*='post-content']", "[class*='content-body']", "[class*='story-content']",
-                "[class*='article_text']", "[class*='article-body']", "main", "body"]
-        for sel in sels:
-            node = soup.select_one(sel)
-            if not node:
+    sels = ["article", "[itemprop='articleBody']", "[class*='article-body']",
+            "[class*='story-body']", "[class*='article__body']", "[class*='article-content']",
+            "[class*='post-content']", "[class*='content-body']", "[class*='story-content']",
+            "[class*='article_text']", "[class*='mol-para-with-font']",
+            "[class*='fig-article']", "[class*='c-article']", "[class*='news_text']",
+            "[id*='news_text']", "[data-component='text-block']", "main", "body"]
+    for attempt in range(2):
+        try:
+            r = requests.get(url, timeout=15, headers={"User-Agent": UA})
+            if r.status_code != 200:
+                if attempt == 0:
+                    time.sleep(1)
                 continue
-            paras = [p.get_text(" ", strip=True) for p in node.find_all("p")]
-            text = "\n".join(p for p in paras if len(p) > 25)
-            if len(text) >= 200:
-                return text[:MAX_BODY]
-    except Exception:
-        pass
+            soup = BeautifulSoup(r.text, "lxml")
+            for tag in soup(["script", "style", "noscript", "nav", "aside", "header", "footer", "form", "iframe"]):
+                tag.decompose()
+            best = ""
+            for sel in sels:
+                node = soup.select_one(sel)
+                if not node:
+                    continue
+                paras = [p.get_text(" ", strip=True) for p in node.find_all("p")]
+                text = "\n".join(p for p in paras if len(p) > 25)
+                if len(text) > len(best):
+                    best = text
+            if len(best) >= 200:
+                return best[:MAX_BODY]
+        except Exception:
+            pass
+        if attempt == 0:
+            time.sleep(1)
     return None
 
 
@@ -398,10 +413,13 @@ def fetch_one(url, source, country, hint):
         if not title or not link:
             continue
         desc = clean_html(getattr(e, "summary", "") or getattr(e, "description", ""))
-        if not desc:
+        # RSS自带全文(content:encoded)优先: 摘要太短时取content字段的完整正文
+        if len(desc) < 300:
             for c in (getattr(e, "content", None) or []):
-                desc = clean_html(c.get("value", ""))
-                if desc:
+                full = clean_html(c.get("value", ""))
+                if len(full) > len(desc):
+                    desc = full
+                if len(desc) >= 300:
                     break
         if skip_news(title, desc, lang):
             continue
@@ -489,12 +507,17 @@ def gitee_put(data, sha):
 
 
 def pick_news(arts, target=TARGET):
-    """社论全收+时政≥50%(优先填到70%); 全文优先; 其余按时事补足; 每类内五国轮流"""
+    """全文优先(抓不到全文的尽量不放); 社论全收+时政优先填到70%; 每类内五国轮流"""
     def importance(a):
         return (a.get("_w", 9), 0 if a.get("_full") else 1)
 
-    world = sorted([a for a in arts if a["category"] in ("world", "op-ed")], key=importance)
-    rest = sorted([a for a in arts if a["category"] not in ("world", "op-ed")], key=importance)
+    full = [a for a in arts if a.get("_full")]
+    summary = [a for a in arts if not a.get("_full")]
+    # 全文条目够就不放摘要条目(宁缺毋滥, 用户要求无法全文的尽量少放)
+    pool = full if len(full) >= max(round(target * 0.6), 1) else full + summary
+
+    world = sorted([a for a in pool if a["category"] in ("world", "op-ed")], key=importance)
+    rest = sorted([a for a in pool if a["category"] not in ("world", "op-ed")], key=importance)
     nw = min(len(world), max(round(target * 0.7), 1))  # 时政优先填到70%
 
     def pick_cat(items, n):
