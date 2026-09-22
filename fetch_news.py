@@ -648,7 +648,11 @@ def pick_news(arts, target=TARGET):
 AGENCY_NAMES = ["associated press", "ap news", "ap ", "reuters", "afp", "agence france"]
 FREE_NAMES = ["bbc", "the guardian", "guardian", "npr", "al jazeera", "cbs news", "cnbc",
               "pbs", "dw", "dw.com", "sky news", "the independent", "usa today", "nbc news",
-              "abc news", "yahoo finance", "yahoo", "business insider", "the verge", "fortune"]
+              "abc news", "yahoo finance", "yahoo", "business insider", "the verge", "fortune",
+              "fox news", "axios", "time", "huffpost", "huffington post", "new york post",
+              "washington post", "daily mail", "the telegraph", "telegraph", "politico",
+              "the hill", "newsweek", "los angeles times", "la times", "bloomberg",
+              "cnn", "wsj", "wall street journal", "new york times", "npr.org"]
 SOURCE_DOMAIN = {
     "ap": "apnews.com", "ap news": "apnews.com", "associated press": "apnews.com",
     "reuters": "reuters.com", "afp": "afp.com", "agence france": "afp.com",
@@ -659,6 +663,16 @@ SOURCE_DOMAIN = {
     "nbc news": "nbcnews.com", "abc news": "abcnews.go.com", "yahoo finance": "finance.yahoo.com",
     "yahoo": "yahoo.com", "business insider": "businessinsider.com",
     "the verge": "theverge.com", "fortune": "fortune.com",
+    "fox news": "foxnews.com", "axios": "axios.com", "time": "time.com",
+    "huffpost": "huffpost.com", "huffington post": "huffpost.com",
+    "new york post": "nypost.com", "washington post": "washingtonpost.com",
+    "daily mail": "dailymail.co.uk", "the telegraph": "telegraph.co.uk",
+    "telegraph": "telegraph.co.uk", "politico": "politico.com",
+    "the hill": "thehill.com", "newsweek": "newsweek.com",
+    "los angeles times": "latimes.com", "la times": "latimes.com",
+    "bloomberg": "bloomberg.com", "cnn": "cnn.com",
+    "wsj": "wsj.com", "wall street journal": "wsj.com",
+    "new york times": "nytimes.com", "npr.org": "npr.org",
 }
 
 
@@ -667,12 +681,14 @@ def _norm_src(s):
 
 
 def parse_pairs(text):
-    """聚合desc -> [(标题, 来源), ...]  格式: 标题\n  \n来源\n标题\n  \n来源..."""
+    """聚合desc -> [(子标题, 媒体名), ...]  格式: 首行主标题, 之后 媒体名->子标题 交替"""
     lines = [ln.strip() for ln in (text or "").split("\n") if ln.strip()]
     pairs = []
-    i = 0
+    if not lines:
+        return pairs
+    i = 1
     while i + 1 < len(lines):
-        pairs.append((lines[i], lines[i + 1]))
+        pairs.append((lines[i + 1], lines[i]))  # (子标题, 媒体名)
         i += 2
     if i < len(lines):
         pairs.append((lines[i], ""))
@@ -759,6 +775,14 @@ RSS_POOL = [
     ("newsweek.com", "https://www.newsweek.com/rss"),
     ("scmp.com", "https://www.scmp.com/rss/91/feed"),
     ("bloomberg.com", "https://feeds.bloomberg.com/markets/news.rss"),
+    ("foxnews.com", "https://moxie.foxnews.com/google-publisher/world.xml"),
+    ("axios.com", "https://api.axios.com/feed/"),
+    ("time.com", "https://time.com/feed/"),
+    ("huffpost.com", "https://www.huffpost.com/feeds/news.xml?country=US"),
+    ("nypost.com", "https://nypost.com/feed/"),
+    ("washingtonpost.com", "https://feeds.washingtonpost.com/rss/world"),
+    ("dailymail.co.uk", "https://www.dailymail.co.uk/articles.rss"),
+    ("telegraph.co.uk", "https://www.telegraph.co.uk/rss.xml"),
 ]
 
 
