@@ -554,18 +554,9 @@ def gitee_put(data, sha):
 
 
 def pick_news(arts, target=TARGET):
-    """全文优先(抓不到全文的尽量不放); 社论全收+时政优先填到70%; 每类内五国轮流"""
+    """五国保底(每国至少2条) -> 社论全收+时政优先填70% -> 全文优先补足"""
     def importance(a):
         return (a.get("_w", 9), 0 if a.get("_full") else 1)
-
-    full = [a for a in arts if a.get("_full")]
-    summary = [a for a in arts if not a.get("_full")]
-    # 全文条目够就不放摘要条目(宁缺毋滥, 用户要求无法全文的尽量少放)
-    pool = full if len(full) >= max(round(target * 0.6), 1) else full + summary
-
-    world = sorted([a for a in pool if a["category"] in ("world", "op-ed")], key=importance)
-    rest = sorted([a for a in pool if a["category"] not in ("world", "op-ed")], key=importance)
-    nw = min(len(world), max(round(target * 0.7), 1))  # 时政优先填到70%
 
     def pick_cat(items, n):
         if not items or n <= 0:
@@ -583,22 +574,32 @@ def pick_news(arts, target=TARGET):
             by_country = {k: v for k, v in by_country.items() if v}
         return picks
 
-    picks = pick_cat(world, nw)
-    picks += pick_cat(rest, target - len(picks))
-    # 五国保底: 每国至少2条(优先有全文的)
-    if len(picks) < target:
-        by_c = {}
-        for a in arts:
-            by_c.setdefault(a["country"], []).append(a)
-        for c, items in by_c.items():
+    picks = []
+    # 1) 五国保底: 每国至少2条(优先有全文的)
+    by_c = {}
+    for a in arts:
+        by_c.setdefault(a["country"], []).append(a)
+    for c, items in by_c.items():
+        if len(picks) >= target:
+            break
+        for a in sorted(items, key=importance)[:2]:
             if len(picks) >= target:
                 break
-            have = sum(1 for p in picks if p["country"] == c)
-            if have < 2:
-                for a in sorted(items, key=importance):
-                    if all(p["id"] != a["id"] for p in picks):
-                        picks.append(a)
-                        break
+            if all(p["id"] != a["id"] for p in picks):
+                picks.append(a)
+
+    # 2) 剩余按"全文优先 + 时政70%"填
+    remaining = [a for a in arts if all(p["id"] != a["id"] for p in picks)]
+    full = [a for a in remaining if a.get("_full")]
+    summary = [a for a in remaining if not a.get("_full")]
+    pool = full if len(full) >= max(round(target * 0.6), 1) else full + summary
+    world = sorted([a for a in pool if a["category"] in ("world", "op-ed")], key=importance)
+    rest = sorted([a for a in pool if a["category"] not in ("world", "op-ed")], key=importance)
+    nw = min(len(world), max(round(target * 0.7), 1))
+    picks += pick_cat(world, nw)
+    picks += pick_cat(rest, target - len(picks))
+
+    # 3) 不足补足
     if len(picks) < target:
         seen_ids = {p["id"] for p in picks}
         extra = sorted([a for a in arts if a["id"] not in seen_ids], key=importance)
