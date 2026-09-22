@@ -7,10 +7,11 @@
 3. 上传Gitee前先GET拿最新sha避免冲突。
 4. 每个RSS源超时8秒，翻译超时5秒，失败快速跳过。
 """
-import os, re, json, base64, time, hashlib
+import os, re, json, base64, time, hashlib, random
 from datetime import datetime, timezone, timedelta
 from concurrent.futures import ThreadPoolExecutor
 import urllib.request
+import urllib.parse
 import feedparser
 from bs4 import BeautifulSoup
 
@@ -48,25 +49,61 @@ BAIDU_APPID = "20260917002686240"
 BAIDU_SECRET = "6JZO5lWQ2F4GbXr2ycjN"
 BAIDU_LANG = {"en":"en","fr":"fra","de":"de","ja":"jp"}
 
+def _baidu(text, src):
+    """百度翻译：主引擎，每月100万字符免费"""
+    salt = str(int(time.time()*1000))
+    sign = hashlib.md5((BAIDU_APPID + text + salt + BAIDU_SECRET).encode()).hexdigest()
+    from_lang = BAIDU_LANG.get(src, "en")
+    url = f"https://fanyi-api.baidu.com/api/trans/vip/translate?q={urllib.parse.quote(text)}&from={from_lang}&to=zh&appid={BAIDU_APPID}&salt={salt}&sign={sign}"
+    req = urllib.request.Request(url, headers={"User-Agent":"Mozilla/5.0"})
+    with urllib.request.urlopen(req, timeout=8) as r:
+        data = json.loads(r.read())
+        if "trans_result" in data:
+            return "".join(x["dst"] for x in data["trans_result"])
+    return None
+
+def _youdao(text, src):
+    """有道网页翻译：第二备用，免注册"""
+    ts = str(int(time.time()*1000))
+    salt = ts + str(random.randint(10,99))
+    bv = hashlib.md5(b"5.0 (Windows NT 10.0; Win64; x64)").hexdigest()
+    sign_str = "fanyideskweb" + text + salt + "Ygy_4c=r#e#4EX^NUGUc5"
+    sign = hashlib.md5(sign_str.encode()).hexdigest()
+    body = urllib.parse.urlencode({
+        "i": text, "from": "AUTO", "to": "AUTO",
+        "smartresult": "dict", "client": "fanyideskweb",
+        "salt": salt, "sign": sign, "ts": ts, "bv": bv,
+        "doctype": "json", "version": "2.1", "action": "FANY"
+    }).encode()
+    req = urllib.request.Request("http://fanyi.youdao.com/translate",
+        data=body, headers={"User-Agent":"Mozilla/5.0","Content-Type":"application/x-www-form-urlencoded"})
+    with urllib.request.urlopen(req, timeout=8) as r:
+        data = json.loads(r.read())
+        if data.get("errorCode") == 0:
+            return "".join(x["tgt"] for x in data["translateResult"])
+    return None
+
+def _mymemory(text, src):
+    """MyMemory：第三备用，带邮箱50000字符/天"""
+    url = f"https://api.mymemory.translated.net/get?q={urllib.parse.quote(text)}&langpair={src}|zh-CN&de=7950288@sina.com.cn"
+    req = urllib.request.Request(url, headers={"User-Agent":"Mozilla/5.0"})
+    with urllib.request.urlopen(req, timeout=5) as r:
+        data = json.loads(r.read())
+        return data["responseData"]["translatedText"]
+
 def translate(text, src="en"):
-    """百度翻译API，每月100万字符免费"""
+    """三级备用：百度→有道→MyMemory，全部免费"""
     if not text or len(text) < 5:
         return text
     text = text[:500]
-    salt = str(int(time.time()*1000))
-    sign = hashlib.md5((BAIDU_APPID + text + salt + BAIDU_SECRET).encode()).hexdigest()
-    to_lang = "zh"
-    from_lang = BAIDU_LANG.get(src, "en")
-    try:
-        url = f"https://fanyi-api.baidu.com/api/trans/vip/translate?q={urllib.parse.quote(text)}&from={from_lang}&to={to_lang}&appid={BAIDU_APPID}&salt={salt}&sign={sign}"
-        req = urllib.request.Request(url, headers={"User-Agent":"Mozilla/5.0"})
-        with urllib.request.urlopen(req, timeout=8) as r:
-            data = json.loads(r.read())
-            if "trans_result" in data:
-                return "".join(x["dst"] for x in data["trans_result"])
-            return text
-    except:
-        return text
+    for fn in (_baidu, _youdao, _mymemory):
+        try:
+            r = fn(text, src)
+            if r and len(r) > 3 and r != text:
+                return r
+        except:
+            continue
+    return text
 
 def clean_html(html):
     if not html: return ""
