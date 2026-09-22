@@ -435,6 +435,7 @@ def fetch_full_text(url, lang):
 
 def fetch_one(url, source, country, hint, is_google=False):
     arts = []
+    is_china = source == "GOOGLE_CHINA"
     max_per = 30  # v6 照搬当时热榜前30
     urls = url if isinstance(url, list) else [url]
     content = None
@@ -531,7 +532,7 @@ def fetch_one(url, source, country, hint, is_google=False):
             "_w": weight,
             "_full": False,
             "_google": is_google,
-            "_china": source == "GOOGLE_CHINA",
+            "_china": is_china,
         })
     print(f"  {source}: {len(arts)} ok")
     return arts
@@ -772,7 +773,9 @@ def main():
             return a
         uniq = list(ex.map(enrich, uniq))
     full_n = sum(1 for a in uniq if a.get("_full"))
-    print(f"full_text ok {full_n}/{len(uniq)}")
+    agency_n = sum(1 for a in uniq if a.get("agency"))
+    china_n = sum(1 for a in uniq if a.get("_china"))
+    print(f"full_text ok {full_n}/{len(uniq)}  agency {agency_n}  china {china_n}")
 
     now = datetime.now(CST)
     china_list = [a for a in uniq if a.get("_china")]
