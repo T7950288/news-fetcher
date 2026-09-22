@@ -115,11 +115,11 @@ def fetch_one(url, source, country, hint, priority=2):
             "published_at": pub,
             "summary_zh": translate(desc[:200], lang)[:200],
             "content_orig": desc[:1500],
-            "content_zh": translate(desc[:800], lang),
+            "content_zh": translate(desc[:500], lang),
             "url": link,
             "_prio": priority,
         })
-        time.sleep(0.3)
+        time.sleep(0.5)
     return arts
 
 def gitee_get():
