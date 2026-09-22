@@ -750,6 +750,12 @@ _gdelt_lock = threading.Lock()
 _gdelt_last = [0.0]
 
 
+PAYWALL_DOMAINS = {
+    "nytimes.com", "wsj.com", "ft.com", "bloomberg.com", "washingtonpost.com",
+    "telegraph.co.uk", "scmp.com", "latimes.com", "politico.com", "axios.com",
+    "businessinsider.com", "reuters.com", "apnews.com", "afp.com",
+}
+
 RSS_POOL = [
     ("apnews.com", "https://apnews.com/apf-topnews?format=rss"),
     ("bbc.com", "https://feeds.bbci.co.uk/news/world/rss.xml"),
@@ -1075,12 +1081,19 @@ def main():
             pairs = parse_pairs(a.get("content_orig", ""))
             srcs = []
             for _t, src in _order_pairs(pairs):
-                if src and src not in srcs:
-                    srcs.append(src)
+                if not src or src in srcs:
+                    continue
+                dom = find_domain(src)
+                is_agency = any(nm.strip() in _norm_src(src) for nm in AGENCY_NAMES)
+                if dom in PAYWALL_DOMAINS and not is_agency:
+                    continue  # 付费墙且非通讯社 -> 跳过, 换下一家
+                srcs.append(src)
                 if len(srcs) >= 4:
                     break
             if a.get("source") and a["source"] not in srcs:
-                srcs.append(a["source"])
+                dom = find_domain(a["source"])
+                if dom not in PAYWALL_DOMAINS or any(nm.strip() in _norm_src(a["source"]) for nm in AGENCY_NAMES):
+                    srcs.append(a["source"])
             for src in srcs:
                 u = match_rss(pool, main_title, src)
                 if not u:
