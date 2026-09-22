@@ -120,6 +120,15 @@ def categorize(title, summary, hint):
     if any(k in t for k in ["ai","tech","google","apple","microsoft","chip","software","internet"]): return "tech"
     return "world"
 
+# 过滤无聊的社会新闻
+SKIP = ["motorcycle","traffic accident","car crash","weather","cloudy","sunny",
+        "football","soccer","basketball","tennis","score","murder","arrested",
+        "house fire","killed in accident","died in"]
+
+def skip_news(title, desc):
+    t = (title + " " + desc).lower()
+    return any(k in t for k in SKIP)
+
 def fetch_one(url, source, country, hint):
     arts = []
     try:
@@ -132,6 +141,7 @@ def fetch_one(url, source, country, hint):
         link = getattr(e, "link", "").strip()
         if not title or not link: continue
         desc = clean_html(getattr(e, "summary", "") or getattr(e, "description", ""))
+        if skip_news(title, desc): continue
         pub = None
         for k in ("published_parsed","updated_parsed"):
             t = getattr(e, k, None)
