@@ -20,20 +20,26 @@ GITEE_REPO = "news"
 GITEE_PATH = "news.json"
 CST = timezone(timedelta(hours=8))
 
-# 精简到12个核心源，每源5条
+# 18个核心源，每源8条
 FEEDS = [
-    ("http://feeds.bbci.co.uk/news/world/rss.xml", "BBC", "UK", "world", 1),
-    ("https://www.theguardian.com/world/rss", "The Guardian", "UK", "world", 1),
-    ("https://news.sky.com/rss/world", "Sky News", "UK", "world", 1),
-    ("http://rss.cnn.com/rss/edition.rss", "CNN", "US", "world", 1),
-    ("https://feeds.npr.org/1001/rss.xml", "NPR", "US", "world", 1),
-    ("https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml", "NY Times", "US", "world", 1),
-    ("https://www.lemonde.fr/rss/une.xml", "Le Monde", "FR", "world", 1),
-    ("http://www.lefigaro.fr/rss/figaro_actualites.xml", "Le Figaro", "FR", "world", 1),
-    ("https://www.spiegel.de/schlagzeilen/index.rss", "Der Spiegel", "DE", "world", 1),
-    ("https://www.welt.de/feeds/latest.rss", "Die Welt", "DE", "world", 1),
-    ("https://www3.nhk.or.jp/nhkworld/en/news/feed.xml", "NHK World", "JP", "world", 1),
-    ("https://english.kyodonews.net/rss/news.rss", "Kyodo News", "JP", "world", 1),
+    ("http://feeds.bbci.co.uk/news/world/rss.xml", "BBC", "UK", "world"),
+    ("https://www.theguardian.com/world/rss", "The Guardian", "UK", "world"),
+    ("https://news.sky.com/rss/world", "Sky News", "UK", "world"),
+    ("http://feeds.bbci.co.uk/news/business/rss.xml", "BBC Business", "UK", "finance"),
+    ("http://feeds.bbci.co.uk/news/technology/rss.xml", "BBC Tech", "UK", "tech"),
+    ("http://rss.cnn.com/rss/edition.rss", "CNN", "US", "world"),
+    ("https://feeds.npr.org/1001/rss.xml", "NPR", "US", "world"),
+    ("https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml", "NY Times", "US", "world"),
+    ("https://feeds.npr.org/1006/rss.xml", "NPR Business", "US", "finance"),
+    ("https://feeds.npr.org/1019/rss.xml", "NPR Tech", "US", "tech"),
+    ("https://www.lemonde.fr/rss/une.xml", "Le Monde", "FR", "world"),
+    ("http://www.lefigaro.fr/rss/figaro_actualites.xml", "Le Figaro", "FR", "world"),
+    ("https://www.spiegel.de/schlagzeilen/index.rss", "Der Spiegel", "DE", "world"),
+    ("https://www.welt.de/feeds/latest.rss", "Die Welt", "DE", "world"),
+    ("https://newsfeed.zeit.de/index", "Die Zeit", "DE", "world"),
+    ("https://www3.nhk.or.jp/nhkworld/en/news/feed.xml", "NHK World", "JP", "world"),
+    ("https://english.kyodonews.net/rss/news.rss", "Kyodo News", "JP", "world"),
+    ("https://www.rtl.fr/flash-actu/rss", "RTL", "FR", "general"),
 ]
 
 COUNTRY_LANG = {"UK":"en","US":"en","FR":"fr","DE":"de","JP":"ja"}
@@ -70,7 +76,7 @@ def fetch_one(url, source, country, hint):
     except Exception:
         return arts
     lang = COUNTRY_LANG.get(country, "en")
-    for e in d.entries[:5]:
+    for e in d.entries[:8]:
         title = getattr(e, "title", "").strip()
         link = getattr(e, "link", "").strip()
         if not title or not link: continue
@@ -132,7 +138,7 @@ def gitee_put(data, sha):
 
 def main():
     all_arts = []
-    for url, src, country, hint, prio in FEEDS:
+    for url, src, country, hint in FEEDS:
         try:
             all_arts.extend(fetch_one(url, src, country, hint))
         except Exception as e:
