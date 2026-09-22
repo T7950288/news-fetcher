@@ -155,10 +155,12 @@ def fetch_one(url, source, country, hint):
     return arts
 
 def translate_article(a):
-    """并行翻译单条：标题+摘要前300字"""
+    """并行翻译单条：标题+摘要前500字"""
     lang = a.pop("_lang", "en")
     a["title_zh"] = translate(a["title_orig"], lang)
-    a["summary_zh"] = translate(a["content_orig"][:300], lang)
+    s = translate(a["content_orig"][:500], lang)
+    a["summary_zh"] = s
+    a["content_zh"] = s
     return a
 
 def gitee_get():
