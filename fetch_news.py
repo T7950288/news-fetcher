@@ -718,13 +718,17 @@ def main():
         old, sha = {"articles": []}, None
 
     old_ids = {a["id"] for a in old["articles"]}
-    # 旧库: 只留15家白名单且有正文的条目, 用于同id带翻译/不足补位
+    # 旧库: 全部有正文的条目都进 old_by_id, 用于同id带翻译(含Google组来源, 不能漏);
+    # 白名单过滤只用于不足30条时的补位, 防止非白名单旧条目混入
     old_by_id = {}
+    white_by_id = {}
     for a in old["articles"]:
-        if (a.get("country"), a.get("source")) in WHITELIST and (a.get("content_orig") or "").strip():
+        if (a.get("content_orig") or "").strip():
             old_by_id[a["id"]] = a
-    # 关键修复v5.9: 以本轮最新picked为主(新新闻+五国保底必进库),
-    # 同id的AI翻译成果自动带上(不重复翻译), 杜绝旧条目挤占新条目配额
+            if (a.get("country"), a.get("source")) in WHITELIST:
+                white_by_id[a["id"]] = a
+    # 关键修复v5.15: 以本轮最新picked为主(新新闻+五国保底必进库),
+    # 同id的AI翻译成果自动带上(不重复翻译, 白名单+Google组翻译都保留), 杜绝旧条目挤占新条目配额
     for a in recent:
         o = old_by_id.get(a["id"])
         if o and o.get("translate_by") == "ai" and len((o.get("content_zh") or "").strip()) >= 20:
@@ -738,10 +742,10 @@ def main():
             a["summary_zh"] = ""
             a["translate_by"] = "none"
     merged2 = recent[:TARGET]
-    # 新条目不足30时, 用上轮AI翻译过的旧条目补位(24h内)
+    # 新条目不足30时, 用上轮AI翻译过的白名单旧条目补位(24h内)
     if len(merged2) < TARGET:
         have = {a["id"] for a in merged2}
-        for a in sorted(old_by_id.values(), key=lambda x: x.get("published_at", ""), reverse=True):
+        for a in sorted(white_by_id.values(), key=lambda x: x.get("published_at", ""), reverse=True):
             if len(merged2) >= TARGET:
                 break
             if a["id"] in have:
