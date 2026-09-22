@@ -49,48 +49,9 @@ SOURCE_RANK = {
     "读卖新闻": 3, "朝日新闻": 3, "NHK": 3, "NHK World": 3, "Kyodo": 3,
 }
 
-# 五国15家媒体 + 财经科技栏目 + Google全球热榜 (25源)
+# v6 用户指定: 不要五国媒体, 30条全部照搬 Google News 当时主热榜(Top Stories), 不做喜好挑选
 FEEDS = [
-    # UK 3家
-    ("http://feeds.bbci.co.uk/news/world/rss.xml", "BBC", "UK", "world", False),
-    ("http://feeds.bbci.co.uk/news/business/rss.xml", "BBC", "UK", "finance", False),
-    ("http://feeds.bbci.co.uk/news/technology/rss.xml", "BBC", "UK", "tech", False),
-    ("https://www.theguardian.com/world/rss", "卫报", "UK", "world", False),
-    ("https://www.theguardian.com/business/rss", "卫报", "UK", "finance", False),
-    ("https://www.theguardian.com/technology/rss", "卫报", "UK", "tech", False),
-    ("https://www.theguardian.com/tone/editorials/rss", "卫报", "UK", "op-ed", False),
-    ("https://www.dailymail.co.uk/home/index.rss", "每日邮报", "UK", "world", False),
-    # US 4家
-    ("http://rss.cnn.com/rss/edition.rss", "CNN", "US", "world", False),
-    ("https://feeds.npr.org/1001/rss.xml", "NPR", "US", "world", False),
-    ("https://feeds.npr.org/1006/rss.xml", "NPR", "US", "finance", False),
-    ("https://feeds.npr.org/1019/rss.xml", "NPR", "US", "tech", False),
-    ("https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml", "纽约时报", "US", "world", False),
-    ("https://rss.nytimes.com/services/xml/rss/nyt/Editorials.xml", "纽约时报", "US", "op-ed", False),
-    ("https://feeds.a.dj.com/rss/RSSWorldNews.xml", "华尔街日报", "US", "finance", False),
-    ("https://feeds.a.dj.com/rss/RSSOpinion.xml", "华尔街日报", "US", "op-ed", False),
-    # FR 2家
-    ("https://www.lemonde.fr/rss/une.xml", "世界报", "FR", "world", False),
-    ("https://www.lemonde.fr/economie/rss_full.xml", "世界报", "FR", "finance", False),
-    ("https://www.lemonde.fr/idees/rss_full.xml", "世界报", "FR", "op-ed", False),
-    ("http://www.lefigaro.fr/rss/figaro_actualites.xml", "费加罗报", "FR", "world", False),
-    # DE 3家
-    ("https://www.welt.de/feeds/latest.rss", "世界报", "DE", "world", False),
-    ("https://www.spiegel.de/schlagzeilen/index.rss", "明镜", "DE", "world", False),
-    ("https://www.spiegel.de/wirtschaft/index.rss", "明镜", "DE", "finance", False),
-    ("https://www.spiegel.de/meinung/index.rss", "明镜", "DE", "op-ed", False),
-    ("https://www.bild.de/rss-feeds/rss-16725492,feed=home.bild.html", "图片报", "DE", "world", False),
-    # JP 3家 (Google News聚合保24h最新; 原站限流/旧缓存作备选)
-    (["https://news.google.com/rss/search?q=site:yomiuri.co.jp&hl=ja&gl=JP&ceid=JP:ja",
-      "https://japannews.yomiuri.co.jp/feed", "https://www.yomiuri.co.jp/news_rss.xml"], "读卖新闻", "JP", "world", False),
-    (["https://news.google.com/rss/search?q=site:asahi.com&hl=ja&gl=JP&ceid=JP:ja",
-      "https://www.asahi.com/ajw/rss/", "http://rss.asahi.com/rss/asahi/newsheadlines.rdf"], "朝日新闻", "JP", "world", False),
-    (["https://news.google.com/rss/search?q=site:nhk.or.jp&hl=ja&gl=JP&ceid=JP:ja",
-      "https://rsshub.app/nhk/news/en", "https://www3.nhk.or.jp/rss/news/cat4.xml"], "NHK", "JP", "world", False),
-    # Google全球热榜 (世界/财经/科技), 来源不限15家, 全球热门优先
-    ("https://news.google.com/rss/headlines/section/topic/WORLD?hl=en-US&gl=US&ceid=US:en", "GOOGLE_WORLD", "UK", "world", True),
-    ("https://news.google.com/rss/headlines/section/topic/BUSINESS?hl=en-US&gl=US&ceid=US:en", "GOOGLE_BUSINESS", "UK", "finance", True),
-    ("https://news.google.com/rss/headlines/section/topic/TECHNOLOGY?hl=en-US&gl=US&ceid=US:en", "GOOGLE_TECH", "UK", "tech", True),
+    ("https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en", "GOOGLE_TOP", "US", "world", True),
 ]
 
 # Google热门源: 真实媒体名 -> 国家
@@ -473,7 +434,7 @@ def fetch_full_text(url, lang):
 
 def fetch_one(url, source, country, hint, is_google=False):
     arts = []
-    max_per = 8  # Google热榜也是8条
+    max_per = 30  # v6 照搬当时热榜前30
     urls = url if isinstance(url, list) else [url]
     content = None
     now = datetime.now(CST)
@@ -510,13 +471,11 @@ def fetch_one(url, source, country, hint, is_google=False):
         if not title or not link:
             continue
         if is_google:
-            # Google热榜: 媒体名取title后缀, 国家按媒体映射
+            # Google热榜: 媒体名取title后缀, 国家按媒体映射 (v6 全收, 不挑媒体)
             if not media:
                 media = (getattr(e, "source", None) and getattr(e.source, "title", "")) or ""
             media = media.strip()
             if media:
-                if media.lower() in GOOGLE_SKIP_SOURCES:
-                    continue  # 游戏/娱乐/时尚等非时政媒体
                 source = media
                 country = GOOGLE_COUNTRY.get(media.lower(), country)
                 lang = COUNTRY_LANG.get(country, "en")
@@ -529,14 +488,16 @@ def fetch_one(url, source, country, hint, is_google=False):
                     desc = full
                 if len(desc) >= 300:
                     break
-        if skip_news(title, desc, lang, link):
+        if not is_google and skip_news(title, desc, lang, link):
             continue
         cls = classify(title, desc, lang, hint)
         if cls is None:
-            continue
-        cat, weight = cls
-        if is_google:
-            weight = min(weight, 0)  # 全球热门最优先
+            if is_google:
+                cat, weight = "general", 5  # v6 全收: 判不出类别也照搬
+            else:
+                continue
+        else:
+            cat, weight = cls
         min_body = 30 if country == "JP" else MIN_BODY
         if len(desc) < min_body:
             continue
@@ -618,46 +579,8 @@ def gitee_put(data, sha):
 
 
 def pick_news(arts, target=TARGET):
-    """五国保底(每国至少2条) -> 社论全收+时政优先填70% -> 全文优先补足"""
-    def importance(a):
-        return (a.get("_w", 9), 0 if a.get("_full") else 1)
-
-    def pick_cat(items, n):
-        if not items or n <= 0:
-            return []
-        by_country = {}
-        for a in items:
-            by_country.setdefault(a["country"], []).append(a)
-        picks = []
-        while len(picks) < n and any(v for v in by_country.values()):
-            for c in sorted(by_country.keys()):
-                if by_country[c]:
-                    picks.append(by_country[c].pop(0))
-                if len(picks) >= n:
-                    break
-            by_country = {k: v for k, v in by_country.items() if v}
-        return picks
-
-    picks = []
-    # v5.14 用户配额: Google8 / 美8 / 英5 / 德4 / 法2 / 日3 (全部更新时按此分配)
-    QUOTA = [("google", 8), ("US", 8), ("UK", 5), ("DE", 4), ("FR", 2), ("JP", 3)]
-    groups = {}
-    for a in arts:
-        key = "google" if a.get("_google") else a.get("country")
-        groups.setdefault(key, []).append(a)
-    for k in groups:
-        groups[k] = sorted(groups[k], key=importance)
-    seen = set()
-    for key, lim in QUOTA:
-        for a in groups.get(key, [])[:lim]:
-            if a["id"] not in seen:
-                seen.add(a["id"])
-                picks.append(a)
-    # 某组抓不满(如日本)时: 按重要性从剩余里补足
-    if len(picks) < target:
-        extra = sorted([a for a in arts if a["id"] not in seen], key=importance)
-        picks += extra[:target - len(picks)]
-    return picks[:target]
+    """v6 用户指定: 全部照搬 Google 当时热榜, 不做喜好挑选; 保持时间倒序取前target"""
+    return arts[:target]
 
 
 def main():
@@ -692,7 +615,23 @@ def main():
     # 全文抓取(去重后量小, 8线程并行)
     print("fetching full text...")
     with ThreadPoolExecutor(max_workers=8) as ex:
+        def resolve_google_link(url):
+            """Google中转链接 -> 真实媒体URL (云端能访问外网, 把真地址写回应用)"""
+            if "news.google.com/rss/articles" not in url:
+                return url
+            try:
+                r = requests.get(url, timeout=15, headers={"User-Agent": UA}, allow_redirects=True)
+                final = (r.url or "").strip()
+                if final and final != url and "news.google.com" not in final:
+                    return final
+            except Exception:
+                pass
+            return url
+
         def enrich(a):
+            real = resolve_google_link(a["url"])
+            if real != a["url"]:
+                a["url"] = real  # 换成真实媒体链接(云端已抓回正文)
             ft = fetch_full_text(a["url"], a["_lang"])
             if ft:
                 a["content_orig"] = ft
@@ -718,17 +657,12 @@ def main():
         old, sha = {"articles": []}, None
 
     old_ids = {a["id"] for a in old["articles"]}
-    # 旧库: 全部有正文的条目都进 old_by_id, 用于同id带翻译(含Google组来源, 不能漏);
-    # 白名单过滤只用于不足30条时的补位, 防止非白名单旧条目混入
+    # v6: 全部照搬Google热榜, 旧库全部有正文条目进 old_by_id, 同id带翻译不重复翻
     old_by_id = {}
-    white_by_id = {}
     for a in old["articles"]:
         if (a.get("content_orig") or "").strip():
             old_by_id[a["id"]] = a
-            if (a.get("country"), a.get("source")) in WHITELIST:
-                white_by_id[a["id"]] = a
-    # 关键修复v5.15: 以本轮最新picked为主(新新闻+五国保底必进库),
-    # 同id的AI翻译成果自动带上(不重复翻译, 白名单+Google组翻译都保留), 杜绝旧条目挤占新条目配额
+    # 关键修复v5.15/v6: 以本轮最新picked为主, 同id的AI翻译成果自动带上, 杜绝旧条目挤占新条目配额
     for a in recent:
         o = old_by_id.get(a["id"])
         if o and o.get("translate_by") == "ai" and len((o.get("content_zh") or "").strip()) >= 20:
@@ -742,10 +676,10 @@ def main():
             a["summary_zh"] = ""
             a["translate_by"] = "none"
     merged2 = recent[:TARGET]
-    # 新条目不足30时, 用上轮AI翻译过的白名单旧条目补位(24h内)
+    # 新条目不足30时, 用上轮AI翻译过的旧条目补位(24h内)
     if len(merged2) < TARGET:
         have = {a["id"] for a in merged2}
-        for a in sorted(white_by_id.values(), key=lambda x: x.get("published_at", ""), reverse=True):
+        for a in sorted(old_by_id.values(), key=lambda x: x.get("published_at", ""), reverse=True):
             if len(merged2) >= TARGET:
                 break
             if a["id"] in have:
