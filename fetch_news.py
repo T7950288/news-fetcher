@@ -1,14 +1,17 @@
 # -*- coding: utf-8 -*-
-"""国际新闻抓取 v4.0（云端兜底版）
+"""国际新闻抓取 v5.4（重要性筛选 + 全文优先）
 - 媒体: 五国15家主流媒体(含栏目RSS)
-- 选稿: 时政至少50%, 其余按时事自然浮动; 每次最多30条, 仅24小时内
-- 翻译: 百度→有道(失效跳过)→MyMemory 三级备用, 仅翻新条目, 正文上限1000字符
+- 选稿: ①社论全收(op-ed) ②时政要闻≥50%(领导人/政府议会/涉华/国际大事) ③财经科技为辅 ④无聊社会新闻一律丢弃
+- 全文: 对候选条目抓文章页正文, 抓不到全文的降权少放
+- 翻译: 百度→有道(失效跳过)→MyMemory 三级备用, 仅翻新条目
 - translate_by="api" 标记; 本地豆包AI翻译优先, 本脚本只兜底(不重翻AI已翻的)
 - 踩坑记录(不要再犯):
   1. RSS正文可能在content字段, 必须兜底提取; 正文<80字符丢弃
   2. feedparser.parse无超时会卡死, 用requests下载+超时
   3. 选稿不能按时间取前N条(德媒霸屏), 时政池优先+按国家轮流
   4. 有道网页接口2026-09起失效, 失败快速跳过
+  5. 社论/时政靠多语言关键词判定, 无聊词(娱乐/犯罪/交通/天气/健康)硬过滤; 重大灾难保留
+  6. 全文抓取: 多路选择器提<p>, 失败降权, 不做硬失败
 """
 import os, re, json, base64, time, hashlib, random
 from datetime import datetime, timezone, timedelta
@@ -24,9 +27,10 @@ GITEE_OWNER = "t7950288"
 GITEE_REPO = "news"
 GITEE_PATH = "news.json"
 CST = timezone(timedelta(hours=8))
-MIN_BODY = 80        # 正文最小长度
-MAX_BODY = 1000      # 正文翻译上限
+MIN_BODY = 80        # RSS导语最小长度
+MAX_BODY = 2500      # 原文保留上限(翻译时分块)
 TARGET = 30          # 每次最多30条
+UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
 
 # 15家媒体白名单 + 去重权威分
 WHITELIST = {
@@ -85,6 +89,127 @@ BAIDU_SECRET = "6JZO5lWQ2F4GbXr2ycjN"
 BAIDU_LANG = {"en": "en", "fr": "fra", "de": "de", "ja": "jp"}
 BAIDU_ON = True  # 由Gitee config.json控制(用户可网页/手机开关)
 
+# ============ 重要性判定 (多语言) ============
+# 社论/观点标记 -> op-ed, 全收
+OPED_MARKERS = [
+    "editorial", "opinion", "comment", "analysis", "leader", "view",
+    "社説", "社说", "論説", "論説委員", "社論", "评论", "評論", "觀點", "观点",
+    "tribune", "chronique", "éditorial", "editoriale", "meinung", "kommentar", "gastbeitrag",
+    "コラム", "論壇", "論点",
+]
+
+# 时政要闻(硬保留) -> world: 各国领导人/政府议会/涉华/国际大事
+HARD_WORLD = [
+    # 国际大事
+    "russia", "ukraine", "putin", "zelensky", "moscow", "kiev", "kyiv",
+    "israel", "iran", "netanyahu", "hamas", "hezbollah", "gaza", "palestin",
+    "united nations", "un security council", "u.n.", "nato", "european union", "eu ",
+    "united nations", "g7", "g20", "world bank", "imf", "wto", "nuclear", "missile",
+    "war", "ceasefire", "cease-fire", "sanction", "embargo", "invasion", "strike",
+    "peace", "negotiation", "talks", "deal", "treaty", "summit", "diplomacy", "ambassador",
+    "北朝鲜", "朝鲜", "核", "导弹", "导弹", "停火", "制裁", "峰会", "谈判", "协议", "战争",
+    "ロシア", "ウクライナ", "プーチン", "イスラエル", "イラン", "ガザ", "国連", "安保理",
+    "停戦", "制裁", "核", "ミサイル", "首脳会談", "戦争", "交渉", "協定",
+    # 涉华
+    "china", "chinese", "beijing", "xi jinping", "taiwan", "hong kong", "taipei strait",
+    "中美", "中欧", "中俄", "中日", "中国", "习近平", "北京", "台湾", "香港",
+    "中国", "習近平", "台湾", "香港", "米中", "日米", "日中",
+    # 选举/政府/议会/领导人
+    "election", "president", "prime minister", "chancellor", "government", "parliament",
+    "congress", "senate", "house of representatives", "cabinet", "minister", "vote",
+    "选举", "总统", "总理", "首相", "政府", "议会", "国会", "内阁", "选举",
+    "選挙", "大統領", "総理", "首相", "政府", "議会", "国会", "内閣", "閣僚", "投票",
+    # 各国政要/党魁
+    "trump", "biden", "harris", "starmer", "macron", "le pen", "merz", "scholz",
+    "modi", "netanyahu", "erdogan", "zelensky", "putin", "kim jong", "yoon", "trump",
+    "马克龙", "默茨", "斯塔默", "特朗普", "拜登", "特朗普", "尹锡悦", "石破",
+    "トランプ", "バイデン", "マクロン", "石破", "韓国", "尹", "金正恩",
+    # 重大国际事件/灾害(用户明确保留)
+    "earthquake", "typhoon", "hurricane", "flood", "wildfire", "tsunami", "landslide",
+    "地震", "台风", "台风", "洪水", "山火", "海啸", "火山", "地震", "台風", "洪水", "津波",
+]
+
+# 财经/科技(软保留) -> finance/tech
+SOFT_KEYS = [
+    "economy", "economic", "inflation", "interest rate", "central bank", "fed", "ecb",
+    "gdp", "stock", "market", "oil", "gold", "tariff", "trade", "export", "import",
+    "company", "corporate", "earnings", "profit", "bank", "finance", "recession",
+    "经济", "通胀", "央行", "股市", "市场", "油价", "关税", "贸易", "公司", "财报", "降息", "加息",
+    "経済", "インフレ", "金利", "中央銀行", "株価", "市場", "原油", "関税", "貿易", "決算", "企業",
+    "ai", "artificial intelligence", "chip", "semiconductor", "technology", "tech",
+    "apple", "google", "microsoft", "nvidia", "openai", "tesla", "samsung", "spacex", "robot",
+    "人工智能", "芯片", "半导体", "科技", "苹果", "谷歌", "微软", "英伟达", "火箭", "机器人",
+    "人工知能", "半導体", "チップ", "テクノロジー", "アップル", "グーグル", "マイクロソフト", "ロボット",
+]
+
+# 重大灾难关键词: 命中即使带天气/事故字样也放行
+DISASTER_KEYS = [
+    "earthquake", "typhoon", "hurricane", "flood", "wildfire", "tsunami", "landslide", "volcano", "eruption",
+    "地震", "台风", "台风", "洪水", "山火", "海啸", "火山", "地震", "台風", "洪水", "津波", "噴火",
+]
+
+# 无聊社会新闻(硬过滤): 娱乐/犯罪/交通/天气/健康/体育/生活
+SKIP_KEYS = {
+    "en": ["weather", "cloudy", "sunny", "forecast", "motorway", "road closure",
+           "football", "soccer", "basketball", "tennis", "golf", "cricket", "rugby",
+           "premier league", "champions league", "match", "game result", "score",
+           "celebrity", "actor", "actress", "movie", "film", "singer", "concert",
+           "hollywood", "entertainment", "taylor swift", "tv ratings", "shopping",
+           "collagen", "discount code", "penis", "ufo", "alien", "nepo baby",
+           "murder", "stabbing", "robbery", "burglary", "car crash", "car crash",
+           "traffic accident", "house fire", "lottery", "recipe", "diet",
+           "weight loss", "blood pressure", "vitamin", "health tips", "yoga",
+           "garden", "pets", "dogs ", "cats ", "horoscope", "quiz"],
+    "de": ["wetter", "unfall", "verkehrsunfall", "fussball", "bundesliga", "tennis",
+           "schauspieler", "promi", "musik", "konzert", "film", "fernsehen",
+           "tv-sendung", "penis", "ufo", "alien", "kosmetik", "abnehmen",
+           "shopping", "mord", "raub", "unfall", "wetter", "rezept", "diät",
+           "horoskop", "haustier"],
+    "fr": ["météo", "meteo", "accident", "circulation", "football", "ligue 1",
+           "tennis", "acteur", "actrice", "star", "concert", "musique", "film",
+           "télévision", "television", "temps", "meurtre", "braquage", "recette",
+           "régime", "horoscope", "animaux"],
+    "ja": ["天気", "事故", "サッカー", "野球", "テニス", "ゴルフ", "芸能", "俳優",
+           "映画", "音楽", "コンサート", "アイドル", "レシピ", "ダイエット",
+           "占い", "ペット", "殺人", "強盗", "交通", "天気予報"],
+}
+
+
+def skip_news(title, desc, lang):
+    t = (title + " " + desc).lower()
+    if any(k in t for k in DISASTER_KEYS):
+        return False  # 重大灾难保留
+    keys = SKIP_KEYS.get(lang, []) + SKIP_KEYS.get("en", [])
+    return any(k in t for k in keys)
+
+
+def classify(title, desc, lang, hint):
+    """返回 (category, weight); weight小=优先; 返回 None = 丢弃"""
+    t = (title + " " + desc).lower()
+    for m in OPED_MARKERS:
+        if m in t:
+            return "op-ed", 0
+    for m in HARD_WORLD:
+        if m in t:
+            return "world", 1
+    if hint in ("finance", "tech"):
+        for m in SOFT_KEYS:
+            if m in t:
+                return hint, 2
+        return hint, 3  # 财经科技栏目可信, 保留但降权
+    # 普通world栏目无关键词命中 -> 降权(宁缺毋滥)
+    return "world", 4
+
+
+def clean_gn_title(title):
+    """Google News标题清洗: 去掉' - 媒体名'后缀"""
+    for sep in (" - ", " – ", " — ", " -"):
+        if sep in title:
+            parts = title.rsplit(sep, 1)
+            if any(k in parts[-1].lower() for k in ("yomiuri", "asahi", "nhk", "読売", "朝日", "毎日", "共同")):
+                return parts[0].strip()
+    return title
+
 
 def load_config():
     """读Gitee config.json获取百度翻译开关"""
@@ -99,6 +224,13 @@ def load_config():
     except Exception as e:
         print("config read err, default OFF:", str(e)[:60])
         BAIDU_ON = False
+
+
+def clean_html(html):
+    if not html:
+        return ""
+    soup = BeautifulSoup(html, "lxml")
+    return soup.get_text(separator="\n").strip()
 
 
 def _baidu(text, src):
@@ -202,42 +334,30 @@ def translate_long(text, src):
     return "\n".join(out)
 
 
-def clean_html(html):
-    if not html:
-        return ""
-    soup = BeautifulSoup(html, "lxml")
-    return soup.get_text(separator="\n").strip()
-
-
-SKIP_KEYS = {
-    "en": ["motorcycle", "traffic accident", "car crash", "weather", "cloudy", "sunny", "forecast",
-           "football", "soccer", "basketball", "tennis", "score", "match result", "house fire",
-           "celebrity", "actor", "actress", "movie", "film", "singer", "music", "concert",
-           "hollywood", "entertainment", "taylor swift", "tv ratings", "shopping", "collagen",
-           "discount code", "penis", "ufo", "alien"],
-    "de": ["wetter", "unfall", "verkehrsunfall", "fussball", "bundesliga", "tennis", "schauspieler",
-           "promi", "musik", "konzert", "film", "fernsehen", "tv-sendung", "unwetter",
-           "penis", "ufo", "alien", "kosmetik", "abnehmen", "shopping"],
-    "fr": ["météo", "meteo", "accident", "circulation", "football", "ligue 1", "tennis", "acteur",
-           "actrice", "star", "concert", "musique", "film", "télévision", "television", "temps"],
-    "ja": ["天気", "事故", "サッカー", "野球", "テニス", "芸能", "俳優", "映画", "音楽", "コンサート"],
-}
-
-
-def skip_news(title, desc, lang):
-    t = (title + " " + desc).lower()
-    keys = SKIP_KEYS.get(lang, []) + SKIP_KEYS.get("en", [])
-    return any(k in t for k in keys)
-
-
-def clean_gn_title(title):
-    """Google News标题清洗: 去掉' - 媒体名'后缀"""
-    for sep in (" - ", " – ", " — ", " -"):
-        if sep in title:
-            parts = title.rsplit(sep, 1)
-            if any(k in parts[-1].lower() for k in ("yomiuri", "asahi", "nhk", "読売", "朝日", "毎日", "共同")):
-                return parts[0].strip()
-    return title
+def fetch_full_text(url, lang):
+    """抓文章页全文; 成功返回正文(最多MAX_BODY), 失败返回None"""
+    try:
+        r = requests.get(url, timeout=15, headers={"User-Agent": UA})
+        if r.status_code != 200:
+            return None
+        soup = BeautifulSoup(r.text, "lxml")
+        for tag in soup(["script", "style", "noscript", "nav", "aside", "header", "footer", "form", "iframe"]):
+            tag.decompose()
+        sels = ["article", "[itemprop='articleBody']", "[class*='article-body']",
+                "[class*='story-body']", "[class*='article__body']", "[class*='article-content']",
+                "[class*='post-content']", "[class*='content-body']", "[class*='story-content']",
+                "[class*='article_text']", "[class*='article-body']", "main", "body"]
+        for sel in sels:
+            node = soup.select_one(sel)
+            if not node:
+                continue
+            paras = [p.get_text(" ", strip=True) for p in node.find_all("p")]
+            text = "\n".join(p for p in paras if len(p) > 25)
+            if len(text) >= 200:
+                return text[:MAX_BODY]
+    except Exception:
+        pass
+    return None
 
 
 def fetch_one(url, source, country, hint):
@@ -249,7 +369,7 @@ def fetch_one(url, source, country, hint):
     for u in urls:
         for attempt in range(3):
             try:
-                r = requests.get(u, timeout=12, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"})
+                r = requests.get(u, timeout=12, headers={"User-Agent": UA})
                 if r.status_code == 200:
                     content = r.content
                     break
@@ -285,6 +405,10 @@ def fetch_one(url, source, country, hint):
                     break
         if skip_news(title, desc, lang):
             continue
+        cls = classify(title, desc, lang, hint)
+        if cls is None:
+            continue
+        cat, weight = cls
         min_body = 30 if country == "JP" else MIN_BODY
         if len(desc) < min_body:
             continue
@@ -296,26 +420,26 @@ def fetch_one(url, source, country, hint):
                 break
         if not pub:
             pub = datetime.now(CST).isoformat()
-        # 未来时间(源站pubDate时区错乱/预排)直接丢弃, 避免"未来新闻"排顶部
+        # 未来时间(源站pubDate时区错乱/预排)直接丢弃
         try:
             if datetime.fromisoformat(pub) > now + timedelta(minutes=15):
                 continue
         except Exception:
             pass
-        if country == "JP":
-            print(f"  JPRAW {source}: published={e.get('published','')!r} parsed={getattr(e,'published_parsed',None)} pub={pub[:19]}")
         arts.append({
             "title_orig": title,
             "title_zh": title,
             "source": source,
             "country": country,
-            "category": hint,
+            "category": cat,
             "published_at": pub,
             "summary_zh": "",
             "content_orig": desc[:MAX_BODY],
             "content_zh": "",
             "url": link,
             "_lang": lang,
+            "_w": weight,
+            "_full": False,
         })
     print(f"  {source}: {len(arts)} ok")
     return arts
@@ -365,10 +489,13 @@ def gitee_put(data, sha):
 
 
 def pick_news(arts, target=TARGET):
-    """时政至少50%，其余按时事自然补足；每类内五国轮流"""
-    nw = max(round(target * 0.5), 1)
-    world = [a for a in arts if a["category"] in ("world", "op-ed")]
-    rest = [a for a in arts if a["category"] not in ("world", "op-ed")]
+    """社论全收+时政≥50%(优先填到70%); 全文优先; 其余按时事补足; 每类内五国轮流"""
+    def importance(a):
+        return (a.get("_w", 9), 0 if a.get("_full") else 1)
+
+    world = sorted([a for a in arts if a["category"] in ("world", "op-ed")], key=importance)
+    rest = sorted([a for a in arts if a["category"] not in ("world", "op-ed")], key=importance)
+    nw = min(len(world), max(round(target * 0.7), 1))  # 时政优先填到70%
 
     def pick_cat(items, n):
         if not items or n <= 0:
@@ -389,7 +516,8 @@ def pick_news(arts, target=TARGET):
     picks = pick_cat(world, nw)
     picks += pick_cat(rest, target - len(picks))
     if len(picks) < target:
-        extra = [a for a in arts if a not in picks]
+        seen_ids = {p["id"] for p in picks}
+        extra = sorted([a for a in arts if a["id"] not in seen_ids], key=importance)
         picks += extra[:target - len(picks)]
     return picks[:target]
 
@@ -421,19 +549,29 @@ def main():
         if key not in best or SOURCE_RANK.get(a["source"], 9) < SOURCE_RANK.get(best[key]["source"], 9):
             best[key] = a
     uniq = sorted(best.values(), key=lambda x: x["published_at"], reverse=True)
+    print(f"unique {len(uniq)}")
+
+    # 全文抓取(去重后量小, 8线程并行)
+    print("fetching full text...")
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        def enrich(a):
+            ft = fetch_full_text(a["url"], a["_lang"])
+            if ft:
+                a["content_orig"] = ft
+                a["_full"] = True
+            return a
+        uniq = list(ex.map(enrich, uniq))
+    full_n = sum(1 for a in uniq if a.get("_full"))
+    print(f"full_text ok {full_n}/{len(uniq)}")
+
     now = datetime.now(CST)
-    jp_items = [a for a in uniq if a["country"] == "JP"]
-    print("JP raw:", len(jp_items))
-    for a in jp_items[:6]:
-        print(f"  JP {a['source']} {a['published_at'][:19]} len={len(a['content_orig'])} {a['title_orig'][:40]}")
     recent = [a for a in uniq
               if 0 <= (now - datetime.fromisoformat(a["published_at"])).total_seconds() < 86400]
     recent = pick_news(recent, TARGET)
     from collections import Counter as _C
     print(f"picked {len(recent)}", dict(_C(a["country"] for a in recent)))
-    for a in recent:
-        if a["country"] == "JP":
-            print(f"  PICK-JP {a['source']} {a['published_at'][:19]} {a['title_orig'][:40]}")
+    print("picked cat", dict(_C(a["category"] for a in recent)))
+    print("picked full", sum(1 for a in recent if a.get("_full")))
 
     try:
         old, sha = gitee_get()
@@ -444,8 +582,7 @@ def main():
     old_ids = {a["id"] for a in old["articles"]}
     # 只保留15家白名单媒体的旧条目
     old["articles"] = [a for a in old["articles"] if (a.get("country"), a.get("source")) in WHITELIST]
-    # 关键修复: AI翻译过的条目必须保留(否则每轮覆盖, 翻译成果全丢);
-    # 未翻译的条目标记补翻
+    # 关键修复: AI翻译过的条目必须保留(否则每轮覆盖, 翻译成果全丢)
     keep_old = []
     for a in old["articles"]:
         co = (a.get("content_orig") or "").strip()
