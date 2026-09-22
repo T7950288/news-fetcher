@@ -28,6 +28,21 @@ MIN_BODY = 80        # 正文最小长度
 MAX_BODY = 1000      # 正文翻译上限
 TARGET = 30          # 每次最多30条
 
+# 15家媒体白名单 + 去重权威分
+WHITELIST = {
+    ("UK", "BBC"), ("UK", "卫报"), ("UK", "每日邮报"),
+    ("US", "CNN"), ("US", "NPR"), ("US", "纽约时报"), ("US", "华尔街日报"),
+    ("FR", "世界报"), ("FR", "费加罗报"),
+    ("DE", "世界报"), ("DE", "明镜"), ("DE", "图片报"),
+    ("JP", "读卖新闻"), ("JP", "朝日新闻"), ("JP", "NHK"),
+}
+SOURCE_RANK = {
+    "BBC": 0, "CNN": 0,
+    "卫报": 1, "NPR": 1, "纽约时报": 1, "华尔街日报": 1,
+    "每日邮报": 2, "世界报": 2, "费加罗报": 2, "明镜": 2, "图片报": 2,
+    "读卖新闻": 3, "朝日新闻": 3, "NHK": 3,
+}
+
 # 五国15家媒体 + 财经科技栏目 (20源)
 FEEDS = [
     # UK 3家
@@ -53,11 +68,11 @@ FEEDS = [
     ("https://www.welt.de/feeds/latest.rss", "世界报", "DE", "world"),
     ("https://www.spiegel.de/schlagzeilen/index.rss", "明镜", "DE", "world"),
     ("https://www.spiegel.de/wirtschaft/index.rss", "明镜", "DE", "finance"),
-    ("https://www.bild.de/rssfeeds/alles.xml", "图片报", "DE", "world"),
-    # JP 3家
-    ("https://www3.nhk.or.jp/nhkworld/en/news/feed.xml", "NHK", "JP", "world"),
+    (["https://www.bild.de/rssfeeds/alles.xml", "https://www.bild.de/rssfeeds/v2/alles.xml"], "图片报", "DE", "world"),
+    # JP 3家 (多备选RSS)
+    (["https://www3.nhk.or.jp/nhkworld/en/news/feed.xml", "https://www3.nhk.or.jp/rss/news/cat0.xml"], "NHK", "JP", "world"),
     ("https://www.yomiuri.co.jp/news_rss.xml", "读卖新闻", "JP", "world"),
-    ("https://www.asahi.com/rss/index.rss", "朝日新闻", "JP", "world"),
+    (["https://www.asahi.com/rss/index.rss", "https://www.asahi.com/rss/headlines.rss"], "朝日新闻", "JP", "world"),
 ]
 
 COUNTRY_LANG = {"UK": "en", "US": "en", "FR": "fr", "DE": "de", "JP": "ja"}
@@ -196,14 +211,31 @@ def skip_news(title, desc, lang):
 
 def fetch_one(url, source, country, hint):
     arts = []
+    urls = url if isinstance(url, list) else [url]
+    content = None
+    for u in urls:
+        for attempt in range(3):
+            try:
+                r = requests.get(u, timeout=12, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"})
+                if r.status_code == 200:
+                    content = r.content
+                    break
+                elif r.status_code == 429:
+                    time.sleep(2 * (attempt + 1))
+                else:
+                    print(f"  {source}: HTTP {r.status_code} ({u.split('/')[2]})")
+                    break
+            except Exception as e:
+                print(f"  {source}: ERR {str(e)[:60]}")
+                break
+        if content:
+            break
+    if not content:
+        return arts
     try:
-        r = requests.get(url, timeout=12, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
-        if r.status_code != 200:
-            print(f"  {source}: HTTP {r.status_code}")
-            return arts
-        d = feedparser.parse(r.content)
+        d = feedparser.parse(content)
     except Exception as e:
-        print(f"  {source}: ERR {str(e)[:70]}")
+        print(f"  {source}: PARSE ERR {str(e)[:60]}")
         return arts
     lang = COUNTRY_LANG.get(country, "en")
     for e in d.entries[:8]:
@@ -325,13 +357,19 @@ def main():
     seen = set()
     uniq = []
     for a in all_arts:
-        key = a["title_orig"][:30].lower()
+        key = re.sub(r"\W+", "", a["title_orig"].lower())[:60]
         if key in seen:
             continue
         seen.add(key)
         a["id"] = "g" + hashlib.md5(a["url"].encode()).hexdigest()[:8]
         uniq.append(a)
-    uniq.sort(key=lambda x: x["published_at"], reverse=True)
+    # 跨源去重: 同标题保留权威分高的
+    best = {}
+    for a in uniq:
+        key = re.sub(r"\W+", "", a["title_orig"].lower())[:60]
+        if key not in best or SOURCE_RANK.get(a["source"], 9) < SOURCE_RANK.get(best[key]["source"], 9):
+            best[key] = a
+    uniq = sorted(best.values(), key=lambda x: x["published_at"], reverse=True)
     now = datetime.now(CST)
     recent = [a for a in uniq if (now - datetime.fromisoformat(a["published_at"])).total_seconds() < 86400]
     recent = pick_news(recent, TARGET)
@@ -344,6 +382,8 @@ def main():
         old, sha = {"articles": []}, None
 
     old_ids = {a["id"] for a in old["articles"]}
+    # 只保留15家白名单媒体的旧条目
+    old["articles"] = [a for a in old["articles"] if (a.get("country"), a.get("source")) in WHITELIST]
     # 云端只兜底：只翻新条目；AI翻过的(translate_by=ai)不碰
     keep_old = []
     for a in old["articles"]:
