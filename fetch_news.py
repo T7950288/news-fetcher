@@ -14,6 +14,7 @@
   6. 全文抓取: 多路选择器提<p>, 失败降权, 不做硬失败
 """
 import os, re, json, base64, time, hashlib, random, sys, threading
+import xml.etree.ElementTree as ET
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(line_buffering=True)
 from datetime import datetime, timezone, timedelta
@@ -733,6 +734,81 @@ _gdelt_lock = threading.Lock()
 _gdelt_last = [0.0]
 
 
+RSS_POOL = [
+    ("apnews.com", "https://apnews.com/apf-topnews?format=rss"),
+    ("bbc.com", "https://feeds.bbci.co.uk/news/world/rss.xml"),
+    ("theguardian.com", "https://www.theguardian.com/world/rss"),
+    ("cnn.com", "http://rss.cnn.com/rss/edition_world.rss"),
+    ("npr.org", "https://feeds.npr.org/1001/rss.xml"),
+    ("cbsnews.com", "https://www.cbsnews.com/latest/rss/main"),
+    ("nbcnews.com", "https://feeds.nbcnews.com/nbcnews/public/news"),
+    ("abcnews.go.com", "https://abcnews.go.com/abcnews/topstories"),
+    ("usatoday.com", "https://www.usatoday.com/arc/outboundfeeds/rss/?outputType=xml"),
+    ("independent.co.uk", "https://www.independent.co.uk/news/world/rss"),
+    ("cnbc.com", "https://www.cnbc.com/id/100003114/device/rss/rss.html"),
+    ("yahoo.com", "https://news.yahoo.com/rss/world"),
+    ("aljazeera.com", "https://www.aljazeera.com/xml/rss/all.xml"),
+    ("dw.com", "https://rss.dw.com/rdf/rss-en-world"),
+    ("pbs.org", "https://www.pbs.org/newshour/feeds/rss/headlines"),
+    ("wsj.com", "https://feeds.a.dj.com/rss/RSSWorldNews.xml"),
+    ("nytimes.com", "https://rss.nytimes.com/services/xml/rss/nyt/World.xml"),
+    ("ft.com", "https://www.ft.com/world?format=rss"),
+    ("latimes.com", "https://www.latimes.com/world-nation/rss2.0.xml"),
+    ("politico.com", "https://www.politico.com/rss/politicopicks.xml"),
+    ("thehill.com", "https://thehill.com/feed/"),
+    ("newsweek.com", "https://www.newsweek.com/rss"),
+    ("scmp.com", "https://www.scmp.com/rss/91/feed"),
+    ("bloomberg.com", "https://feeds.bloomberg.com/markets/news.rss"),
+]
+
+
+def fetch_rss_pool():
+    """并行抓取全部RSS源 -> {domain: [(title, url), ...]}"""
+    pool = {}
+
+    def one(src):
+        dom, url = src
+        if not url:
+            return
+        try:
+            r = requests.get(url, timeout=12, headers={"User-Agent": UA,
+                                                       "Accept-Language": "en-US,en;q=0.9"})
+            if r.status_code != 200:
+                return
+            root = ET.fromstring(r.content)
+            items = []
+            for it in root.iter("item"):
+                t = (it.findtext("title") or "").strip()
+                u = (it.findtext("link") or "").strip()
+                if t and u and "news.google.com" not in u:
+                    items.append((t, u))
+            if items:
+                pool[dom] = items
+        except Exception:
+            pass
+
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        list(ex.map(one, RSS_POOL))
+    return pool
+
+
+def match_rss(pool, title, source):
+    """在RSS池对应媒体里按标题相似度找真实URL"""
+    dom = find_domain(source)
+    if not dom or dom not in pool:
+        return None
+    best = None
+    bests = 0.0
+    for rt, ru in pool[dom]:
+        sc = _title_sim(rt, title)
+        if sc > bests:
+            bests = sc
+            best = ru
+    if bests >= 0.6:
+        return best
+    return None
+
+
 def _gdelt_query(title):
     words = [w for w in re.sub(r"[^a-z0-9 ]", " ", title.lower()).split() if w not in STOPWORDS]
     picks = words[:3]
@@ -968,11 +1044,11 @@ def main():
             if not a.get("_google"):
                 return a
             lang = a.get("_lang", "en")
-            # 四路级联: 通讯社/免费媒体优先逐家查真实URL, 命中才抓正文
+            # v7.9 快路径: RSS池标题匹配(通讯社/免费媒体优先), 命中真实URL抓正文
             pairs = parse_pairs(a.get("content_orig", ""))
             cands = _order_pairs(pairs)[:2]
             for t, src in cands:
-                u = search_article_url(t, src)
+                u = match_rss(pool, t, src)
                 if not u:
                     continue
                 ft = fetch_full_text(u, lang)
@@ -984,7 +1060,7 @@ def main():
                     DIAG["fetch_ok"] += 1
                     return a
             # 主来源兜底
-            u = search_article_url(a.get("title_orig", ""), a.get("source", ""))
+            u = match_rss(pool, a.get("title_orig", ""), a.get("source", ""))
             if u:
                 ft = fetch_full_text(u, lang)
                 if ft:
@@ -993,12 +1069,16 @@ def main():
                     a["url"] = u
                     DIAG["fetch_ok"] += 1
             return a
+        pool = fetch_rss_pool()  # v7.9: 全量RSS池并行抓一次
+        DIAG["rss_domains"] = len(pool)
         uniq = list(ex.map(enrich, uniq))
     full_n = sum(1 for a in uniq if a.get("_full"))
     agency_n = sum(1 for a in uniq if a.get("agency"))
     china_n = sum(1 for a in uniq if a.get("_china"))
     _log(f"full_text ok {full_n}/{len(uniq)}  agency {agency_n}  china {china_n}")
     DIAG["gdelt_ok"] = DIAG.get("gdelt_ok", 0)
+    DIAG["rss_domains"] = DIAG.get("rss_domains", 0)
+    DIAG["rss_hits"] = 0
     DIAG["src_links"] = sum(1 for a in uniq if a.get("_src_links"))
     DIAG["src_links_real"] = sum(
         1 for a in uniq if any("news.google.com" not in u for _, u in (a.get("_src_links") or [])))
