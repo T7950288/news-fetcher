@@ -583,6 +583,102 @@ def pick_news(arts, target=TARGET):
     return arts[:target]
 
 
+# ===== v7: 通讯社/免费媒体全文优先 =====
+AGENCY_NAMES = ["associated press", "ap news", "ap ", "reuters", "afp", "agence france"]
+FREE_NAMES = ["bbc", "the guardian", "guardian", "npr", "al jazeera", "cbs news", "cnbc",
+              "pbs", "dw", "dw.com", "sky news", "the independent", "usa today", "nbc news",
+              "abc news", "yahoo finance", "yahoo", "business insider", "the verge", "fortune"]
+SOURCE_DOMAIN = {
+    "ap": "apnews.com", "ap news": "apnews.com", "associated press": "apnews.com",
+    "reuters": "reuters.com", "afp": "afp.com", "agence france": "afp.com",
+    "bbc": "bbc.com", "the guardian": "theguardian.com", "guardian": "theguardian.com",
+    "npr": "npr.org", "al jazeera": "aljazeera.com", "cbs news": "cbsnews.com",
+    "cnbc": "cnbc.com", "pbs": "pbs.org", "dw": "dw.com", "sky news": "news.sky.com",
+    "the independent": "independent.co.uk", "usa today": "usatoday.com",
+    "nbc news": "nbcnews.com", "abc news": "abcnews.go.com", "yahoo finance": "finance.yahoo.com",
+    "yahoo": "yahoo.com", "business insider": "businessinsider.com",
+    "the verge": "theverge.com", "fortune": "fortune.com",
+}
+
+
+def _norm_src(s):
+    return re.sub(r"[^a-z0-9 ]", "", (s or "").lower()).strip()
+
+
+def parse_pairs(text):
+    """聚合desc -> [(标题, 来源), ...]  格式: 标题\n  \n来源\n标题\n  \n来源..."""
+    lines = [ln.strip() for ln in (text or "").split("\n") if ln.strip()]
+    pairs = []
+    i = 0
+    while i + 1 < len(lines):
+        pairs.append((lines[i], lines[i + 1]))
+        i += 2
+    if i < len(lines):
+        pairs.append((lines[i], ""))
+    return pairs
+
+
+def pick_agency(pairs):
+    """按 AP/路透/法新 -> 免费全文媒体 顺序挑选; 返回 (标题, 来源名) 或 None"""
+    for name in AGENCY_NAMES:
+        for t, src in pairs:
+            if _norm_src(src).startswith(name.strip()) or name.strip() in _norm_src(src):
+                return t, src
+    for name in FREE_NAMES:
+        for t, src in pairs:
+            if _norm_src(src).startswith(name.strip()) or name.strip() in _norm_src(src):
+                return t, src
+    return None
+
+
+def search_article_url(title, source):
+    """用 标题+site:域名 搜索真实文章URL; DDG HTML 优先, Bing 兜底; 失败返回 None"""
+    domain = SOURCE_DOMAIN.get(_norm_src(source))
+    if not domain:
+        return None
+    q = urllib.parse.quote(f'{title[:120]} site:{domain}')
+    bases = ["https://html.duckduckgo.com/html/?q=", "https://www.bing.com/search?q="]
+    for base in bases:
+        try:
+            r = requests.get(base + q, timeout=12, headers={"User-Agent": UA})
+            if r.status_code != 200:
+                continue
+            if "duckduckgo" in base:
+                for h in re.findall(r'uddg=([^&"]+)', r.text):
+                    u = urllib.parse.unquote(h)
+                    if domain in u and "duckduckgo" not in u:
+                        return u
+            else:
+                for h in re.findall(r'href="(https?://[^"]+)"', r.text):
+                    if domain in h and "bing.com" not in h and "microsoft" not in h and "go.microsoft" not in h:
+                        return h
+        except Exception:
+            continue
+    return None
+
+
+def agency_full_text(a):
+    """v7: 对Google条目选通讯社/免费媒体, 搜真实链接抓全文; 成功改content_orig, 失败保留聚合标题"""
+    pairs = parse_pairs(a.get("content_orig", ""))
+    if not pairs:
+        return a
+    picked = pick_agency(pairs)
+    if not picked:
+        return a
+    t, src = picked
+    u = search_article_url(t, src)
+    if not u:
+        return a
+    ft = fetch_full_text(u, a.get("_lang", "en"))
+    if not ft:
+        return a
+    a["content_orig"] = ft
+    a["agency"] = src
+    a["_full"] = True
+    a["url"] = u  # 数据层保留真实链接(溯源用), 前端不展示链接
+    return a
+
+
 def main():
     t0 = time.time()
     load_config()
@@ -629,6 +725,15 @@ def main():
             return url
 
         def enrich(a):
+            if a.get("_google"):
+                # v7: 优先通讯社/免费媒体全文, 匹配不到保留聚合标题
+                a = agency_full_text(a)
+                if not a.get("_full"):
+                    ft = fetch_full_text(a["url"], a["_lang"])
+                    if ft:
+                        a["content_orig"] = ft
+                        a["_full"] = True
+                return a
             real = resolve_google_link(a["url"])
             if real != a["url"]:
                 a["url"] = real  # 换成真实媒体链接(云端已抓回正文)
