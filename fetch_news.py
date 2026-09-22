@@ -120,10 +120,11 @@ def categorize(title, summary, hint):
     if any(k in t for k in ["ai","tech","google","apple","microsoft","chip","software","internet"]): return "tech"
     return "world"
 
-# 过滤无聊的社会新闻
+# 过滤无聊的社会新闻+娱乐新闻，重大灾难保留
 SKIP = ["motorcycle","traffic accident","car crash","weather","cloudy","sunny",
-        "football","soccer","basketball","tennis","score","murder","arrested",
-        "house fire","killed in accident","died in"]
+        "football","soccer","basketball","tennis","score",
+        "house fire","celebrity","actor","actress","movie","film",
+        "singer","music","concert","hollywood","entertainment","taylor swift"]
 
 def skip_news(title, desc):
     t = (title + " " + desc).lower()
