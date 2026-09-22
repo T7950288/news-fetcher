@@ -69,10 +69,13 @@ FEEDS = [
     ("https://www.spiegel.de/schlagzeilen/index.rss", "明镜", "DE", "world"),
     ("https://www.spiegel.de/wirtschaft/index.rss", "明镜", "DE", "finance"),
     ("https://www.bild.de/rss-feeds/rss-16725492,feed=home.bild.html", "图片报", "DE", "world"),
-    # JP 3家 (多备选RSS; 日文源常对海外IP返回旧缓存/限流, 加RSSHub聚合通道)
-    (["https://rsshub.app/nhk/news/en", "https://www3.nhk.or.jp/nhkworld/en/news/feed.xml", "https://www3.nhk.or.jp/rss/news/cat4.xml"], "NHK", "JP", "world"),
-    (["https://japannews.yomiuri.co.jp/feed", "https://www.yomiuri.co.jp/news_rss.xml"], "读卖新闻", "JP", "world"),
-    (["https://www.asahi.com/ajw/rss/", "http://rss.asahi.com/rss/asahi/newsheadlines.rdf"], "朝日新闻", "JP", "world"),
+    # JP 3家 (Google News聚合保24h最新; 原站限流/旧缓存作备选)
+    (["https://news.google.com/rss/search?q=site:yomiuri.co.jp&hl=ja&gl=JP&ceid=JP:ja",
+      "https://japannews.yomiuri.co.jp/feed", "https://www.yomiuri.co.jp/news_rss.xml"], "读卖新闻", "JP", "world"),
+    (["https://news.google.com/rss/search?q=site:asahi.com&hl=ja&gl=JP&ceid=JP:ja",
+      "https://www.asahi.com/ajw/rss/", "http://rss.asahi.com/rss/asahi/newsheadlines.rdf"], "朝日新闻", "JP", "world"),
+    (["https://news.google.com/rss/search?q=site:nhk.or.jp&hl=ja&gl=JP&ceid=JP:ja",
+      "https://rsshub.app/nhk/news/en", "https://www3.nhk.or.jp/rss/news/cat4.xml"], "NHK", "JP", "world"),
 ]
 
 COUNTRY_LANG = {"UK": "en", "US": "en", "FR": "fr", "DE": "de", "JP": "ja"}
@@ -80,6 +83,22 @@ COUNTRY_LANG = {"UK": "en", "US": "en", "FR": "fr", "DE": "de", "JP": "ja"}
 BAIDU_APPID = "20260917002686240"
 BAIDU_SECRET = "6JZO5lWQ2F4GbXr2ycjN"
 BAIDU_LANG = {"en": "en", "fr": "fra", "de": "de", "ja": "jp"}
+BAIDU_ON = True  # 由Gitee config.json控制(用户可网页/手机开关)
+
+
+def load_config():
+    """读Gitee config.json获取百度翻译开关"""
+    global BAIDU_ON
+    try:
+        url = (f"https://gitee.com/api/v5/repos/{GITEE_OWNER}/{GITEE_REPO}/contents/config.json"
+               f"?ref=master&access_token={GITEE_TOKEN}")
+        info = json.loads(urllib.request.urlopen(urllib.request.Request(url), timeout=10).read())
+        cfg = json.loads(base64.b64decode(info["content"]).decode("utf-8"))
+        BAIDU_ON = bool(cfg.get("baidu_enabled", True))
+        print("config baidu_enabled =", BAIDU_ON)
+    except Exception as e:
+        print("config read err, default ON:", str(e)[:60])
+        BAIDU_ON = True
 
 
 def _baidu(text, src):
@@ -209,6 +228,16 @@ def skip_news(title, desc, lang):
     return any(k in t for k in keys)
 
 
+def clean_gn_title(title):
+    """Google News标题清洗: 去掉' - 媒体名'后缀"""
+    for sep in (" - ", " – ", " — ", " -"):
+        if sep in title:
+            parts = title.rsplit(sep, 1)
+            if any(k in parts[-1].lower() for k in ("yomiuri", "asahi", "nhk", "読売", "朝日", "毎日", "共同")):
+                return parts[0].strip()
+    return title
+
+
 def fetch_one(url, source, country, hint):
     arts = []
     urls = url if isinstance(url, list) else [url]
@@ -240,7 +269,7 @@ def fetch_one(url, source, country, hint):
         return arts
     lang = COUNTRY_LANG.get(country, "en")
     for e in d.entries[:8]:
-        title = getattr(e, "title", "").strip()
+        title = clean_gn_title(getattr(e, "title", "")).strip()
         link = getattr(e, "link", "").strip()
         if not title or not link:
             continue
@@ -284,6 +313,13 @@ def fetch_one(url, source, country, hint):
 
 def translate_article(a):
     lang = a.pop("_lang", "en")
+    if not BAIDU_ON:
+        # 用户关闭百度: 云端不翻译, 等本地豆包AI接管
+        a["title_zh"] = a["title_orig"]
+        a["content_zh"] = ""
+        a["summary_zh"] = ""
+        a["translate_by"] = "none"
+        return a
     a["title_zh"] = translate(a["title_orig"], lang)
     body = a.get("content_orig", "") or ""
     if body.strip():
@@ -350,6 +386,7 @@ def pick_news(arts, target=TARGET):
 
 def main():
     t0 = time.time()
+    load_config()
     print("fetching sources...")
     with ThreadPoolExecutor(max_workers=8) as ex:
         results = list(ex.map(lambda f: fetch_one(*f), FEEDS))
