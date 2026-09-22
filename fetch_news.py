@@ -94,11 +94,11 @@ def load_config():
                f"?ref=master&access_token={GITEE_TOKEN}")
         info = json.loads(urllib.request.urlopen(urllib.request.Request(url), timeout=10).read())
         cfg = json.loads(base64.b64decode(info["content"]).decode("utf-8"))
-        BAIDU_ON = bool(cfg.get("baidu_enabled", True))
+        BAIDU_ON = bool(cfg.get("baidu_enabled", False))
         print("config baidu_enabled =", BAIDU_ON)
     except Exception as e:
-        print("config read err, default ON:", str(e)[:60])
-        BAIDU_ON = True
+        print("config read err, default OFF:", str(e)[:60])
+        BAIDU_ON = False
 
 
 def _baidu(text, src):
