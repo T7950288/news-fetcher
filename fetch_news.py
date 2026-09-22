@@ -94,6 +94,15 @@ FEEDS = [
 ]
 
 # Google热门源: 真实媒体名 -> 国家
+GOOGLE_SKIP_SOURCES = {
+    "game informer", "eurogamer", "ign", "kotaku", "polygon", "gamerant",
+    "vogue", "elle", "cosmopolitan", "tmz", "people", "us weekly",
+    "e! online", "hollywood reporter", "variety", "deadline",
+    "mirror", "the sun", "daily star", "metro", "ok! magazine", "gq",
+    "marie claire", "glamour", "refinery29", "buzzfeed", "mashable",
+    "the verge", "wired", "techcrunch", "engadget", "arstechnica",
+}
+
 GOOGLE_COUNTRY = {
     "bbc": "UK", "the guardian": "UK", "guardian": "UK", "dailymail": "UK", "daily mail": "UK",
     "the times": "UK", "telegraph": "UK", "independent": "UK", "sky news": "UK",
@@ -491,6 +500,8 @@ def fetch_one(url, source, country, hint, is_google=False):
                 media = (getattr(e, "source", None) and getattr(e.source, "title", "")) or ""
             media = media.strip()
             if media:
+                if media.lower() in GOOGLE_SKIP_SOURCES:
+                    continue  # 游戏/娱乐/时尚等非时政媒体
                 source = media
                 country = GOOGLE_COUNTRY.get(media.lower(), country)
                 lang = COUNTRY_LANG.get(country, "en")
@@ -626,16 +637,28 @@ def pick_news(arts, target=TARGET):
             if all(p["id"] != a["id"] for p in picks):
                 picks.append(a)
 
-    # 2) 剩余按"全文优先 + 时政70%"填
+    # 2) 剩余按"全文优先 + Google热榜强制进池 + 时政70%"填
     remaining = [a for a in arts if all(p["id"] != a["id"] for p in picks)]
     full = [a for a in remaining if a.get("_full")]
-    summary = [a for a in remaining if not a.get("_full")]
-    pool = full if len(full) >= max(round(target * 0.6), 1) else full + summary
+    google_sum = [a for a in remaining if a.get("_google") and not a.get("_full")]
+    summary = [a for a in remaining if not a.get("_full") and not a.get("_google")]
+    # Google全球热榜是用户点名要的: 即使抓不到全文也进池(全球最热门)
+    pool = full + google_sum
+    if len(pool) < max(round(target * 0.6), 1):
+        pool = full + google_sum + summary
     world = sorted([a for a in pool if a["category"] in ("world", "op-ed")], key=importance)
     rest = sorted([a for a in pool if a["category"] not in ("world", "op-ed")], key=importance)
     nw = min(len(world), max(round(target * 0.7), 1))
     picks += pick_cat(world, nw)
     picks += pick_cat(rest, target - len(picks))
+    # Google条目最多8条, 超出用非Google补位
+    gpicks = [a for a in picks if a.get("_google")]
+    if len(gpicks) > 8:
+        drop = [a["id"] for a in gpicks[8:]]
+        picks = [a for a in picks if a["id"] not in drop]
+        seen = {a["id"] for a in picks}
+        extra = sorted([a for a in pool if a["id"] not in seen and not a.get("_google")], key=importance)
+        picks += extra[:len(drop)]
 
     # 3) 不足补足
     if len(picks) < target:
