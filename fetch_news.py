@@ -52,6 +52,7 @@ SOURCE_RANK = {
 # v6 用户指定: 不要五国媒体, 30条全部照搬 Google News 当时主热榜(Top Stories), 不做喜好挑选
 FEEDS = [
     ("https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en", "GOOGLE_TOP", "US", "world", True),
+    ("https://news.google.com/rss/search?q=China&hl=en-US&gl=US&ceid=US:en", "GOOGLE_CHINA", "CN", "world", True),
 ]
 
 # Google热门源: 真实媒体名 -> 国家
@@ -530,6 +531,7 @@ def fetch_one(url, source, country, hint, is_google=False):
             "_w": weight,
             "_full": False,
             "_google": is_google,
+            "_china": source == "GOOGLE_CHINA",
         })
     print(f"  {source}: {len(arts)} ok")
     return arts
@@ -631,16 +633,38 @@ def pick_agency(pairs):
     return None
 
 
+def find_domain(source):
+    """来源名 -> 媒体域名: 本身是域名直接用; 精确键; 前缀/包含兜底"""
+    low = (source or "").lower().strip()
+    m = re.match(r'^([a-z0-9-]+\.(?:com|org|net|co\.uk|io))$', low)
+    if m:
+        return m.group(1)
+    n = _norm_src(source)
+    if n in SOURCE_DOMAIN:
+        return SOURCE_DOMAIN[n]
+    for k, dom in SOURCE_DOMAIN.items():
+        kn = _norm_src(k)
+        if n.startswith(kn) or kn in n:
+            return dom
+    return None
+
+
 def search_article_url(title, source):
-    """用 标题+site:域名 搜索真实文章URL; DDG HTML 优先, Bing 兜底; 失败返回 None"""
-    domain = SOURCE_DOMAIN.get(_norm_src(source))
+    """用 标题+site:域名 搜索真实文章URL; DDG html -> DDG lite -> Mojeek -> Bing; 失败返回 None"""
+    domain = find_domain(source)
     if not domain:
         return None
     q = urllib.parse.quote(f'{title[:120]} site:{domain}')
-    bases = ["https://html.duckduckgo.com/html/?q=", "https://www.bing.com/search?q="]
+    hdrs = {"User-Agent": UA, "Accept-Language": "en-US,en;q=0.9"}
+    bases = [
+        "https://html.duckduckgo.com/html/?q=",
+        "https://lite.duckduckgo.com/lite/?q=",
+        "https://www.mojeek.com/search?q=",
+        "https://www.bing.com/search?q=",
+    ]
     for base in bases:
         try:
-            r = requests.get(base + q, timeout=12, headers={"User-Agent": UA})
+            r = requests.get(base + q, timeout=12, headers=hdrs)
             if r.status_code != 200:
                 continue
             if "duckduckgo" in base:
@@ -648,6 +672,10 @@ def search_article_url(title, source):
                     u = urllib.parse.unquote(h)
                     if domain in u and "duckduckgo" not in u:
                         return u
+            elif "mojeek" in base:
+                for h in re.findall(r'<a class="ob"[^>]*href="(https?://[^"]+)"', r.text):
+                    if domain in h:
+                        return h
             else:
                 for h in re.findall(r'href="(https?://[^"]+)"', r.text):
                     if domain in h and "bing.com" not in h and "microsoft" not in h and "go.microsoft" not in h:
@@ -747,11 +775,21 @@ def main():
     print(f"full_text ok {full_n}/{len(uniq)}")
 
     now = datetime.now(CST)
-    recent = [a for a in uniq
-              if 0 <= (now - datetime.fromisoformat(a["published_at"])).total_seconds() < 86400]
-    recent = pick_news(recent, TARGET)
+    china_list = [a for a in uniq if a.get("_china")]
+    main_list = [a for a in uniq if not a.get("_china")]
+    recent_main = [a for a in main_list
+                   if 0 <= (now - datetime.fromisoformat(a["published_at"])).total_seconds() < 86400]
+    recent_main = pick_news(recent_main, TARGET)
+    recent_china = [a for a in china_list
+                    if 0 <= (now - datetime.fromisoformat(a["published_at"])).total_seconds() < 86400]
+    # 中国相关: 保持Google搜索排序取前6; 与主榜重复标题跳过
+    main_keys = {re.sub(r"\W+", "", a["title_orig"].lower())[:60] for a in recent_main}
+    recent_china = [a for a in recent_china
+                    if re.sub(r"\W+", "", a["title_orig"].lower())[:60] not in main_keys][:6]
+    recent = recent_main + recent_china
     from collections import Counter as _C
-    print(f"picked {len(recent)}", dict(_C(a["country"] for a in recent)))
+    print(f"picked {len(recent)} (main {len(recent_main)} + china {len(recent_china)})",
+          dict(_C(a["country"] for a in recent)))
     print("picked cat", dict(_C(a["category"] for a in recent)))
     print("picked full", sum(1 for a in recent if a.get("_full")))
 
@@ -780,12 +818,12 @@ def main():
             a["content_zh"] = ""
             a["summary_zh"] = ""
             a["translate_by"] = "none"
-    merged2 = recent[:TARGET]
-    # 新条目不足30时, 用上轮AI翻译过的旧条目补位(24h内)
-    if len(merged2) < TARGET:
+    merged2 = recent[:TARGET + len(recent_china)]
+    # 新条目不足时, 用上轮AI翻译过的旧条目补位(24h内)
+    if len(merged2) < TARGET + len(recent_china):
         have = {a["id"] for a in merged2}
         for a in sorted(old_by_id.values(), key=lambda x: x.get("published_at", ""), reverse=True):
-            if len(merged2) >= TARGET:
+            if len(merged2) >= TARGET + len(recent_china):
                 break
             if a["id"] in have:
                 continue
