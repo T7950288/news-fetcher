@@ -252,7 +252,7 @@ def fetch_one(url, source, country, hint):
                     break
         if skip_news(title, desc, lang):
             continue
-        min_body = 50 if country == "JP" else MIN_BODY
+        min_body = 30 if country == "JP" else MIN_BODY
         if len(desc) < min_body:
             continue
         pub = None
@@ -373,6 +373,10 @@ def main():
             best[key] = a
     uniq = sorted(best.values(), key=lambda x: x["published_at"], reverse=True)
     now = datetime.now(CST)
+    jp_items = [a for a in uniq if a["country"] == "JP"]
+    print("JP raw:", len(jp_items))
+    for a in jp_items[:6]:
+        print(f"  JP {a['source']} {a['published_at'][:19]} len={len(a['content_orig'])} {a['title_orig'][:40]}")
     recent = [a for a in uniq if (now - datetime.fromisoformat(a["published_at"])).total_seconds() < 86400]
     recent = pick_news(recent, TARGET)
     from collections import Counter as _C
