@@ -211,10 +211,25 @@ SKIP_KEYS = {
 }
 
 
-def skip_news(title, desc, lang):
+SKIP_URL_PARTS = [
+    "/kultur/", "/panorama/", "/vermischtes/", "/tvshowbiz/", "/femail/", "/sport",
+    "/culture/", "/film/", "/music/", "/books/", "/lifeandstyle/", "/football/",
+    "/faits-divers/", "/people/", "/entertainment/", "/movies/", "/celebrity/",
+    "/health/", "/food/", "/artanddesign/", "/games/", "/technology/",
+]
+
+
+def skip_news(title, desc, lang, url=""):
     t = (title + " " + desc).lower()
     if any(k in t for k in DISASTER_KEYS):
         return False  # 重大灾难保留
+    u = (url or "").lower()
+    for part in SKIP_URL_PARTS:
+        if part in u:
+            # 版块是娱乐/生活, 但内容命中重大时政/国际大事仍放行
+            if any(k in t for k in HARD_WORLD):
+                return False
+            return True
     keys = SKIP_KEYS.get(lang, []) + SKIP_KEYS.get("en", [])
     return any(k in t for k in keys)
 
@@ -374,6 +389,19 @@ def translate_long(text, src):
     return "\n".join(out)
 
 
+PAYWALL_MARKERS = [
+    "cet article est réservé aux abonnés",
+    "pour sauvegarder un article vous devez être connecté",
+    "you have reached your article limit",
+    "this article is reserved for subscribers",
+    "sie können den artikel leider nicht mehr aufrufen",
+    "sie haben bereits ein digital-abo",
+    "um spiegel+ außerhalb",
+    "subscribe to read", "log in to read", "sign in to continue",
+    "get full access", "you must be logged in",
+]
+
+
 def fetch_full_text(url, lang):
     """抓文章页全文; 成功返回正文(最多MAX_BODY), 失败返回None"""
     sels = ["article", "[itemprop='articleBody']", "[class*='article-body']",
@@ -402,6 +430,15 @@ def fetch_full_text(url, lang):
                 if len(text) > len(best):
                     best = text
             if len(best) >= 200:
+                low = best.lower()
+                pay = [m for m in PAYWALL_MARKERS if m in low]
+                if pay:
+                    keep = [ln for ln in best.split("\n")
+                            if not any(m in ln.lower() for m in PAYWALL_MARKERS)]
+                    clean = "\n".join(keep).strip()
+                    if len(clean) < 200:
+                        return None  # 正文被付费墙吞掉, 视为抓不到全文
+                    return clean[:MAX_BODY]
                 return best[:MAX_BODY]
         except Exception:
             pass
@@ -466,7 +503,7 @@ def fetch_one(url, source, country, hint, is_google=False):
                     desc = full
                 if len(desc) >= 300:
                     break
-        if skip_news(title, desc, lang):
+        if skip_news(title, desc, lang, link):
             continue
         cls = classify(title, desc, lang, hint)
         if cls is None:
@@ -505,6 +542,7 @@ def fetch_one(url, source, country, hint, is_google=False):
             "_lang": lang,
             "_w": weight,
             "_full": False,
+            "_google": is_google,
         })
     print(f"  {source}: {len(arts)} ok")
     return arts
