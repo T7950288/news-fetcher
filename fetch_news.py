@@ -817,20 +817,22 @@ def fetch_rss_pool():
 
 
 def match_rss(pool, title, source):
-    """在RSS池对应媒体里按标题相似度找真实URL"""
+    """在RSS池对应媒体里按标题相似度找真实URL (0.45 或 词重叠>=2 即接受)"""
     dom = find_domain(source)
     if not dom or dom not in pool:
         return None
     best = None
     bests = 0.0
+    tt = set(re.sub(r"[^a-z0-9 ]", "", title.lower()).split()) - STOPWORDS
     for rt, ru in pool[dom]:
         sc = _title_sim(rt, title)
-        if sc > bests:
-            bests = sc
-            best = ru
-    if bests >= 0.6:
-        return best
-    return None
+        rts = set(re.sub(r"[^a-z0-9 ]", "", rt.lower()).split()) - STOPWORDS
+        overlap = len(tt & rts)
+        if sc >= 0.45 or (overlap >= 2 and len(tt) >= 3):
+            if sc > bests:
+                bests = sc
+                best = ru
+    return best
 
 
 def _gdelt_query(title):
@@ -1068,11 +1070,19 @@ def main():
             if not a.get("_google"):
                 return a
             lang = a.get("_lang", "en")
-            # v7.9 快路径: RSS池标题匹配(通讯社/免费媒体优先), 命中真实URL抓正文
+            main_title = a.get("title_orig", "")
+            # 通讯社/免费媒体优先排序, 取前4家, 用聚合主标题匹配各家RSS
             pairs = parse_pairs(a.get("content_orig", ""))
-            cands = _order_pairs(pairs)[:2]
-            for t, src in cands:
-                u = match_rss(pool, t, src)
+            srcs = []
+            for _t, src in _order_pairs(pairs):
+                if src and src not in srcs:
+                    srcs.append(src)
+                if len(srcs) >= 4:
+                    break
+            if a.get("source") and a["source"] not in srcs:
+                srcs.append(a["source"])
+            for src in srcs:
+                u = match_rss(pool, main_title, src)
                 if not u:
                     continue
                 ft = fetch_full_text(u, lang)
@@ -1083,15 +1093,6 @@ def main():
                     a["url"] = u
                     DIAG["fetch_ok"] += 1
                     return a
-            # 主来源兜底
-            u = match_rss(pool, a.get("title_orig", ""), a.get("source", ""))
-            if u:
-                ft = fetch_full_text(u, lang)
-                if ft:
-                    a["content_orig"] = ft
-                    a["_full"] = True
-                    a["url"] = u
-                    DIAG["fetch_ok"] += 1
             return a
         pool = fetch_rss_pool()  # v7.9: 全量RSS池并行抓一次
         DIAG["rss_domains"] = len(pool)
