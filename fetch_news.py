@@ -41,51 +41,82 @@ WHITELIST = {
     ("JP", "读卖新闻"), ("JP", "朝日新闻"), ("JP", "NHK"),
 }
 SOURCE_RANK = {
-    "BBC": 0, "CNN": 0,
-    "卫报": 1, "NPR": 1, "纽约时报": 1, "华尔街日报": 1,
-    "每日邮报": 2, "世界报": 2, "费加罗报": 2, "明镜": 2, "图片报": 2,
-    "读卖新闻": 3, "朝日新闻": 3, "NHK": 3,
+    "BBC": 0, "CNN": 0, "Reuters": 0, "Associated Press": 0, "AP": 0, "The Associated Press": 0,
+    "卫报": 1, "The Guardian": 1, "NPR": 1, "纽约时报": 1, "The New York Times": 1, "华尔街日报": 1,
+    "Wall Street Journal": 1, "Bloomberg": 1, "The Economist": 1, "Washington Post": 1, "Financial Times": 1,
+    "每日邮报": 2, "Daily Mail": 2, "世界报": 2, "Le Monde": 2, "费加罗报": 2, "Le Figaro": 2,
+    "明镜": 2, "Der Spiegel": 2, "图片报": 2, "Bild": 2, "Die Welt": 2, "The Times": 2,
+    "读卖新闻": 3, "朝日新闻": 3, "NHK": 3, "NHK World": 3, "Kyodo": 3,
 }
 
-# 五国15家媒体 + 财经科技栏目 (20源)
+# 五国15家媒体 + 财经科技栏目 + Google全球热榜 (25源)
 FEEDS = [
     # UK 3家
-    ("http://feeds.bbci.co.uk/news/world/rss.xml", "BBC", "UK", "world"),
-    ("http://feeds.bbci.co.uk/news/business/rss.xml", "BBC", "UK", "finance"),
-    ("http://feeds.bbci.co.uk/news/technology/rss.xml", "BBC", "UK", "tech"),
-    ("https://www.theguardian.com/world/rss", "卫报", "UK", "world"),
-    ("https://www.theguardian.com/business/rss", "卫报", "UK", "finance"),
-    ("https://www.theguardian.com/technology/rss", "卫报", "UK", "tech"),
-    ("https://www.theguardian.com/tone/editorials/rss", "卫报", "UK", "op-ed"),
-    ("https://www.dailymail.co.uk/home/index.rss", "每日邮报", "UK", "world"),
+    ("http://feeds.bbci.co.uk/news/world/rss.xml", "BBC", "UK", "world", False),
+    ("http://feeds.bbci.co.uk/news/business/rss.xml", "BBC", "UK", "finance", False),
+    ("http://feeds.bbci.co.uk/news/technology/rss.xml", "BBC", "UK", "tech", False),
+    ("https://www.theguardian.com/world/rss", "卫报", "UK", "world", False),
+    ("https://www.theguardian.com/business/rss", "卫报", "UK", "finance", False),
+    ("https://www.theguardian.com/technology/rss", "卫报", "UK", "tech", False),
+    ("https://www.theguardian.com/tone/editorials/rss", "卫报", "UK", "op-ed", False),
+    ("https://www.dailymail.co.uk/home/index.rss", "每日邮报", "UK", "world", False),
     # US 4家
-    ("http://rss.cnn.com/rss/edition.rss", "CNN", "US", "world"),
-    ("https://feeds.npr.org/1001/rss.xml", "NPR", "US", "world"),
-    ("https://feeds.npr.org/1006/rss.xml", "NPR", "US", "finance"),
-    ("https://feeds.npr.org/1019/rss.xml", "NPR", "US", "tech"),
-    ("https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml", "纽约时报", "US", "world"),
-    ("https://rss.nytimes.com/services/xml/rss/nyt/Editorials.xml", "纽约时报", "US", "op-ed"),
-    ("https://feeds.a.dj.com/rss/RSSWorldNews.xml", "华尔街日报", "US", "finance"),
-    ("https://feeds.a.dj.com/rss/RSSOpinion.xml", "华尔街日报", "US", "op-ed"),
+    ("http://rss.cnn.com/rss/edition.rss", "CNN", "US", "world", False),
+    ("https://feeds.npr.org/1001/rss.xml", "NPR", "US", "world", False),
+    ("https://feeds.npr.org/1006/rss.xml", "NPR", "US", "finance", False),
+    ("https://feeds.npr.org/1019/rss.xml", "NPR", "US", "tech", False),
+    ("https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml", "纽约时报", "US", "world", False),
+    ("https://rss.nytimes.com/services/xml/rss/nyt/Editorials.xml", "纽约时报", "US", "op-ed", False),
+    ("https://feeds.a.dj.com/rss/RSSWorldNews.xml", "华尔街日报", "US", "finance", False),
+    ("https://feeds.a.dj.com/rss/RSSOpinion.xml", "华尔街日报", "US", "op-ed", False),
     # FR 2家
-    ("https://www.lemonde.fr/rss/une.xml", "世界报", "FR", "world"),
-    ("https://www.lemonde.fr/economie/rss_full.xml", "世界报", "FR", "finance"),
-    ("https://www.lemonde.fr/idees/rss_full.xml", "世界报", "FR", "op-ed"),
-    ("http://www.lefigaro.fr/rss/figaro_actualites.xml", "费加罗报", "FR", "world"),
+    ("https://www.lemonde.fr/rss/une.xml", "世界报", "FR", "world", False),
+    ("https://www.lemonde.fr/economie/rss_full.xml", "世界报", "FR", "finance", False),
+    ("https://www.lemonde.fr/idees/rss_full.xml", "世界报", "FR", "op-ed", False),
+    ("http://www.lefigaro.fr/rss/figaro_actualites.xml", "费加罗报", "FR", "world", False),
     # DE 3家
-    ("https://www.welt.de/feeds/latest.rss", "世界报", "DE", "world"),
-    ("https://www.spiegel.de/schlagzeilen/index.rss", "明镜", "DE", "world"),
-    ("https://www.spiegel.de/wirtschaft/index.rss", "明镜", "DE", "finance"),
-    ("https://www.spiegel.de/meinung/index.rss", "明镜", "DE", "op-ed"),
-    ("https://www.bild.de/rss-feeds/rss-16725492,feed=home.bild.html", "图片报", "DE", "world"),
+    ("https://www.welt.de/feeds/latest.rss", "世界报", "DE", "world", False),
+    ("https://www.spiegel.de/schlagzeilen/index.rss", "明镜", "DE", "world", False),
+    ("https://www.spiegel.de/wirtschaft/index.rss", "明镜", "DE", "finance", False),
+    ("https://www.spiegel.de/meinung/index.rss", "明镜", "DE", "op-ed", False),
+    ("https://www.bild.de/rss-feeds/rss-16725492,feed=home.bild.html", "图片报", "DE", "world", False),
     # JP 3家 (Google News聚合保24h最新; 原站限流/旧缓存作备选)
     (["https://news.google.com/rss/search?q=site:yomiuri.co.jp&hl=ja&gl=JP&ceid=JP:ja",
-      "https://japannews.yomiuri.co.jp/feed", "https://www.yomiuri.co.jp/news_rss.xml"], "读卖新闻", "JP", "world"),
+      "https://japannews.yomiuri.co.jp/feed", "https://www.yomiuri.co.jp/news_rss.xml"], "读卖新闻", "JP", "world", False),
     (["https://news.google.com/rss/search?q=site:asahi.com&hl=ja&gl=JP&ceid=JP:ja",
-      "https://www.asahi.com/ajw/rss/", "http://rss.asahi.com/rss/asahi/newsheadlines.rdf"], "朝日新闻", "JP", "world"),
+      "https://www.asahi.com/ajw/rss/", "http://rss.asahi.com/rss/asahi/newsheadlines.rdf"], "朝日新闻", "JP", "world", False),
     (["https://news.google.com/rss/search?q=site:nhk.or.jp&hl=ja&gl=JP&ceid=JP:ja",
-      "https://rsshub.app/nhk/news/en", "https://www3.nhk.or.jp/rss/news/cat4.xml"], "NHK", "JP", "world"),
+      "https://rsshub.app/nhk/news/en", "https://www3.nhk.or.jp/rss/news/cat4.xml"], "NHK", "JP", "world", False),
+    # Google全球热榜 (世界/财经/科技), 来源不限15家, 全球热门优先
+    ("https://news.google.com/rss/headlines/section/topic/WORLD?hl=en-US&gl=US&ceid=US:en", "GOOGLE_WORLD", "UK", "world", True),
+    ("https://news.google.com/rss/headlines/section/topic/BUSINESS?hl=en-US&gl=US&ceid=US:en", "GOOGLE_BUSINESS", "UK", "finance", True),
+    ("https://news.google.com/rss/headlines/section/topic/TECHNOLOGY?hl=en-US&gl=US&ceid=US:en", "GOOGLE_TECH", "UK", "tech", True),
 ]
+
+# Google热门源: 真实媒体名 -> 国家
+GOOGLE_COUNTRY = {
+    "bbc": "UK", "the guardian": "UK", "guardian": "UK", "dailymail": "UK", "daily mail": "UK",
+    "the times": "UK", "telegraph": "UK", "independent": "UK", "sky news": "UK",
+    "reuters": "UK", "the economist": "UK", "financial times": "UK", "ft": "UK",
+    "ap": "US", "associated press": "US", "the associated press": "US",
+    "the new york times": "US", "new york times": "US", "nytimes": "US",
+    "wall street journal": "US", "wsj": "US", "cnn": "US", "nbc news": "US", "nbc": "US",
+    "fox news": "US", "npr": "US", "washington post": "US", "bloomberg": "US",
+    "los angeles times": "US", "usa today": "US", "newsweek": "US", "time": "US",
+    "forbes": "US", "cnbc": "US", "politico": "US", "axios": "US", "the hill": "US",
+    "abc news": "US", "cbs news": "US", "the verge": "US", "ars technica": "US",
+    "le monde": "FR", "le figaro": "FR", "france 24": "FR", "france24": "FR", "afp": "FR",
+    "liberation": "FR", "les echos": "FR", "le parisien": "FR", "bfm tv": "FR",
+    "ouest-france": "FR", "la croix": "FR",
+    "der spiegel": "DE", "spiegel": "DE", "die welt": "DE", "welt": "DE",
+    "dw": "DE", "deutsche welle": "DE", "zeit": "DE", "die zeit": "DE", "faz": "DE",
+    "handelsblatt": "DE", "bild": "DE", "sueddeutsche zeitung": "DE", "tagesschau": "DE",
+    "nhk": "JP", "nhk world": "JP", "kyodo": "JP", "japan times": "JP",
+    "asahi": "JP", "asahi shimbun": "JP", "yomiuri": "JP", "yomiuri shimbun": "JP",
+    "mainichi": "JP", "nikkei": "JP", "japan today": "JP",
+    "al jazeera": "UK", "euronews": "UK", "scmp": "UK", "south china morning post": "UK",
+    "the hindu": "UK", "times of india": "UK", "straits times": "UK", "cbc": "UK",
+}
 
 COUNTRY_LANG = {"UK": "en", "US": "en", "FR": "fr", "DE": "de", "JP": "ja"}
 
@@ -207,13 +238,15 @@ def classify(title, desc, lang, hint):
 
 
 def clean_gn_title(title):
-    """Google News标题清洗: 去掉' - 媒体名'后缀"""
-    for sep in (" - ", " – ", " — ", " -"):
+    """Google News标题清洗: 去掉' - 媒体名'后缀, 返回(标题, 媒体名)"""
+    for sep in (" - ", " – ", " — "):
         if sep in title:
             parts = title.rsplit(sep, 1)
-            if any(k in parts[-1].lower() for k in ("yomiuri", "asahi", "nhk", "読売", "朝日", "毎日", "共同")):
-                return parts[0].strip()
-    return title
+            media = parts[-1].strip()
+            # 媒体名通常短(<=40字)且不以句尾标点结尾
+            if 0 < len(media) <= 40 and not media.endswith((".", "。", "!", "？", "?", "…")):
+                return parts[0].strip(), media
+    return title, ""
 
 
 def load_config():
@@ -375,9 +408,9 @@ def fetch_full_text(url, lang):
     return None
 
 
-def fetch_one(url, source, country, hint):
+def fetch_one(url, source, country, hint, is_google=False):
     arts = []
-    max_per = 5 if source == "图片报" else 8  # Bild质量差, 每轮最多5条
+    max_per = 8  # Google热榜也是8条
     urls = url if isinstance(url, list) else [url]
     content = None
     now = datetime.now(CST)
@@ -408,10 +441,20 @@ def fetch_one(url, source, country, hint):
         return arts
     lang = COUNTRY_LANG.get(country, "en")
     for e in d.entries[:max_per]:
-        title = clean_gn_title(getattr(e, "title", "")).strip()
+        title, media = clean_gn_title(getattr(e, "title", ""))
+        title = title.strip()
         link = getattr(e, "link", "").strip()
         if not title or not link:
             continue
+        if is_google:
+            # Google热榜: 媒体名取title后缀, 国家按媒体映射
+            if not media:
+                media = (getattr(e, "source", None) and getattr(e.source, "title", "")) or ""
+            media = media.strip()
+            if media:
+                source = media
+                country = GOOGLE_COUNTRY.get(media.lower(), country)
+                lang = COUNTRY_LANG.get(country, "en")
         desc = clean_html(getattr(e, "summary", "") or getattr(e, "description", ""))
         # RSS自带全文(content:encoded)优先: 摘要太短时取content字段的完整正文
         if len(desc) < 300:
@@ -427,6 +470,8 @@ def fetch_one(url, source, country, hint):
         if cls is None:
             continue
         cat, weight = cls
+        if is_google:
+            weight = min(weight, 0)  # 全球热门最优先
         min_body = 30 if country == "JP" else MIN_BODY
         if len(desc) < min_body:
             continue
