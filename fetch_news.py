@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
-"""国际新闻抓取 v3.1
-- 选稿: 时政50% 经济30% 科技20%，不要社会新闻/娱乐
-- 一次最多50条，仅24小时内
-- 增量: 旧新闻不重复翻译(只翻新抓到的)
-- 翻译: 百度(主)→有道(备用,2026-09起失效自动跳过)→MyMemory(兜底)，全文分段翻译
+"""国际新闻抓取 v3.2
+- 选稿: 时政50% 经济30% 科技20%，五国均衡，一次最多30条，仅24小时内
+- 增量: 旧新闻不重复翻译；正文为空的旧条目删除；翻译空白的旧条目一次性补翻
+- 翻译: 百度(主)→有道(备用,失效自动跳过)→MyMemory(兜底)，全文分段翻译
 - 踩坑记录(不要再犯):
-  1. RSS正文可能在content字段而非summary，必须兜底提取，否则content_orig为空→中文全文空白
-  2. 有道网页接口返回非JSON(已失效)，失败快速跳过即可
-  3. 上传Gitee前先GET拿sha
-  4. 德/法/日新闻过滤词要用对应语言，英文关键词匹配不到德文标题
+  1. RSS正文可能在content字段而非summary，必须兜底提取
+  2. feedparser.parse(url)无超时会卡死，必须用requests下载+超时
+  3. 选稿不能按时间取前N条(德媒霸屏)，必须按国家轮流均衡
+  4. Die Zeit等源RSS无正文，正文<100字符的条目直接丢弃
+  5. 有道网页接口2026-09起失效，失败快速跳过
 """
 import os, re, json, base64, time, hashlib, random
 from datetime import datetime, timezone, timedelta
@@ -16,6 +16,7 @@ from concurrent.futures import ThreadPoolExecutor
 import urllib.request
 import urllib.parse
 import feedparser
+import requests
 from bs4 import BeautifulSoup
 
 GITEE_TOKEN = os.environ["GITEE_TOKEN"]
@@ -23,10 +24,9 @@ GITEE_OWNER = "t7950288"
 GITEE_REPO = "news"
 GITEE_PATH = "news.json"
 CST = timezone(timedelta(hours=8))
+MIN_BODY = 100  # 正文最小长度，低于则丢弃
 
-# 25个源：时政/经济/科技全覆盖，每源8条
 FEEDS = [
-    # UK 7
     ("http://feeds.bbci.co.uk/news/world/rss.xml", "BBC", "UK", "world"),
     ("https://www.theguardian.com/world/rss", "The Guardian", "UK", "world"),
     ("https://news.sky.com/rss/world", "Sky News", "UK", "world"),
@@ -34,7 +34,6 @@ FEEDS = [
     ("http://feeds.bbci.co.uk/news/technology/rss.xml", "BBC Tech", "UK", "tech"),
     ("https://www.theguardian.com/business/rss", "Guardian Business", "UK", "finance"),
     ("https://www.theguardian.com/technology/rss", "Guardian Tech", "UK", "tech"),
-    # US 7
     ("http://rss.cnn.com/rss/edition.rss", "CNN", "US", "world"),
     ("https://feeds.npr.org/1001/rss.xml", "NPR", "US", "world"),
     ("https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml", "NY Times", "US", "world"),
@@ -42,17 +41,14 @@ FEEDS = [
     ("https://feeds.npr.org/1019/rss.xml", "NPR Tech", "US", "tech"),
     ("https://rss.nytimes.com/services/xml/rss/nyt/Business.xml", "NYT Business", "US", "finance"),
     ("https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml", "NYT Tech", "US", "tech"),
-    # FR 4
     ("https://www.lemonde.fr/rss/une.xml", "Le Monde", "FR", "world"),
     ("http://www.lefigaro.fr/rss/figaro_actualites.xml", "Le Figaro", "FR", "world"),
     ("https://www.lemonde.fr/economie/rss_full.xml", "Le Monde Éco", "FR", "finance"),
     ("https://www.lefigaro.fr/rss/figaro_economie.xml", "Le Figaro Éco", "FR", "finance"),
-    # DE 4
     ("https://www.spiegel.de/schlagzeilen/index.rss", "Der Spiegel", "DE", "world"),
     ("https://www.welt.de/feeds/latest.rss", "Die Welt", "DE", "world"),
     ("https://newsfeed.zeit.de/index", "Die Zeit", "DE", "world"),
     ("https://www.handelsblatt.com/contentexport/feed/finanzen", "Handelsblatt", "DE", "finance"),
-    # JP 3
     ("https://www3.nhk.or.jp/nhkworld/en/news/feed.xml", "NHK World", "JP", "world"),
     ("https://english.kyodonews.net/rss/news.rss", "Kyodo News", "JP", "world"),
     ("https://asia.nikkei.com/rss", "Nikkei Asia", "JP", "finance"),
@@ -110,7 +106,6 @@ def _mymemory(text, src):
 
 
 def translate(text, src="en"):
-    """三级备用：百度→有道→MyMemory，全部免费，失败返回原文"""
     if not text:
         return ""
     text = text.strip()
@@ -131,7 +126,6 @@ def translate(text, src="en"):
 
 
 def split_chunks(text, size=700):
-    """按段落切块，段落超长再按窗口切，保证每块<=size字符"""
     paras = [p.strip() for p in re.split(r"\n+", text) if p.strip()]
     if not paras:
         return [text] if text else []
@@ -156,7 +150,6 @@ def split_chunks(text, size=700):
 
 
 def translate_long(text, src):
-    """全文分段翻译：每段<=700字符，逐段翻译后拼回"""
     if not text:
         return ""
     text = text.strip()
@@ -182,12 +175,11 @@ def categorize(title, summary):
                             "bank", "tariff", "inflation", "bond", "bourse", "wirtschaft", "économie", "経済"]):
         return "finance"
     if any(k in t for k in ["ai", "tech", "google", "apple", "microsoft", "chip", "software", "internet",
-                            "technology", "techologie", "technik", "テクノロジー"]):
+                            "technology", "technologie", "technik", "テクノロジー"]):
         return "tech"
     return "world"
 
 
-# 多语言无聊社会新闻+娱乐过滤（重大灾难如地震台风不在列表，保留）
 SKIP_KEYS = {
     "en": ["motorcycle", "traffic accident", "car crash", "weather", "cloudy", "sunny", "forecast",
            "football", "soccer", "basketball", "tennis", "score", "match result", "house fire",
@@ -210,8 +202,13 @@ def skip_news(title, desc, lang):
 def fetch_one(url, source, country, hint):
     arts = []
     try:
-        d = feedparser.parse(url)
-    except Exception:
+        r = requests.get(url, timeout=12, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
+        if r.status_code != 200:
+            print(f"  {source}: HTTP {r.status_code}")
+            return arts
+        d = feedparser.parse(r.content)
+    except Exception as e:
+        print(f"  {source}: ERR {str(e)[:70]}")
         return arts
     lang = COUNTRY_LANG.get(country, "en")
     for e in d.entries[:8]:
@@ -219,7 +216,6 @@ def fetch_one(url, source, country, hint):
         link = getattr(e, "link", "").strip()
         if not title or not link:
             continue
-        # 正文提取：summary/description → content兜底
         desc = clean_html(getattr(e, "summary", "") or getattr(e, "description", ""))
         if not desc:
             for c in (getattr(e, "content", None) or []):
@@ -228,6 +224,8 @@ def fetch_one(url, source, country, hint):
                     break
         if skip_news(title, desc, lang):
             continue
+        if len(desc) < MIN_BODY:
+            continue  # 无正文/正文太短的丢弃
         pub = None
         for k in ("published_parsed", "updated_parsed"):
             t = getattr(e, k, None)
@@ -241,7 +239,7 @@ def fetch_one(url, source, country, hint):
             "title_zh": title,
             "source": source,
             "country": country,
-            "category": categorize(title, desc) if hint == "auto" else hint,
+            "category": hint,
             "published_at": pub,
             "summary_zh": "",
             "content_orig": desc[:2000],
@@ -249,11 +247,11 @@ def fetch_one(url, source, country, hint):
             "url": link,
             "_lang": lang,
         })
+    print(f"  {source}: {len(arts)} ok")
     return arts
 
 
 def translate_article(a):
-    """并行翻译单条：标题 + 全文分段翻译"""
     lang = a.pop("_lang", "en")
     a["title_zh"] = translate(a["title_orig"], lang)
     body = a.get("content_orig", "") or ""
@@ -288,15 +286,33 @@ def gitee_put(data, sha):
         json.loads(r.read())
 
 
-def pick_by_ratio(arts, target=50):
-    """时政50% 经济30% 科技20%"""
-    world = [a for a in arts if a["category"] in ("world", "op-ed")]
-    fin = [a for a in arts if a["category"] == "finance"]
-    tech = [a for a in arts if a["category"] == "tech"]
+def pick_cat(items, n):
+    """分类内按国家轮流取，保证五国都有"""
+    if not items or n <= 0:
+        return []
+    by_country = {}
+    for a in items:
+        by_country.setdefault(a["country"], []).append(a)
+    picks = []
+    while len(picks) < n and any(v for v in by_country.values()):
+        for c in sorted(by_country.keys()):
+            if by_country[c]:
+                picks.append(by_country[c].pop(0))
+            if len(picks) >= n:
+                break
+        by_country = {k: v for k, v in by_country.items() if v}
+    return picks
+
+
+def pick_by_ratio(arts, target=30):
+    """时政50% 经济30% 科技20%，每类内五国均衡"""
     nw = round(target * 0.5)
     nf = round(target * 0.3)
     nt = target - nw - nf
-    picks = world[:nw] + fin[:nf] + tech[:nt]
+    world = [a for a in arts if a["category"] in ("world", "op-ed")]
+    fin = [a for a in arts if a["category"] == "finance"]
+    tech = [a for a in arts if a["category"] == "tech"]
+    picks = pick_cat(world, nw) + pick_cat(fin, nf) + pick_cat(tech, nt)
     if len(picks) < target:
         rest = [a for a in arts if a not in picks]
         picks += rest[:target - len(picks)]
@@ -305,7 +321,7 @@ def pick_by_ratio(arts, target=50):
 
 def main():
     t0 = time.time()
-    # 并行抓源
+    print("fetching sources...")
     with ThreadPoolExecutor(max_workers=8) as ex:
         results = list(ex.map(lambda f: fetch_one(*f), FEEDS))
     all_arts = []
@@ -313,7 +329,6 @@ def main():
         all_arts.extend(r)
     print(f"fetched {len(all_arts)} raw")
 
-    # 去重
     seen = set()
     uniq = []
     for a in all_arts:
@@ -326,38 +341,49 @@ def main():
     uniq.sort(key=lambda x: x["published_at"], reverse=True)
     now = datetime.now(CST)
     recent = [a for a in uniq if (now - datetime.fromisoformat(a["published_at"])).total_seconds() < 86400]
-    recent = pick_by_ratio(recent, 50)
+    recent = pick_by_ratio(recent, 30)
     print(f"picked {len(recent)}")
 
-    # 增量：只翻译本轮新抓到的（旧新闻不重复更新）
     try:
         old, sha = gitee_get()
     except Exception as e:
         print("GITEE GET ERR", e)
         old, sha = {"articles": []}, None
+
     old_ids = {a["id"] for a in old["articles"]}
-    to_translate = [a for a in recent if a["id"] not in old_ids]
-    print(f"translating {len(to_translate)} new articles...")
+    keep_old = []
+    repair = []
+    for a in old["articles"]:
+        co = (a.get("content_orig") or "").strip()
+        cz = (a.get("content_zh") or "").strip()
+        if not co:
+            continue  # 无正文旧条目删除
+        if len(cz) < 20:
+            rep = dict(a)
+            rep["_lang"] = COUNTRY_LANG.get(a.get("country", "UK"), "en")
+            repair.append(rep)  # 一次性补翻
+        else:
+            keep_old.append(a)
+
+    to_translate = [a for a in recent if a["id"] not in old_ids] + repair
+    print(f"translating {len(to_translate)} (new={len([a for a in to_translate if a['id'] not in old_ids])} repair={len(repair)})...")
     if to_translate:
         with ThreadPoolExecutor(max_workers=10) as ex:
             to_translate = list(ex.map(translate_article, to_translate))
 
-    merged = old["articles"] + to_translate
-    seen2 = set()
-    merged2 = []
-    for a in sorted(merged, key=lambda x: x["published_at"], reverse=True):
-        if a["id"] in seen2:
-            continue
-        seen2.add(a["id"])
-        merged2.append(a)
-    # 只保留24小时内，最多50条
+    merged = to_translate + keep_old
+    d = {}
+    for a in merged:
+        if a["id"] not in d:
+            d[a["id"]] = a
+    merged2 = sorted(d.values(), key=lambda x: x["published_at"], reverse=True)
     merged2 = [a for a in merged2 if (now - datetime.fromisoformat(a["published_at"])).total_seconds() < 86400]
-    merged2 = merged2[:50]
+    merged2 = merged2[:30]
     new_data = {"version": "1.0", "updated_at": now.isoformat(), "articles": merged2}
     if sha:
         try:
             gitee_put(new_data, sha)
-            print(f"OK total={len(merged2)} new_translated={len(to_translate)} cost={int(time.time()-t0)}s")
+            print(f"OK total={len(merged2)} cost={int(time.time()-t0)}s")
         except Exception as e:
             print("UPLOAD ERR", e)
     else:
