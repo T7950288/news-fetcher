@@ -68,11 +68,11 @@ FEEDS = [
     ("https://www.welt.de/feeds/latest.rss", "世界报", "DE", "world"),
     ("https://www.spiegel.de/schlagzeilen/index.rss", "明镜", "DE", "world"),
     ("https://www.spiegel.de/wirtschaft/index.rss", "明镜", "DE", "finance"),
-    (["https://www.bild.de/rssfeeds/alles.xml", "https://www.bild.de/rssfeeds/v2/alles.xml"], "图片报", "DE", "world"),
+    ("https://www.bild.de/rss-feeds/rss-16725492,feed=home.bild.html", "图片报", "DE", "world"),
     # JP 3家 (多备选RSS)
     (["https://www3.nhk.or.jp/nhkworld/en/news/feed.xml", "https://www3.nhk.or.jp/rss/news/cat0.xml"], "NHK", "JP", "world"),
-    ("https://www.yomiuri.co.jp/news_rss.xml", "读卖新闻", "JP", "world"),
-    (["https://www.asahi.com/rss/index.rss", "https://www.asahi.com/rss/headlines.rss"], "朝日新闻", "JP", "world"),
+    (["https://www.yomiuri.co.jp/news_rss.xml", "https://japannews.yomiuri.co.jp/feed/"], "读卖新闻", "JP", "world"),
+    ("http://rss.asahi.com/rss/asahi/newsheadlines.rdf", "朝日新闻", "JP", "world"),
 ]
 
 COUNTRY_LANG = {"UK": "en", "US": "en", "FR": "fr", "DE": "de", "JP": "ja"}
@@ -221,7 +221,8 @@ def fetch_one(url, source, country, hint):
                     content = r.content
                     break
                 elif r.status_code == 429:
-                    time.sleep(2 * (attempt + 1))
+                    print(f"  {source}: HTTP 429, retry {attempt+1}")
+                    time.sleep(3 * (attempt + 1))
                 else:
                     print(f"  {source}: HTTP {r.status_code} ({u.split('/')[2]})")
                     break
@@ -251,7 +252,8 @@ def fetch_one(url, source, country, hint):
                     break
         if skip_news(title, desc, lang):
             continue
-        if len(desc) < MIN_BODY:
+        min_body = 50 if country == "JP" else MIN_BODY
+        if len(desc) < min_body:
             continue
         pub = None
         for k in ("published_parsed", "updated_parsed"):
@@ -373,7 +375,11 @@ def main():
     now = datetime.now(CST)
     recent = [a for a in uniq if (now - datetime.fromisoformat(a["published_at"])).total_seconds() < 86400]
     recent = pick_news(recent, TARGET)
-    print(f"picked {len(recent)}")
+    from collections import Counter as _C
+    print(f"picked {len(recent)}", dict(_C(a["country"] for a in recent)))
+    for a in recent:
+        if a["country"] == "JP":
+            print(f"  PICK-JP {a['source']} {a['published_at'][:19]} {a['title_orig'][:40]}")
 
     try:
         old, sha = gitee_get()
@@ -414,6 +420,7 @@ def main():
     merged2 = sorted(d.values(), key=lambda x: x["published_at"], reverse=True)
     merged2 = [a for a in merged2 if (now - datetime.fromisoformat(a["published_at"])).total_seconds() < 86400]
     merged2 = merged2[:TARGET]
+    print("MERGED country", dict(_C(a["country"] for a in merged2)))
     new_data = {"version": "1.0", "updated_at": now.isoformat(), "articles": merged2}
     if sha:
         try:
