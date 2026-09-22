@@ -523,7 +523,21 @@ def fetch_one(url, source, country, hint, is_google=False):
                 source = media
                 country = GOOGLE_COUNTRY.get(media.lower(), country)
                 lang = COUNTRY_LANG.get(country, "en")
-        desc = clean_html(getattr(e, "summary", "") or getattr(e, "description", ""))
+        raw_summary = getattr(e, "summary", "") or getattr(e, "description", "")
+        if is_google and raw_summary:
+            _links = []
+            try:
+                _soup = BeautifulSoup(raw_summary, "lxml")
+                for _a in _soup.find_all("a"):
+                    _h = (_a.get("href") or "").strip()
+                    _t = (_a.get_text(strip=True) or "").strip()
+                    if _h and _t:
+                        _links.append((_t, _h))
+            except Exception:
+                _links = []
+        else:
+            _links = []
+        desc = clean_html(raw_summary)
         # RSS自带全文(content:encoded)优先: 摘要太短时取content字段的完整正文
         if len(desc) < 300:
             for c in (getattr(e, "content", None) or []):
@@ -575,6 +589,7 @@ def fetch_one(url, source, country, hint, is_google=False):
             "_full": False,
             "_google": is_google,
             "_china": is_china,
+            "_src_links": _links if is_google else [],
         })
     print(f"  {source}: {len(arts)} ok")
     return arts
@@ -728,8 +743,49 @@ def search_article_url(title, source):
     return None
 
 
+def pick_agency_from_links(links):
+    """从 (媒体名, 真实URL) 列表里按 通讯社->免费媒体 优先级挑"""
+    for name in AGENCY_NAMES:
+        for t, u in links:
+            if name.strip() in _norm_src(t):
+                return t, u
+    for name in FREE_NAMES:
+        for t, u in links:
+            if name.strip() in _norm_src(t):
+                return t, u
+    return None
+
+
 def agency_full_text(a):
-    """v7: 对Google条目选通讯社/免费媒体, 搜真实链接抓全文; 成功改content_orig, 失败保留聚合标题"""
+    """v7: 优先用summary里的真实媒体链接(通讯社->免费媒体)直接抓全文;
+        links为空时才退化走搜索引擎; 全失败保留聚合标题"""
+    links = a.get("_src_links") or []
+    if links:
+        picked = pick_agency_from_links(links)
+        if picked:
+            t, u = picked
+            ft = fetch_full_text(u, a.get("_lang", "en"))
+            if ft:
+                a["content_orig"] = ft
+                a["agency"] = t
+                a["_full"] = True
+                a["url"] = u
+                DIAG["agency_fetch_ok"] += 1
+                return a
+        # 兜底: 逐个试其它媒体真实链接(跳过google跳转)
+        for t, u in links:
+            if "news.google.com" in u:
+                continue
+            ft = fetch_full_text(u, a.get("_lang", "en"))
+            if ft:
+                a["content_orig"] = ft
+                a["agency"] = t
+                a["_full"] = True
+                a["url"] = u
+                DIAG["agency_fetch_ok"] += 1
+                return a
+        return a
+    # 老路径: 从聚合文本解析 + 搜索引擎(碰运气)
     pairs = parse_pairs(a.get("content_orig", ""))
     if not pairs:
         return a
@@ -748,7 +804,7 @@ def agency_full_text(a):
     a["content_orig"] = ft
     a["agency"] = src
     a["_full"] = True
-    a["url"] = u  # 数据层保留真实链接(溯源用), 前端不展示链接
+    a["url"] = u
     return a
 
 
@@ -841,6 +897,9 @@ def main():
     agency_n = sum(1 for a in uniq if a.get("agency"))
     china_n = sum(1 for a in uniq if a.get("_china"))
     _log(f"full_text ok {full_n}/{len(uniq)}  agency {agency_n}  china {china_n}")
+    DIAG["src_links"] = sum(1 for a in uniq if a.get("_src_links"))
+    DIAG["src_links_real"] = sum(
+        1 for a in uniq if any("news.google.com" not in u for _, u in (a.get("_src_links") or [])))
     _log("DIAG " + json.dumps(DIAG))
 
     now = datetime.now(CST)
