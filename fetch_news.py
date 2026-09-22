@@ -92,17 +92,20 @@ def _mymemory(text, src):
         return data["responseData"]["translatedText"]
 
 def translate(text, src="en"):
-    """三级备用：百度→有道→MyMemory，全部免费"""
+    """三级备用+退避重试：百度→有道→MyMemory，全部免费"""
     if not text or len(text) < 5:
         return text
     text = text[:500]
-    for fn in (_baidu, _youdao, _mymemory):
-        try:
-            r = fn(text, src)
-            if r and len(r) > 3 and r != text:
-                return r
-        except:
-            continue
+    for attempt in range(2):
+        for fn in (_baidu, _youdao, _mymemory):
+            try:
+                r = fn(text, src)
+                if r and len(r) > 3 and r != text:
+                    return r
+            except:
+                continue
+        if attempt == 0:
+            time.sleep(2)
     return text
 
 def clean_html(html):
