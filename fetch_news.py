@@ -213,9 +213,11 @@ SKIP_KEYS = {
     "en": ["motorcycle", "traffic accident", "car crash", "weather", "cloudy", "sunny", "forecast",
            "football", "soccer", "basketball", "tennis", "score", "match result", "house fire",
            "celebrity", "actor", "actress", "movie", "film", "singer", "music", "concert",
-           "hollywood", "entertainment", "taylor swift", "tv ratings"],
+           "hollywood", "entertainment", "taylor swift", "tv ratings", "shopping", "collagen",
+           "discount code", "penis", "ufo", "alien"],
     "de": ["wetter", "unfall", "verkehrsunfall", "fussball", "bundesliga", "tennis", "schauspieler",
-           "promi", "musik", "konzert", "film", "fernsehen", "tv-sendung", "unwetter"],
+           "promi", "musik", "konzert", "film", "fernsehen", "tv-sendung", "unwetter",
+           "penis", "ufo", "alien", "kosmetik", "abnehmen", "shopping"],
     "fr": ["météo", "meteo", "accident", "circulation", "football", "ligue 1", "tennis", "acteur",
            "actrice", "star", "concert", "musique", "film", "télévision", "television", "temps"],
     "ja": ["天気", "事故", "サッカー", "野球", "テニス", "芸能", "俳優", "映画", "音楽", "コンサート"],
@@ -240,8 +242,10 @@ def clean_gn_title(title):
 
 def fetch_one(url, source, country, hint):
     arts = []
+    max_per = 5 if source == "图片报" else 8  # Bild质量差, 每轮最多5条
     urls = url if isinstance(url, list) else [url]
     content = None
+    now = datetime.now(CST)
     for u in urls:
         for attempt in range(3):
             try:
@@ -268,7 +272,7 @@ def fetch_one(url, source, country, hint):
         print(f"  {source}: PARSE ERR {str(e)[:60]}")
         return arts
     lang = COUNTRY_LANG.get(country, "en")
-    for e in d.entries[:8]:
+    for e in d.entries[:max_per]:
         title = clean_gn_title(getattr(e, "title", "")).strip()
         link = getattr(e, "link", "").strip()
         if not title or not link:
@@ -292,6 +296,12 @@ def fetch_one(url, source, country, hint):
                 break
         if not pub:
             pub = datetime.now(CST).isoformat()
+        # 未来时间(源站pubDate时区错乱/预排)直接丢弃, 避免"未来新闻"排顶部
+        try:
+            if datetime.fromisoformat(pub) > now + timedelta(minutes=15):
+                continue
+        except Exception:
+            pass
         if country == "JP":
             print(f"  JPRAW {source}: published={e.get('published','')!r} parsed={getattr(e,'published_parsed',None)} pub={pub[:19]}")
         arts.append({
@@ -416,7 +426,8 @@ def main():
     print("JP raw:", len(jp_items))
     for a in jp_items[:6]:
         print(f"  JP {a['source']} {a['published_at'][:19]} len={len(a['content_orig'])} {a['title_orig'][:40]}")
-    recent = [a for a in uniq if (now - datetime.fromisoformat(a["published_at"])).total_seconds() < 86400]
+    recent = [a for a in uniq
+              if 0 <= (now - datetime.fromisoformat(a["published_at"])).total_seconds() < 86400]
     recent = pick_news(recent, TARGET)
     from collections import Counter as _C
     print(f"picked {len(recent)}", dict(_C(a["country"] for a in recent)))
@@ -433,18 +444,20 @@ def main():
     old_ids = {a["id"] for a in old["articles"]}
     # 只保留15家白名单媒体的旧条目
     old["articles"] = [a for a in old["articles"] if (a.get("country"), a.get("source")) in WHITELIST]
-    # 云端只兜底：只翻新条目；AI翻过的(translate_by=ai)不碰
+    # 关键修复: AI翻译过的条目必须保留(否则每轮覆盖, 翻译成果全丢);
+    # 未翻译的条目标记补翻
     keep_old = []
     for a in old["articles"]:
         co = (a.get("content_orig") or "").strip()
         cz = (a.get("content_zh") or "").strip()
         if not co:
             continue
-        if len(cz) < 20 and a.get("translate_by") != "ai":
+        if a.get("translate_by") == "ai" and len(cz) >= 20:
+            keep_old.append(a)  # 保留AI翻译成果, 参与30条截断
+        else:
             rep = dict(a)
             rep["_lang"] = COUNTRY_LANG.get(a.get("country", "UK"), "en")
-            keep_old.append(rep)  # 非AI且空白的旧条目补翻
-        # 已翻译的旧条目不保留: 每轮只留最新30条, 旧条目淘汰不占名额
+            keep_old.append(rep)  # 非AI/空白的补翻
 
     to_translate = [a for a in recent if a["id"] not in old_ids]
     to_translate += [a for a in keep_old if "_lang" in a]
@@ -460,7 +473,8 @@ def main():
         if a["id"] not in d:
             d[a["id"]] = a
     merged2 = sorted(d.values(), key=lambda x: x["published_at"], reverse=True)
-    merged2 = [a for a in merged2 if (now - datetime.fromisoformat(a["published_at"])).total_seconds() < 86400]
+    merged2 = [a for a in merged2
+               if 0 <= (now - datetime.fromisoformat(a["published_at"])).total_seconds() < 86400]
     merged2 = merged2[:TARGET]
     print("MERGED country", dict(_C(a["country"] for a in merged2)))
     new_data = {"version": "1.0", "updated_at": now.isoformat(), "articles": merged2}
