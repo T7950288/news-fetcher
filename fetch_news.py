@@ -98,10 +98,18 @@ def fetch_one(url, source, country, hint):
     return arts
 
 def translate_article(a):
-    """并行翻译单条：标题+摘要前300字"""
+    """并行翻译单条：标题+摘要前300字，失败重试一次"""
     lang = a.pop("_lang", "en")
-    a["title_zh"] = translate(a["title_orig"], lang)
-    a["summary_zh"] = translate(a["content_orig"][:300], lang)
+    t = translate(a["title_orig"], lang)
+    if t == a["title_orig"] and len(t) > 5:
+        time.sleep(0.5)
+        t = translate(a["title_orig"], lang)
+    a["title_zh"] = t
+    s = translate(a["content_orig"][:300], lang)
+    if s == a["content_orig"][:300] and len(s) > 10:
+        time.sleep(0.5)
+        s = translate(a["content_orig"][:300], lang)
+    a["summary_zh"] = s
     return a
 
 def gitee_get():
@@ -144,7 +152,7 @@ def main():
     recent = recent[:60]
     # 并行翻译：10个线程同时翻译标题+摘要
     print(f"translating {len(recent)} articles in parallel...")
-    with ThreadPoolExecutor(max_workers=60) as ex:
+    with ThreadPoolExecutor(max_workers=15) as ex:
         recent = list(ex.map(translate_article, recent))
     # 合并到现有
     try:
