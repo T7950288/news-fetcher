@@ -748,6 +748,8 @@ STOPWORDS = set(("the a an and or of in on to for with from by at is are was wer
                   "breaking news update updates").split())
 _gdelt_lock = threading.Lock()
 _gdelt_last = [0.0]
+_gdelt_calls = [0]
+GDELT_CALL_LIMIT = 14
 
 
 PAYWALL_DOMAINS = {
@@ -822,22 +824,33 @@ def fetch_rss_pool():
     return pool
 
 
-def match_rss(pool, title, source):
-    """在RSS池对应媒体里按标题相似度找真实URL (0.45 或 词重叠>=2 即接受)"""
+def match_rss(pool, title, source, scan_all=False):
+    """RSS池找真实URL: 默认按source对应媒体匹配(可靠); scan_all=True 时全池扫描兜底(相似度收紧防误配)"""
     dom = find_domain(source)
-    if not dom or dom not in pool:
+    tt = set(re.sub(r"[^a-z0-9 ]", "", title.lower()).split()) - STOPWORDS
+    if not tt:
         return None
     best = None
     bests = 0.0
-    tt = set(re.sub(r"[^a-z0-9 ]", "", title.lower()).split()) - STOPWORDS
-    for rt, ru in pool[dom]:
-        sc = _title_sim(rt, title)
-        rts = set(re.sub(r"[^a-z0-9 ]", "", rt.lower()).split()) - STOPWORDS
-        overlap = len(tt & rts)
-        if sc >= 0.45 or (overlap >= 2 and len(tt) >= 3):
-            if sc > bests:
-                bests = sc
-                best = ru
+
+    def _scan(items, th, ov):
+        nonlocal best, bests
+        for rt, ru in items:
+            sc = _title_sim(rt, title)
+            rts = set(re.sub(r"[^a-z0-9 ]", "", rt.lower()).split()) - STOPWORDS
+            overlap = len(tt & rts)
+            if sc >= th or (overlap >= ov and len(tt) >= 3):
+                if sc > bests:
+                    bests = sc
+                    best = ru
+
+    if dom and dom in pool:
+        _scan(pool[dom], 0.45, 2)
+    if not best and scan_all:
+        for d, items in pool.items():
+            if d == dom:
+                continue
+            _scan(items, 0.52, 3)
     return best
 
 
@@ -850,7 +863,10 @@ def _gdelt_query(title):
 
 
 def gdelt_lookup(title):
-    """L1: GDELT DOC 2.0 全文检索 -> 真实文章URL (官方限流 5s/次, 全局串行)"""
+    """L1: GDELT DOC 2.0 全文检索 -> 真实文章URL (官方限流 5s/次, 全局串行, 单轮限量)"""
+    if _gdelt_calls[0] >= GDELT_CALL_LIMIT:
+        return None
+    _gdelt_calls[0] += 1
     q = _gdelt_query(title)
     if not q:
         return None
@@ -873,7 +889,8 @@ def gdelt_lookup(title):
                     dom = urllib.parse.urlparse(u).netloc
                 except Exception:
                     dom = ""
-            if dom in GDELT_DOMAINS and _title_sim((a.get("title") or ""), title) >= 0.45:
+            if dom not in PAYWALL_DOMAINS and _title_sim((a.get("title") or ""), title) >= 0.45:
+                DIAG["gdelt_ok"] = DIAG.get("gdelt_ok", 0) + 1
                 return u
     except Exception:
         pass
@@ -897,6 +914,18 @@ def _order_pairs(pairs):
     return ordered
 
 
+def _bing_real(url):
+    """Bing News RSS redirect -> 真实媒体URL"""
+    if "bing.com/news/redirect" in url:
+        m = re.search(r'[?&]url=([^&]+)', url)
+        if m:
+            try:
+                return urllib.parse.unquote(m.group(1))
+            except Exception:
+                pass
+    return url
+
+
 def search_article_url(title, source):
     """四路级联找真实URL: L1 GDELT -> L2 Bing News RSS -> L3 DDG/Mojeek; 失败返回 None"""
     domain = find_domain(source)
@@ -908,18 +937,26 @@ def search_article_url(title, source):
     if not domain:
         return None
     q = urllib.parse.quote(f'{title[:120]} site:{domain}')
-    # L2: Bing News RSS(真实链接, 低反爬)
+    # L2: Bing News RSS(真实链接, 低反爬, 无硬限流; redirect链接解出真实媒体URL)
     try:
-        bq = urllib.parse.quote(f'{title[:100]} {domain}')
+        bq = urllib.parse.quote(title[:100])
         r = requests.get(f"https://www.bing.com/news/search?q={bq}&format=rss",
                          timeout=12, headers=hdrs)
         if r.status_code == 200:
             d = feedparser.parse(r.content)
-            for e in d.entries[:12]:
+            for e in d.entries[:15]:
                 u = (e.get("link") or "").strip()
-                if not u or "bing.com" in u:
+                u = _bing_real(u)
+                if not u or "bing.com" in u or "msn.com" in u:
                     continue
-                if domain in u and _title_sim(e.get("title", ""), title) >= 0.5:
+                try:
+                    ud = urllib.parse.urlparse(u).netloc
+                except Exception:
+                    ud = ""
+                if ud in PAYWALL_DOMAINS:
+                    continue
+                if _title_sim(e.get("title", ""), title) >= 0.5:
+                    DIAG["bing_ok"] = DIAG.get("bing_ok", 0) + 1
                     return u
     except Exception:
         pass
@@ -1095,7 +1132,7 @@ def main():
                 if dom not in PAYWALL_DOMAINS or any(nm.strip() in _norm_src(a["source"]) for nm in AGENCY_NAMES):
                     srcs.append(a["source"])
             for src in srcs:
-                u = match_rss(pool, main_title, src)
+                u = match_rss(pool, main_title, src, scan_all=True)
                 if not u:
                     continue
                 ft = fetch_full_text(u, lang)
@@ -1106,6 +1143,16 @@ def main():
                     a["url"] = u
                     DIAG["fetch_ok"] += 1
                     return a
+            if not a.get("_full"):
+                u2 = search_article_url(main_title, a.get("source") or "")
+                if u2:
+                    ft2 = fetch_full_text(u2, lang)
+                    if ft2:
+                        a["content_orig"] = ft2
+                        a["agency"] = "search"
+                        a["_full"] = True
+                        a["url"] = u2
+                        DIAG["fetch_ok"] += 1
             return a
         pool = fetch_rss_pool()  # v7.9: 全量RSS池并行抓一次
         DIAG["rss_domains"] = len(pool)
