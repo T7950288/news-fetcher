@@ -25,6 +25,84 @@ import feedparser
 import requests
 from bs4 import BeautifulSoup
 
+# v9: 懒安装 google-news-api(解码Google链接) / trafilatura(正文提取); 云端自动装, 本地失败降级
+_GN = None
+_TR = None
+def _lazy_load():
+    global _GN, _TR
+    import subprocess
+    if _GN is None:
+        try:
+            import google_news_api
+            _GN = google_news_api
+        except Exception:
+            try:
+                subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet",
+                                       "google-news-api", "trafilatura"], timeout=200)
+                import google_news_api
+                _GN = google_news_api
+            except Exception:
+                _GN = False
+    if _TR is None:
+        try:
+            import trafilatura
+            _TR = trafilatura
+        except Exception:
+            try:
+                subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet",
+                                       "trafilatura"], timeout=120)
+                import trafilatura
+                _TR = trafilatura
+            except Exception:
+                _TR = False
+
+_GN_client = None
+def decode_google_urls(urls):
+    """批量解码 Google News RSS 链接 -> 真实媒体URL(顺序对应, 失败为None)"""
+    if not urls:
+        return []
+    global _GN_client
+    try:
+        _lazy_load()
+        if not _GN:
+            return [None] * len(urls)
+        if _GN_client is None:
+            _GN_client = _GN.GoogleNewsClient(language="en", country="US")
+        out = []
+        for u in urls:
+            try:
+                d = _GN_client.decode_url(u)
+                r = (d or {}).get("url") if isinstance(d, dict) else d
+                if r and "news.google.com" not in str(r):
+                    out.append(str(r))
+                else:
+                    out.append(None)
+            except Exception:
+                out.append(None)
+        return out
+    except Exception:
+        return [None] * len(urls)
+
+_wayback_calls = [0]
+WAYBACK_CALL_LIMIT = 40
+def wayback_url(url):
+    """Wayback Machine 快照查寻: 返回最近快照URL或None (免费无key, 单轮限量)"""
+    if _wayback_calls[0] >= WAYBACK_CALL_LIMIT:
+        return None
+    _wayback_calls[0] += 1
+    try:
+        r = requests.get("https://archive.org/wayback/available",
+                         params={"url": url, "timestamp": str(int(time.time()))},
+                         timeout=15, headers={"User-Agent": UA})
+        if r.status_code == 200:
+            js = r.json()
+            cl = (js.get("archived_snapshots") or {}).get("closest") or {}
+            u = cl.get("url") or ""
+            return u if u else None
+    except Exception:
+        pass
+    return None
+
 GITEE_TOKEN = os.environ["GITEE_TOKEN"]
 GITEE_OWNER = "t7950288"
 GITEE_REPO = "news"
@@ -379,6 +457,7 @@ def translate_long(text, src):
 
 
 DIAG = {"resolve_ok": 0, "resolve_page": 0, "fetch_ok": 0, "jina_ok": 0,
+         "traf_ok": 0, "amp_ok": 0, "wayback_ok": 0, "decode_ok": 0,
         "agency_search_ok": 0, "agency_fetch_ok": 0, "http_err": 0, "parse_empty": 0}
 
 
@@ -426,7 +505,36 @@ def _fetch_jina(url):
 
 
 def fetch_full_text(url, lang):
-    """抓文章页全文; 成功返回正文(最多MAX_BODY), 失败返回None"""
+    """抓文章页全文; 成功返回正文(最多MAX_BODY), 失败返回None (v9: trafilatura优先 + AMP变体)"""
+    try:
+        _lazy_load()
+        if _TR:
+            hd = _TR.fetch_url(url)
+            if hd:
+                txt = _TR.extract(hd, include_comments=False, include_tables=False)
+                if txt:
+                    paras = [p.strip() for p in txt.split("\n") if len(p.strip()) > 25]
+                    text = "\n".join(paras)[:MAX_BODY]
+                    if len(text) >= 200:
+                        DIAG["traf_ok"] += 1
+                        return text
+    except Exception:
+        pass
+    # AMP / 打印版变体
+    for v in ("?output=1", "?amp=1"):
+        try:
+            r = requests.get(url + v, timeout=12, headers={"User-Agent": UA})
+            if r.status_code == 200 and "news.google.com" not in (r.url or ""):
+                soup = BeautifulSoup(r.text, "lxml")
+                for tag in soup(["script", "style", "noscript", "nav", "aside", "header", "footer", "form", "iframe"]):
+                    tag.decompose()
+                paras = [p.get_text(" ", strip=True) for p in soup.find_all("p")]
+                text = "\n".join(p for p in paras if len(p) > 25)[:MAX_BODY]
+                if len(text) >= 200:
+                    DIAG["amp_ok"] += 1
+                    return text
+        except Exception:
+            pass
     sels = ["article", "[itemprop='articleBody']", "[class*='article-body']",
             "[class*='story-body']", "[class*='article__body']", "[class*='article-content']",
             "[class*='post-content']", "[class*='content-body']", "[class*='story-content']",
@@ -1131,28 +1239,50 @@ def main():
                 dom = find_domain(a["source"])
                 if dom not in PAYWALL_DOMAINS or any(nm.strip() in _norm_src(a["source"]) for nm in AGENCY_NAMES):
                     srcs.append(a["source"])
+            # L0: 解码五家媒体的Google链接 -> 真实URL (媒体优先级排序)
+            links = [u for _, u in (a.get("_src_links") or []) if "news.google.com" in u]
+            if not links and "news.google.com" in a.get("url", ""):
+                links = [a["url"]]
+            dec = decode_google_urls(links) if links else []
+            DIAG["decode_ok"] += sum(1 for d in dec if d)
+            real = [d for d in dec if d]
+            cands = [(srcs[i] if i < len(srcs) else "decoded", u) for i, u in enumerate(real)]
             for src in srcs:
-                u = match_rss(pool, main_title, src, scan_all=True)
-                if not u:
-                    continue
+                ux = match_rss(pool, main_title, src, scan_all=True)
+                if ux and ux not in [c[1] for c in cands]:
+                    cands.append((src, ux))
+            for src, u in cands:
                 ft = fetch_full_text(u, lang)
-                if ft:
+                if ft and len(ft) >= 300:
                     a["content_orig"] = ft
                     a["agency"] = src
                     a["_full"] = True
                     a["url"] = u
                     DIAG["fetch_ok"] += 1
                     return a
-            if not a.get("_full"):
-                u2 = search_article_url(main_title, a.get("source") or "")
-                if u2:
-                    ft2 = fetch_full_text(u2, lang)
-                    if ft2:
-                        a["content_orig"] = ft2
-                        a["agency"] = "search"
-                        a["_full"] = True
-                        a["url"] = u2
-                        DIAG["fetch_ok"] += 1
+            # L4: Wayback 快照 (付费墙救星, 限量)
+            for src, u in cands[:3]:
+                wu = wayback_url(u)
+                if not wu:
+                    continue
+                ft = fetch_full_text(wu, lang)
+                if ft and len(ft) >= 300:
+                    a["content_orig"] = ft
+                    a["agency"] = src + " (wayback)"
+                    a["_full"] = True
+                    a["url"] = u
+                    DIAG["wayback_ok"] += 1
+                    return a
+            # 兜底: GDELT/Bing 反查
+            u2 = search_article_url(main_title, a.get("source") or "")
+            if u2:
+                ft2 = fetch_full_text(u2, lang)
+                if ft2 and len(ft2) >= 300:
+                    a["content_orig"] = ft2
+                    a["agency"] = "search"
+                    a["_full"] = True
+                    a["url"] = u2
+                    DIAG["fetch_ok"] += 1
             return a
         pool = fetch_rss_pool()  # v7.9: 全量RSS池并行抓一次
         DIAG["rss_domains"] = len(pool)
