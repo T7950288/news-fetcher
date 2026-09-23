@@ -625,11 +625,13 @@ def github_put(data):
         with urllib.request.urlopen(req, timeout=60) as r:
             json.loads(r.read())
         print("github sync OK")
+        return True
     except Exception as e:
         print("github sync ERR", e)
+        return False
 
 
-def gitee_put(data, sha, tries=4):
+def gitee_put(data, sha, tries=2):
     # v9.5: 上传超时修复——①PUT超时90s ②超时/URLError也重试(之前只重试HTTP 400/409/404,
     #       超时异常直接raise导致云端每轮UPLOAD ERR却显示success, 数据卡住不更新)
     for i in range(tries):
@@ -649,19 +651,19 @@ def gitee_put(data, sha, tries=4):
         req = urllib.request.Request(url, data=json.dumps(body).encode(),
             headers={"Content-Type": "application/json"}, method="PUT")
         try:
-            with urllib.request.urlopen(req, timeout=90) as r:
+            with urllib.request.urlopen(req, timeout=45) as r:
                 json.loads(r.read())
             return True
         except urllib.error.HTTPError as e:
             if e.code in (400, 409, 404) and i < tries - 1:
-                time.sleep(6)
+                time.sleep(4)
                 continue
             raise
         except Exception as e:
             # 超时/连接错误: 等待后重试
             print(f"  gitee put retry {i+1}/{tries}: {str(e)[:80]}")
             if i < tries - 1:
-                time.sleep(8)
+                time.sleep(5)
                 continue
             raise
 
@@ -1302,15 +1304,21 @@ def main():
     print("MERGED country", dict(_C(a["country"] for a in merged2)))
     print("MERGED ai", sum(1 for a in merged2 if a.get("translate_by") == "ai"))
     new_data = {"version": "1.0", "updated_at": now.isoformat(), "articles": merged2}
+    # v9.7: GitHub 是权威数据源(网页读 raw), 必须成功; Gitee 尽力写, 快失败不拖时间
+    gh_ok = False
+    try:
+        gh_ok = github_put(new_data) or False
+    except Exception as e:
+        print("GITHUB SYNC ERR", e)
     if sha:
         try:
             gitee_put(new_data, sha)
             print(f"OK total={len(merged2)} cost={int(time.time()-t0)}s")
-            github_put(new_data)  # v9.6: 同步到GitHub供网页版读取
         except Exception as e:
-            # v9.5: 上传失败必须失败退出, 让GitHub run显示failure, 不再假success
-            print("UPLOAD ERR", e)
-            sys.exit(1)
+            print("GITEE ERR(ignored):", e)
+    if not gh_ok:
+        print("GITHUB UPLOAD FAILED")
+        sys.exit(1)
     else:
         print("NO SHA, SKIP UPLOAD")
         sys.exit(1)
