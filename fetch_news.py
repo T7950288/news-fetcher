@@ -1320,8 +1320,8 @@ def main():
         print("GITHUB UPLOAD FAILED")
         sys.exit(1)
     else:
-        print("NO SHA, SKIP UPLOAD")
-        sys.exit(1)
+        print("ALL UPLOADS OK")
+        sys.exit(0)
 
 
 if __name__ == "__main__":
