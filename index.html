@@ -45,6 +45,8 @@
   .modal.show { display:block; }
   .modal-body { background:#fff; max-width:720px; margin:30px auto; border-radius:12px; padding:30px; }
   .modal-close { float:right; background:none; border:none; font-size:22px; cursor:pointer; color:#999; }
+  .modal-close-bottom { display:inline-block; padding:10px 30px; font-size:15px; border:1px solid #ddd; border-radius:20px; background:#f7f7f7; color:#333; cursor:pointer; }
+  .modal-close-bottom:active { background:#eee; }
   .modal h2 { font-size:20px; margin-bottom:10px; line-height:1.4; }
   .modal-meta { font-size:12px; color:#888; margin-bottom:20px; padding-bottom:12px; border-bottom:1px solid #eee; }
   .section-label { font-size:13px; font-weight:700; color:#1a3a6c; margin:18px 0 8px; }
@@ -169,7 +171,8 @@ function openDetail(i){
       ${esc(srcName(a))} · ${time}
     </div>
     <div class="section-label">原文全文</div>
-    <div>${esc(a.content_orig).split("\n").map(p=>`<p>${p}</p>`).join("")}</div>`;
+    <div>${esc(a.content_orig).split("\n").map(p=>`<p>${p}</p>`).join("")}</div>
+    <div style="text-align:center;margin-top:26px;"><button class="modal-close-bottom" onclick="closeModal()">关闭</button></div>`;
   document.getElementById("modal").classList.add("show");
   savedScrollY = window.scrollY;
   document.getElementById("modal").scrollTop = 0;
