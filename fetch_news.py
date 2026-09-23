@@ -110,7 +110,7 @@ GITEE_PATH = "news.json"
 CST = timezone(timedelta(hours=8))
 MIN_BODY = 80        # RSS导语最小长度
 MAX_BODY = 2500      # 原文保留上限(翻译时分块)
-TARGET = 30          # 每次最多30条
+TARGET = 42          # v8: 热榜前42条
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
 
 # 15家媒体白名单 + 去重权威分
@@ -1310,7 +1310,7 @@ def main():
     # 中国相关: 保持Google搜索排序取前6; 与主榜重复标题跳过
     main_keys = {re.sub(r"\W+", "", a["title_orig"].lower())[:60] for a in recent_main}
     recent_china = [a for a in recent_china
-                    if re.sub(r"\W+", "", a["title_orig"].lower())[:60] not in main_keys][:6]
+                    if re.sub(r"\W+", "", a["title_orig"].lower())[:60] not in main_keys][:8]
     recent = recent_main + recent_china
     from collections import Counter as _C
     _log(f"picked {len(recent)} (main {len(recent_main)} + china {len(recent_china)})",
@@ -1343,20 +1343,21 @@ def main():
             a["content_zh"] = ""
             a["summary_zh"] = ""
             a["translate_by"] = "none"
-    merged2 = recent[:TARGET + len(recent_china)]
-    # 新条目不足时, 用上轮AI翻译过的旧条目补位(24h内)
-    if len(merged2) < TARGET + len(recent_china):
-        have = {a["id"] for a in merged2}
-        for a in sorted(old_by_id.values(), key=lambda x: x.get("published_at", ""), reverse=True):
-            if len(merged2) >= TARGET + len(recent_china):
-                break
-            if a["id"] in have:
-                continue
-            if a.get("translate_by") != "ai":
-                continue
-            merged2.append(a)
+    MAX_TOTAL = 100  # v8: 网页第1页最新50条 + 第2页被覆盖旧闻50条
+    merged2 = recent[:TARGET + len(recent_china)]  # 本轮 42+8 = 50 条
+    # 24h内被覆盖的旧条目(AI翻译过), 按时间倒序补位到最多100条
+    have = {a["id"] for a in merged2}
+    for a in sorted(old_by_id.values(), key=lambda x: x.get("published_at", ""), reverse=True):
+        if len(merged2) >= MAX_TOTAL:
+            break
+        if a["id"] in have:
+            continue
+        if a.get("translate_by") != "ai":
+            continue
+        merged2.append(a)
     merged2 = [a for a in merged2
                if 0 <= (now - datetime.fromisoformat(a["published_at"])).total_seconds() < 86400]
+    merged2 = merged2[:MAX_TOTAL]
     print("MERGED country", dict(_C(a["country"] for a in merged2)))
     print("MERGED ai", sum(1 for a in merged2 if a.get("translate_by") == "ai"))
     new_data = {"version": "1.0", "updated_at": now.isoformat(), "articles": merged2}
