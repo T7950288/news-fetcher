@@ -106,7 +106,7 @@ def wayback_url(url):
 GITEE_TOKEN = os.environ["GITEE_TOKEN"]
 GITEE_OWNER = "t7950288"
 GITEE_REPO = "news"
-GITEE_PATH = "news_full.json"  # v8.1: 网页全量100条; news.json 为手机端最新50条
+GITEE_PATH = "news.json"  # v8.4: 单文件100条全量(网页翻页用); 手机端APK取前50
 CST = timezone(timedelta(hours=8))
 MIN_BODY = 80        # RSS导语最小长度
 MAX_BODY = 2500      # 原文保留上限(翻译时分块)
@@ -728,8 +728,8 @@ def translate_article(a):
 
 
 def gitee_get():
-    # v8.1: 优先读 news_full.json(全量); 首次不存在回退读 news.json 完成迁移, 不丢旧数据
-    for path in (GITEE_PATH, "news.json"):
+    # v8.4: 读 news.json(全量100条)
+    for path in (GITEE_PATH,):
         try:
             url = (f"https://gitee.com/api/v5/repos/{GITEE_OWNER}/{GITEE_REPO}/contents/{path}"
                    f"?ref=master&access_token={GITEE_TOKEN}")
@@ -1402,7 +1402,6 @@ def main():
     if sha:
         try:
             gitee_put(new_data, sha)
-            gitee_put_phone({"version": "1.0", "updated_at": now.isoformat(), "articles": merged2[:50]})
             print(f"OK total={len(merged2)} cost={int(time.time()-t0)}s")
         except Exception as e:
             print("UPLOAD ERR", e)
