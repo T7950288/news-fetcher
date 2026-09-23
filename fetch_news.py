@@ -742,25 +742,33 @@ def gitee_get():
     raise RuntimeError("no gitee file available")
 
 
-def gitee_put(data, sha):
-    # v8.2: 目标文件独立GET sha(文件不存在则sha=None创建), 不依赖回退源sha, 避免404
-    url_get = (f"https://gitee.com/api/v5/repos/{GITEE_OWNER}/{GITEE_REPO}/contents/{GITEE_PATH}"
-               f"?ref=master&access_token={GITEE_TOKEN}")
-    try:
-        with urllib.request.urlopen(urllib.request.Request(url_get), timeout=15) as r:
-            sha = json.loads(r.read())["sha"]
-    except Exception:
-        sha = None
-    body_text = json.dumps(data, ensure_ascii=False)
-    b64 = base64.b64encode(body_text.encode("utf-8")).decode()
-    body = {"access_token": GITEE_TOKEN, "content": b64, "message": "auto update"}
-    if sha:
-        body["sha"] = sha  # v8.3: 文件不存在(sha=None)时不带sha, 避免400
-    url = f"https://gitee.com/api/v5/repos/{GITEE_OWNER}/{GITEE_REPO}/contents/{GITEE_PATH}"
-    req = urllib.request.Request(url, data=json.dumps(body).encode(),
-        headers={"Content-Type": "application/json"}, method="PUT")
-    with urllib.request.urlopen(req, timeout=30) as r:
-        json.loads(r.read())
+def gitee_put(data, sha, tries=3):
+    # v8.5: 写冲突重试——PUT失败(400/409/404)时重新GET目标文件sha再写, 解决多run并发
+    for i in range(tries):
+        url_get = (f"https://gitee.com/api/v5/repos/{GITEE_OWNER}/{GITEE_REPO}/contents/{GITEE_PATH}"
+                   f"?ref=master&access_token={GITEE_TOKEN}")
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url_get), timeout=15) as r:
+                sha = json.loads(r.read())["sha"]
+        except Exception:
+            sha = None
+        body_text = json.dumps(data, ensure_ascii=False)
+        b64 = base64.b64encode(body_text.encode("utf-8")).decode()
+        body = {"access_token": GITEE_TOKEN, "content": b64, "message": "auto update"}
+        if sha:
+            body["sha"] = sha  # v8.3: 文件不存在(sha=None)时不带sha, 避免400
+        url = f"https://gitee.com/api/v5/repos/{GITEE_OWNER}/{GITEE_REPO}/contents/{GITEE_PATH}"
+        req = urllib.request.Request(url, data=json.dumps(body).encode(),
+            headers={"Content-Type": "application/json"}, method="PUT")
+        try:
+            with urllib.request.urlopen(req, timeout=30) as r:
+                json.loads(r.read())
+            return True
+        except urllib.error.HTTPError as e:
+            if e.code in (400, 409, 404) and i < tries - 1:
+                time.sleep(4)
+                continue
+            raise
 
 
 def gitee_put_phone(data):
