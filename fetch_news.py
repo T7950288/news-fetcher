@@ -598,13 +598,14 @@ def gitee_get():
     raise RuntimeError("no gitee file available")
 
 
-def gitee_put(data, sha, tries=3):
-    # v8.5: 写冲突重试——PUT失败(400/409/404)时重新GET目标文件sha再写, 解决多run并发
+def gitee_put(data, sha, tries=4):
+    # v9.5: 上传超时修复——①PUT超时90s ②超时/URLError也重试(之前只重试HTTP 400/409/404,
+    #       超时异常直接raise导致云端每轮UPLOAD ERR却显示success, 数据卡住不更新)
     for i in range(tries):
         url_get = (f"https://gitee.com/api/v5/repos/{GITEE_OWNER}/{GITEE_REPO}/contents/{GITEE_PATH}"
                    f"?ref=master&access_token={GITEE_TOKEN}")
         try:
-            with urllib.request.urlopen(urllib.request.Request(url_get), timeout=15) as r:
+            with urllib.request.urlopen(urllib.request.Request(url_get), timeout=20) as r:
                 sha = json.loads(r.read())["sha"]
         except Exception:
             sha = None
@@ -617,12 +618,19 @@ def gitee_put(data, sha, tries=3):
         req = urllib.request.Request(url, data=json.dumps(body).encode(),
             headers={"Content-Type": "application/json"}, method="PUT")
         try:
-            with urllib.request.urlopen(req, timeout=30) as r:
+            with urllib.request.urlopen(req, timeout=90) as r:
                 json.loads(r.read())
             return True
         except urllib.error.HTTPError as e:
             if e.code in (400, 409, 404) and i < tries - 1:
-                time.sleep(4)
+                time.sleep(6)
+                continue
+            raise
+        except Exception as e:
+            # 超时/连接错误: 等待后重试
+            print(f"  gitee put retry {i+1}/{tries}: {str(e)[:80]}")
+            if i < tries - 1:
+                time.sleep(8)
                 continue
             raise
 
@@ -1268,9 +1276,12 @@ def main():
             gitee_put(new_data, sha)
             print(f"OK total={len(merged2)} cost={int(time.time()-t0)}s")
         except Exception as e:
+            # v9.5: 上传失败必须失败退出, 让GitHub run显示failure, 不再假success
             print("UPLOAD ERR", e)
+            sys.exit(1)
     else:
         print("NO SHA, SKIP UPLOAD")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
