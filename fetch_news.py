@@ -598,6 +598,37 @@ def gitee_get():
     raise RuntimeError("no gitee file available")
 
 
+def github_put(data):
+    """v9.6: 同步写 news.json 到 GitHub 仓库根。网页版(Pages)从 GitHub raw 读数据,
+       绕开 Gitee 匿名 API 401 风控(2026-09-23 起 Gitee 匿名读开始返回401)。"""
+    tok = os.environ.get("GITHUB_TOKEN")
+    if not tok:
+        print("no GITHUB_TOKEN, skip github sync")
+        return
+    h = {"Authorization": "Bearer " + tok, "Accept": "application/vnd.github+json",
+         "User-Agent": "x", "Content-Type": "application/json"}
+    body_text = json.dumps(data, ensure_ascii=False)
+    b64 = base64.b64encode(body_text.encode("utf-8")).decode()
+    base = "https://api.github.com/repos/T7950288/news-fetcher/contents/news.json"
+    sha = None
+    try:
+        req = urllib.request.Request(base, headers=h)
+        with urllib.request.urlopen(req, timeout=20) as r:
+            sha = json.loads(r.read()).get("sha")
+    except Exception:
+        sha = None
+    body = {"message": "auto update", "content": b64}
+    if sha:
+        body["sha"] = sha
+    try:
+        req = urllib.request.Request(base, data=json.dumps(body).encode(), headers=h, method="PUT")
+        with urllib.request.urlopen(req, timeout=60) as r:
+            json.loads(r.read())
+        print("github sync OK")
+    except Exception as e:
+        print("github sync ERR", e)
+
+
 def gitee_put(data, sha, tries=4):
     # v9.5: 上传超时修复——①PUT超时90s ②超时/URLError也重试(之前只重试HTTP 400/409/404,
     #       超时异常直接raise导致云端每轮UPLOAD ERR却显示success, 数据卡住不更新)
@@ -1275,6 +1306,7 @@ def main():
         try:
             gitee_put(new_data, sha)
             print(f"OK total={len(merged2)} cost={int(time.time()-t0)}s")
+            github_put(new_data)  # v9.6: 同步到GitHub供网页版读取
         except Exception as e:
             # v9.5: 上传失败必须失败退出, 让GitHub run显示failure, 不再假success
             print("UPLOAD ERR", e)
