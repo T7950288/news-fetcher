@@ -20,4 +20,5 @@ jobs:
       - name: 抓取并上传
         env:
           GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python fetch_news.py
