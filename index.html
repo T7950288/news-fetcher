@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>国际新闻谷歌热榜 · 全球要闻</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Helvetica Neue", sans-serif;
+         background:#f5f6f8; color:#1a1a1a; line-height:1.6; }
+  header { background:#1a3a6c; color:#fff; padding:14px 20px; position:sticky; top:0; z-index:100;
+           box-shadow:0 2px 8px rgba(0,0,0,.15); }
+  .header-inner { max-width:960px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; }
+  .logo { font-size:20px; font-weight:700; letter-spacing:1px; }
+  .logo span { font-size:12px; font-weight:400; opacity:.8; margin-left:8px; }
+  .refresh-btn { background:#fff; color:#1a3a6c; border:none; padding:8px 18px; border-radius:6px;
+                 font-size:14px; cursor:pointer; font-weight:600; }
+  .refresh-btn:active { transform:scale(.96); }
+  .refresh-btn:disabled { opacity:.5; cursor:wait; }
+  .meta { max-width:960px; margin:10px auto 0; padding:0 20px; font-size:12px; color:#666; }
+  .tabs { max-width:960px; margin:14px auto 0; padding:0 20px; display:flex; gap:8px; flex-wrap:wrap; }
+  .tab { padding:6px 16px; border-radius:20px; background:#fff; border:1px solid #ddd; font-size:13px;
+         cursor:pointer; color:#555; }
+  .tab.active { background:#1a3a6c; color:#fff; border-color:#1a3a6c; }
+  .list { max-width:960px; margin:16px auto 40px; padding:0 20px; }
+  .card { background:#fff; border-radius:10px; padding:16px 18px; margin-bottom:10px; cursor:pointer;
+          box-shadow:0 1px 3px rgba(0,0,0,.06); transition:box-shadow .15s; }
+  .card:hover { box-shadow:0 3px 12px rgba(0,0,0,.1); }
+  .card-title { font-size:16px; font-weight:600; color:#1a1a1a; margin-bottom:6px; }
+  .card-meta { font-size:12px; color:#888; display:flex; gap:10px; flex-wrap:wrap; }
+  .tag { display:inline-block; padding:1px 8px; border-radius:4px; font-size:11px; }
+  .tag-world { background:#e8f0fe; color:#1a3a6c; }
+  .tag-op-ed { background:#fce8e6; color:#a50e0e; }
+  .tag-finance { background:#e6f4ea; color:#137333; }
+  .tag-tech { background:#f3e8fd; color:#7627bb; }
+  .tag-general { background:#f1f3f4; color:#5f6368; }
+  .tag-country { background:#f1f3f4; color:#5f6368; }
+  /* 详情模态框 */
+  .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:200; overflow-y:auto; }
+  .modal.show { display:block; }
+  .modal-body { background:#fff; max-width:720px; margin:30px auto; border-radius:12px; padding:30px; }
+  .modal-close { float:right; background:none; border:none; font-size:22px; cursor:pointer; color:#999; }
+  .modal h2 { font-size:20px; margin-bottom:10px; line-height:1.4; }
+  .modal-meta { font-size:12px; color:#888; margin-bottom:20px; padding-bottom:12px; border-bottom:1px solid #eee; }
+  .section-label { font-size:13px; font-weight:700; color:#1a3a6c; margin:18px 0 8px; }
+  .section-label.orig { color:#7627bb; }
+  .modal p { margin-bottom:10px; font-size:15px; }
+  .loading { text-align:center; padding:60px 20px; color:#999; }
+  .source-link { font-size:12px; color:#1a3a6c; }
+</style>
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <div class="logo">国际新闻<span>谷歌热榜 · 全球要闻</span></div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <button class="refresh-btn page-btn" id="pageBtn1" onclick="setPage(1)" style="padding:8px 12px;" title="最新50条">第1页</button>
+      <button class="refresh-btn page-btn" id="pageBtn2" onclick="setPage(2)" style="padding:8px 12px;" title="更早50条">第2页</button>
+      <button class="refresh-btn" id="refreshBtn" onclick="loadNews()">更新</button>
+    </div>
+  </div>
+</header>
+<div class="meta" id="meta">正在加载新闻…</div>
+<div class="list" id="list"><div class="loading">加载中…</div></div>
+<div class="modal" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal-body" id="modalBody"></div>
+</div>
+<script>
+const URL = "https://gitee.com/api/v5/repos/t7950288/news/contents/news.json?ref=master";
+const CATS = [
+  ["world","国际大事"],["op-ed","社论"],["finance","财经"],["tech","科技"],["general","综合"]
+];
+let ALL = [];
+let curPage = 1;
+let savedScrollY = 0;
+let lastUpdatedAt = "";
+
+function esc(s){ return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;"); }
+
+async function triggerFetch(){
+  document.getElementById("meta").textContent = "手机版为自动更新：云端每15分钟自动抓取，页面每5分钟自动刷新，无需手动点更新";
+  throw new Error("readonly");
+}
+
+async function fetchData(){
+  const r = await fetch(URL + "&_t=" + Date.now(), {cache:"no-store"});
+  const j = await r.json();
+  const text = decodeURIComponent(escape(atob(j.content)));
+  return JSON.parse(text);
+}
+
+function showData(data){
+  lastUpdatedAt = data.updated_at||"";
+  ALL = (data.articles||[]).slice().sort((a,b)=> (b.published_at||"").localeCompare(a.published_at||""));
+  document.getElementById("meta").textContent =
+    "共 " + ALL.length + " 条 · 第" + curPage + "页 · 更新于 " + (data.updated_at||"").replace("T"," ").replace(/\+.*/,"");
+  renderList();
+}
+
+async function loadNews(){
+  const btn = document.getElementById("refreshBtn");
+  btn.disabled = true;
+  let triggered = false;
+  try{
+    btn.textContent = "正在抓取最新新闻…";
+    try{
+      await triggerFetch();
+      triggered = true;
+    }catch(e){ /* GitHub连不上则直接拉现有数据 */ }
+    if(triggered){
+      for(let i=0;i<36;i++){
+        await new Promise(res=>setTimeout(res,5000));
+        btn.textContent = "抓取中…" + Math.round((i+1)*5) + "秒";
+        try{
+          const d = await fetchData();
+          if(d.updated_at && d.updated_at !== lastUpdatedAt){ showData(d); return; }
+        }catch(e){}
+      }
+    }
+    const d = await fetchData();
+    showData(d);
+  }catch(e){
+    document.getElementById("meta").textContent = "加载失败：" + e.message;
+  }finally{
+    btn.disabled = false; btn.textContent = "更新";
+  }
+}
+
+function srcName(a){ return a._google ? (a.source + " · Google热榜") : a.source; }
+
+function setPage(n){
+  curPage = n;
+  const b1 = document.getElementById("pageBtn1"), b2 = document.getElementById("pageBtn2");
+  if(b1) b1.style.background = n===1 ? "#1a3a6c" : "#fff";
+  if(b1) b1.style.color = n===1 ? "#fff" : "#1a3a6c";
+  if(b2) b2.style.background = n===2 ? "#1a3a6c" : "#fff";
+  if(b2) b2.style.color = n===2 ? "#fff" : "#1a3a6c";
+  window.scrollTo(0,0);
+  renderList();
+}
+function renderList(){
+  const el = document.getElementById("list");
+  const rows = ALL.slice();
+  if(!rows.length){ el.innerHTML = '<div class="loading">暂无新闻</div>'; return; }
+  const pageRows = curPage===1 ? rows.slice(0,50) : rows.slice(50,100);
+  if(!pageRows.length){ el.innerHTML = '<div class="loading">暂无更多旧闻</div>'; return; }
+  el.innerHTML = pageRows.map(a=>{
+    const time = (a.published_at||"").replace("T"," ").replace(/\+.*/,"").slice(5,16);
+    return `<div class="card" onclick='openDetail(${ALL.indexOf(a)})'>
+      <div class="card-title">${esc(a.title_orig || a.title_zh || "")}</div>
+      <div class="card-meta">
+        <span class="tag tag-country">${a.country}</span>
+        <span>${esc(srcName(a))}</span>
+        <span>${time}</span>
+      </div></div>`;
+  }).join("");
+}
+
+function openDetail(i){
+  const a = ALL[i];
+  const time = (a.published_at||"").replace("T"," ").replace(/\+.*/,"");
+  const body = document.getElementById("modalBody");
+  body.innerHTML = `
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <h2>${esc(a.title_orig || a.title_zh || "")}</h2>
+    <div class="modal-meta">
+      <span class="tag tag-country">${a.country}</span>
+      ${esc(srcName(a))} · ${time}
+    </div>
+    <div class="section-label">原文全文</div>
+    <div>${esc(a.content_orig).split("\n").map(p=>`<p>${p}</p>`).join("")}</div>`;
+  document.getElementById("modal").classList.add("show");
+  savedScrollY = window.scrollY;
+  document.getElementById("modal").scrollTop = 0;
+}
+function closeModal(){
+  document.getElementById("modal").classList.remove("show");
+  window.scrollTo(0, savedScrollY);
+}
+document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeModal(); });
+
+async function autoCheck(){
+  // 详情打开时不打扰
+  const m = document.getElementById("modal");
+  if(m && m.classList.contains("show")) return;
+  try{
+    const d = await fetchData();
+    if(d.updated_at && d.updated_at !== lastUpdatedAt){
+      const y = window.scrollY;
+      showData(d);
+      window.scrollTo(0, y);
+    }
+  }catch(e){}
+}
+
+// 每5分钟自动刷新一次: 拉取Gitee最新数据, 有更新则静默重渲染(保留滚动位置), 不打扰详情页
+async function autoRefresh5(){
+  const m = document.getElementById("modal");
+  if(m && m.classList.contains("show")) return;
+  const btn = document.getElementById("refreshBtn");
+  if(btn && btn.disabled) return; // 手动"更新"进行中不重复
+  try{
+    const d = await fetchData();
+    if(d.updated_at && d.updated_at !== lastUpdatedAt){
+      const y = window.scrollY;
+      showData(d);
+      window.scrollTo(0, y);
+      document.getElementById("meta").textContent =
+        "共 " + ALL.length + " 条 · 更新于 " + (d.updated_at||"").replace("T"," ").replace(/\+.*/,"") + " · 已自动刷新";
+    }
+  }catch(e){}
+}
+
+loadNews();
+setInterval(autoCheck, 30000); // 每30秒静默检查数据更新
+setInterval(autoRefresh5, 300000); // 每5分钟自动刷新最新数据
+</script>
+</body>
+</html>
