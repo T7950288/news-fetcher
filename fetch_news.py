@@ -743,6 +743,14 @@ def gitee_get():
 
 
 def gitee_put(data, sha):
+    # v8.2: 目标文件独立GET sha(文件不存在则sha=None创建), 不依赖回退源sha, 避免404
+    url_get = (f"https://gitee.com/api/v5/repos/{GITEE_OWNER}/{GITEE_REPO}/contents/{GITEE_PATH}"
+               f"?ref=master&access_token={GITEE_TOKEN}")
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url_get), timeout=15) as r:
+            sha = json.loads(r.read())["sha"]
+    except Exception:
+        sha = None
     body_text = json.dumps(data, ensure_ascii=False)
     b64 = base64.b64encode(body_text.encode("utf-8")).decode()
     body = {"access_token": GITEE_TOKEN, "content": b64, "message": "auto update", "sha": sha}
