@@ -109,7 +109,7 @@ GITEE_REPO = "news"
 GITEE_PATH = "news.json"  # v8.4: 单文件100条全量(网页翻页用); 手机端APK取前50
 CST = timezone(timedelta(hours=8))
 MIN_BODY = 80        # RSS导语最小长度
-MAX_BODY = 2500      # 原文保留上限(翻译时分块)
+MAX_BODY = 8000      # 原文全文保留上限(Edge右键翻译, 不翻译了)
 TARGET = 42          # v8: 热榜前42条
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
 
@@ -175,11 +175,6 @@ GOOGLE_COUNTRY = {
 }
 
 COUNTRY_LANG = {"UK": "en", "US": "en", "FR": "fr", "DE": "de", "JP": "ja"}
-
-BAIDU_APPID = "20260917002686240"
-BAIDU_SECRET = "6JZO5lWQ2F4GbXr2ycjN"
-BAIDU_LANG = {"en": "en", "fr": "fra", "de": "de", "ja": "jp"}
-BAIDU_ON = True  # 由Gitee config.json控制(用户可网页/手机开关)
 
 # ============ 重要性判定 (多语言) ============
 # 社论/观点标记 -> op-ed, 全收
@@ -333,128 +328,11 @@ def clean_gn_title(title):
     return title, ""
 
 
-def load_config():
-    """读Gitee config.json获取百度翻译开关"""
-    global BAIDU_ON
-    try:
-        url = (f"https://gitee.com/api/v5/repos/{GITEE_OWNER}/{GITEE_REPO}/contents/config.json"
-               f"?ref=master&access_token={GITEE_TOKEN}")
-        info = json.loads(urllib.request.urlopen(urllib.request.Request(url), timeout=10).read())
-        cfg = json.loads(base64.b64decode(info["content"]).decode("utf-8"))
-        BAIDU_ON = bool(cfg.get("baidu_enabled", False))
-        print("config baidu_enabled =", BAIDU_ON)
-    except Exception as e:
-        print("config read err, default OFF:", str(e)[:60])
-        BAIDU_ON = False
-
-
 def clean_html(html):
     if not html:
         return ""
     soup = BeautifulSoup(html, "lxml")
     return soup.get_text(separator="\n").strip()
-
-
-def _baidu(text, src):
-    salt = str(int(time.time() * 1000))
-    sign = hashlib.md5((BAIDU_APPID + text + salt + BAIDU_SECRET).encode()).hexdigest()
-    from_lang = BAIDU_LANG.get(src, "en")
-    url = ("https://fanyi-api.baidu.com/api/trans/vip/translate?q=" +
-           urllib.parse.quote(text) + f"&from={from_lang}&to=zh&appid={BAIDU_APPID}&salt={salt}&sign={sign}")
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(req, timeout=8) as r:
-        data = json.loads(r.read())
-        if "trans_result" in data:
-            return "".join(x["dst"] for x in data["trans_result"])
-    return None
-
-
-def _youdao(text, src):
-    ts = str(int(time.time() * 1000))
-    salt = ts + str(random.randint(10, 99))
-    bv = hashlib.md5(b"5.0 (Windows NT 10.0; Win64; x64)").hexdigest()
-    sign_str = "fanyideskweb" + text + salt + "Ygy_4c=r#e#4EX^NUGUc5"
-    sign = hashlib.md5(sign_str.encode()).hexdigest()
-    body = urllib.parse.urlencode({
-        "i": text, "from": "AUTO", "to": "AUTO",
-        "smartresult": "dict", "client": "fanyideskweb",
-        "salt": salt, "sign": sign, "ts": ts, "bv": bv,
-        "doctype": "json", "version": "2.1", "action": "FANY"
-    }).encode()
-    req = urllib.request.Request("http://fanyi.youdao.com/translate",
-        data=body, headers={"User-Agent": "Mozilla/5.0", "Content-Type": "application/x-www-form-urlencoded"})
-    with urllib.request.urlopen(req, timeout=8) as r:
-        data = json.loads(r.read())
-        if data.get("errorCode") == 0:
-            return "".join(x["tgt"] for x in data["translateResult"])
-    return None
-
-
-def _mymemory(text, src):
-    url = ("https://api.mymemory.translated.net/get?q=" + urllib.parse.quote(text) +
-           f"&langpair={src}|zh-CN&de=7950288@sina.com.cn")
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(req, timeout=5) as r:
-        data = json.loads(r.read())
-        return data["responseData"]["translatedText"]
-
-
-def translate(text, src="en"):
-    if not text:
-        return ""
-    text = text.strip()
-    if len(text) < 2:
-        return text
-    text = text[:480]
-    for attempt in range(2):
-        for fn in (_baidu, _youdao, _mymemory):
-            try:
-                r = fn(text, src)
-                if r and len(r) > 2 and r != text:
-                    return r
-            except Exception:
-                continue
-        if attempt == 0:
-            time.sleep(2)
-    return text
-
-
-def split_chunks(text, size=600):
-    paras = [p.strip() for p in re.split(r"\n+", text) if p.strip()]
-    if not paras:
-        return [text] if text else []
-    chunks, cur = [], ""
-    for p in paras:
-        while len(p) > size:
-            cut = p[:size]
-            idx = max(cut.rfind(" "), cut.rfind("."), cut.rfind("。"), cut.rfind("，"), cut.rfind(","))
-            if idx < size // 2:
-                idx = size
-            chunks.append(p[:idx])
-            p = p[idx:].strip()
-        if len(cur) + len(p) + 1 > size:
-            if cur:
-                chunks.append(cur)
-            cur = p
-        else:
-            cur = (cur + "\n" + p).strip()
-    if cur:
-        chunks.append(cur)
-    return chunks
-
-
-def translate_long(text, src):
-    if not text:
-        return ""
-    text = text.strip()
-    if len(text) <= 480:
-        return translate(text, src)
-    out = []
-    for c in split_chunks(text, 480):
-        t = translate(c, src)
-        out.append(t if t else c)
-        time.sleep(0.25)  # 百度免费版 QPS=1, 控速防 54003
-    return "\n".join(out)
 
 
 DIAG = {"resolve_ok": 0, "resolve_page": 0, "fetch_ok": 0, "jina_ok": 0,
@@ -703,29 +581,6 @@ def fetch_one(url, source, country, hint, is_google=False):
         })
     print(f"  {source}: {len(arts)} ok")
     return arts
-
-
-def translate_article(a):
-    lang = a.pop("_lang", "en")
-    if not BAIDU_ON:
-        # 用户关闭百度: 云端不翻译, 等本地豆包AI接管
-        a["title_zh"] = a["title_orig"]
-        a["content_zh"] = ""
-        a["summary_zh"] = ""
-        a["translate_by"] = "none"
-        return a
-    a["title_zh"] = translate(a["title_orig"], lang)
-    body = a.get("content_orig", "") or ""
-    if body.strip():
-        zh = translate_long(body, lang)
-        a["content_zh"] = zh
-        first = [l for l in zh.split("\n") if l.strip()]
-        a["summary_zh"] = (first[0] if first else zh)[:200]
-    else:
-        a["content_zh"] = a["title_zh"]
-        a["summary_zh"] = a["title_zh"]
-    a["translate_by"] = "api"
-    return a
 
 
 def gitee_get():
@@ -1206,7 +1061,6 @@ def agency_full_text(a):
 
 def main():
     t0 = time.time()
-    load_config()
     _log("fetching sources...")
     with ThreadPoolExecutor(max_workers=8) as ex:
         results = list(ex.map(lambda f: fetch_one(*f), FEEDS))
@@ -1380,15 +1234,12 @@ def main():
     # 关键修复v5.15/v6: 以本轮最新picked为主, 同id的AI翻译成果自动带上, 杜绝旧条目挤占新条目配额
     for a in recent:
         o = old_by_id.get(a["id"])
-        if o and o.get("translate_by") in ("ai", "api") and len((o.get("content_zh") or "").strip()) >= 20:
-            # 已翻译过(本地AI或云端API)的同文章: 保留译文, 不重复翻译省额度
+        if o and (o.get("content_zh") or "").strip():
+            # 历史译文(之前AI/API翻过)保留; 未翻过的字段为原文
             a["title_zh"] = o.get("title_zh") or a["title_orig"]
             a["summary_zh"] = o.get("summary_zh") or ""
             a["content_zh"] = o.get("content_zh") or ""
-            a["translate_by"] = o.get("translate_by")
-        elif BAIDU_ON:
-            # 新文章: 云端自动翻译(百度→MyMemory兜底)
-            translate_article(a)
+            a["translate_by"] = o.get("translate_by") or "none"
         else:
             a["title_zh"] = a["title_orig"]
             a["content_zh"] = ""
@@ -1396,14 +1247,14 @@ def main():
             a["translate_by"] = "none"
     MAX_TOTAL = 100  # v8: 网页第1页最新50条 + 第2页被覆盖旧闻50条
     merged2 = recent[:TARGET + len(recent_china)]  # 本轮 42+8 = 50 条
-    # 24h内被覆盖的旧条目(AI翻译过), 按时间倒序补位到最多100条
+    # 24h内被覆盖的旧条目(有正文即可), 按时间倒序补位到最多100条 —— 翻译取消后不再限已翻译
     have = {a["id"] for a in merged2}
     for a in sorted(old_by_id.values(), key=lambda x: x.get("published_at", ""), reverse=True):
         if len(merged2) >= MAX_TOTAL:
             break
         if a["id"] in have:
             continue
-        if a.get("translate_by") not in ("ai", "api"):
+        if not (a.get("content_orig") or "").strip():
             continue
         merged2.append(a)
     merged2 = [a for a in merged2
