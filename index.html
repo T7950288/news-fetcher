@@ -18,6 +18,10 @@
                  font-size:14px; cursor:pointer; font-weight:600; }
   .refresh-btn:active { transform:scale(.96); }
   .refresh-btn:disabled { opacity:.5; cursor:wait; }
+  .page-btn { width:30px; height:30px; border-radius:50%; border:2px solid rgba(255,255,255,.85);
+              background:transparent; color:#fff; font-size:15px; font-weight:700; cursor:pointer;
+              line-height:1; display:inline-flex; align-items:center; justify-content:center; }
+  .page-btn.active { background:#fff; color:#1a3a6c; border-color:#fff; }
   .meta { max-width:960px; margin:10px auto 0; padding:0 20px; font-size:12px; color:#666; }
   .tabs { max-width:960px; margin:14px auto 0; padding:0 20px; display:flex; gap:8px; flex-wrap:wrap; }
   .tab { padding:6px 16px; border-radius:20px; background:#fff; border:1px solid #ddd; font-size:13px;
@@ -55,8 +59,8 @@
   <div class="header-inner">
     <div class="logo">国际新闻<span>谷歌热榜 · 全球要闻</span></div>
     <div style="display:flex;align-items:center;gap:8px;">
-      <button class="refresh-btn page-btn" id="pageBtn1" onclick="setPage(1)" style="padding:8px 12px;" title="最新50条">第1页</button>
-      <button class="refresh-btn page-btn" id="pageBtn2" onclick="setPage(2)" style="padding:8px 12px;" title="更早50条">第2页</button>
+      <button class="page-btn" id="pageBtn1" onclick="setPage(1)" title="最新50条">1</button>
+      <button class="page-btn" id="pageBtn2" onclick="setPage(2)" title="更早50条">2</button>
       <button class="refresh-btn" id="refreshBtn" onclick="loadNews()">更新</button>
     </div>
   </div>
@@ -132,10 +136,8 @@ function srcName(a){ return a._google ? (a.source + " · Google热榜") : a.sour
 function setPage(n){
   curPage = n;
   const b1 = document.getElementById("pageBtn1"), b2 = document.getElementById("pageBtn2");
-  if(b1) b1.style.background = n===1 ? "#1a3a6c" : "#fff";
-  if(b1) b1.style.color = n===1 ? "#fff" : "#1a3a6c";
-  if(b2) b2.style.background = n===2 ? "#1a3a6c" : "#fff";
-  if(b2) b2.style.color = n===2 ? "#fff" : "#1a3a6c";
+  if(b1) b1.classList.toggle("active", n===1);
+  if(b2) b2.classList.toggle("active", n===2);
   window.scrollTo(0,0);
   renderList();
 }
