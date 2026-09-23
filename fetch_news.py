@@ -405,7 +405,7 @@ def translate(text, src="en"):
     text = text.strip()
     if len(text) < 2:
         return text
-    text = text[:900]
+    text = text[:480]
     for attempt in range(2):
         for fn in (_baidu, _youdao, _mymemory):
             try:
@@ -447,12 +447,13 @@ def translate_long(text, src):
     if not text:
         return ""
     text = text.strip()
-    if len(text) <= 600:
+    if len(text) <= 480:
         return translate(text, src)
     out = []
-    for c in split_chunks(text, 600):
+    for c in split_chunks(text, 480):
         t = translate(c, src)
         out.append(t if t else c)
+        time.sleep(0.25)  # 百度免费版 QPS=1, 控速防 54003
     return "\n".join(out)
 
 
@@ -1379,11 +1380,15 @@ def main():
     # 关键修复v5.15/v6: 以本轮最新picked为主, 同id的AI翻译成果自动带上, 杜绝旧条目挤占新条目配额
     for a in recent:
         o = old_by_id.get(a["id"])
-        if o and o.get("translate_by") == "ai" and len((o.get("content_zh") or "").strip()) >= 20:
+        if o and o.get("translate_by") in ("ai", "api") and len((o.get("content_zh") or "").strip()) >= 20:
+            # 已翻译过(本地AI或云端API)的同文章: 保留译文, 不重复翻译省额度
             a["title_zh"] = o.get("title_zh") or a["title_orig"]
             a["summary_zh"] = o.get("summary_zh") or ""
             a["content_zh"] = o.get("content_zh") or ""
-            a["translate_by"] = "ai"
+            a["translate_by"] = o.get("translate_by")
+        elif BAIDU_ON:
+            # 新文章: 云端自动翻译(百度→MyMemory兜底)
+            translate_article(a)
         else:
             a["title_zh"] = a["title_orig"]
             a["content_zh"] = ""
@@ -1398,7 +1403,7 @@ def main():
             break
         if a["id"] in have:
             continue
-        if a.get("translate_by") != "ai":
+        if a.get("translate_by") not in ("ai", "api"):
             continue
         merged2.append(a)
     merged2 = [a for a in merged2
