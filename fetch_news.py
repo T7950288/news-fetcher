@@ -38,7 +38,7 @@ def _lazy_load():
         except Exception:
             try:
                 subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet",
-                                       "google-news-api", "trafilatura"], timeout=200)
+                                       "google-news-api", "trafilatura"], timeout=90)
                 import google_news_api
                 _GN = google_news_api
             except Exception:
@@ -50,7 +50,7 @@ def _lazy_load():
         except Exception:
             try:
                 subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet",
-                                       "trafilatura"], timeout=120)
+                                       "trafilatura"], timeout=45)
                 import trafilatura
                 _TR = trafilatura
             except Exception:
@@ -361,7 +361,7 @@ def _fetch_jina(url):
     """jina reader 兜底: 服务端渲染跟随重定向, 返回markdown文本; 429限流重试2次"""
     for _att in range(3):
         try:
-            r = requests.get("https://r.jina.ai/" + url, timeout=25,
+            r = requests.get("https://r.jina.ai/" + url, timeout=8,
                              headers={"User-Agent": UA, "Accept": "text/plain"})
             if r.status_code == 429:
                 time.sleep(2.5)
@@ -422,7 +422,7 @@ def fetch_full_text(url, lang):
             "[id*='news_text']", "[data-component='text-block']", "main", "body"]
     for attempt in range(2):
         try:
-            r = requests.get(url, timeout=15, headers={"User-Agent": UA})
+            r = requests.get(url, timeout=10, headers={"User-Agent": UA})
             if r.status_code != 200:
                 DIAG["http_err"] += 1
                 if attempt == 0:
@@ -1128,9 +1128,9 @@ def main():
     uniq = sorted(best.values(), key=lambda x: x["published_at"], reverse=True)
     _log(f"unique {len(uniq)}")
 
-    # 全文抓取(去重后量小, 8线程并行)
+    # 全文抓取(去重后量小, 10线程并行 v9.8)
     _log("fetching full text...")
-    with ThreadPoolExecutor(max_workers=4) as ex:
+    with ThreadPoolExecutor(max_workers=10) as ex:
         def resolve_google_link(url):
             """Google中转链接 -> 真实媒体URL: /articles/CODE?oc=5 变体302跟随 + canonical/og:url提取"""
             if "news.google.com" not in url:
