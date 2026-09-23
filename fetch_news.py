@@ -753,7 +753,9 @@ def gitee_put(data, sha):
         sha = None
     body_text = json.dumps(data, ensure_ascii=False)
     b64 = base64.b64encode(body_text.encode("utf-8")).decode()
-    body = {"access_token": GITEE_TOKEN, "content": b64, "message": "auto update", "sha": sha}
+    body = {"access_token": GITEE_TOKEN, "content": b64, "message": "auto update"}
+    if sha:
+        body["sha"] = sha  # v8.3: 文件不存在(sha=None)时不带sha, 避免400
     url = f"https://gitee.com/api/v5/repos/{GITEE_OWNER}/{GITEE_REPO}/contents/{GITEE_PATH}"
     req = urllib.request.Request(url, data=json.dumps(body).encode(),
         headers={"Content-Type": "application/json"}, method="PUT")
@@ -773,7 +775,9 @@ def gitee_put_phone(data):
         sha = None
     body_text = json.dumps(data, ensure_ascii=False)
     b64 = base64.b64encode(body_text.encode("utf-8")).decode()
-    body = {"access_token": GITEE_TOKEN, "content": b64, "message": "auto update phone", "sha": sha}
+    body = {"access_token": GITEE_TOKEN, "content": b64, "message": "auto update phone"}
+    if sha:
+        body["sha"] = sha
     url = f"https://gitee.com/api/v5/repos/{GITEE_OWNER}/{GITEE_REPO}/contents/news.json"
     req = urllib.request.Request(url, data=json.dumps(body).encode(),
         headers={"Content-Type": "application/json"}, method="PUT")
