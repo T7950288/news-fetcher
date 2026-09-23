@@ -106,7 +106,7 @@ def wayback_url(url):
 GITEE_TOKEN = os.environ["GITEE_TOKEN"]
 GITEE_OWNER = "t7950288"
 GITEE_REPO = "news"
-GITEE_PATH = "news.json"
+GITEE_PATH = "news_full.json"  # v8.1: 网页全量100条; news.json 为手机端最新50条
 CST = timezone(timedelta(hours=8))
 MIN_BODY = 80        # RSS导语最小长度
 MAX_BODY = 2500      # 原文保留上限(翻译时分块)
@@ -728,12 +728,18 @@ def translate_article(a):
 
 
 def gitee_get():
-    url = (f"https://gitee.com/api/v5/repos/{GITEE_OWNER}/{GITEE_REPO}/contents/{GITEE_PATH}"
-           f"?ref=master&access_token={GITEE_TOKEN}")
-    with urllib.request.urlopen(urllib.request.Request(url), timeout=15) as r:
-        info = json.loads(r.read())
-    data = json.loads(base64.b64decode(info["content"]).decode("utf-8"))
-    return data, info["sha"]
+    # v8.1: 优先读 news_full.json(全量); 首次不存在回退读 news.json 完成迁移, 不丢旧数据
+    for path in (GITEE_PATH, "news.json"):
+        try:
+            url = (f"https://gitee.com/api/v5/repos/{GITEE_OWNER}/{GITEE_REPO}/contents/{path}"
+                   f"?ref=master&access_token={GITEE_TOKEN}")
+            with urllib.request.urlopen(urllib.request.Request(url), timeout=15) as r:
+                info = json.loads(r.read())
+            data = json.loads(base64.b64decode(info["content"]).decode("utf-8"))
+            return data, info["sha"]
+        except Exception:
+            continue
+    raise RuntimeError("no gitee file available")
 
 
 def gitee_put(data, sha):
@@ -741,6 +747,26 @@ def gitee_put(data, sha):
     b64 = base64.b64encode(body_text.encode("utf-8")).decode()
     body = {"access_token": GITEE_TOKEN, "content": b64, "message": "auto update", "sha": sha}
     url = f"https://gitee.com/api/v5/repos/{GITEE_OWNER}/{GITEE_REPO}/contents/{GITEE_PATH}"
+    req = urllib.request.Request(url, data=json.dumps(body).encode(),
+        headers={"Content-Type": "application/json"}, method="PUT")
+    with urllib.request.urlopen(req, timeout=30) as r:
+        json.loads(r.read())
+
+
+def gitee_put_phone(data):
+    """v8.1: 手机端 news.json = 最新50条"""
+    url_get = (f"https://gitee.com/api/v5/repos/{GITEE_OWNER}/{GITEE_REPO}/contents/news.json"
+               f"?ref=master&access_token={GITEE_TOKEN}")
+    sha = None
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url_get), timeout=15) as r:
+            sha = json.loads(r.read())["sha"]
+    except Exception:
+        sha = None
+    body_text = json.dumps(data, ensure_ascii=False)
+    b64 = base64.b64encode(body_text.encode("utf-8")).decode()
+    body = {"access_token": GITEE_TOKEN, "content": b64, "message": "auto update phone", "sha": sha}
+    url = f"https://gitee.com/api/v5/repos/{GITEE_OWNER}/{GITEE_REPO}/contents/news.json"
     req = urllib.request.Request(url, data=json.dumps(body).encode(),
         headers={"Content-Type": "application/json"}, method="PUT")
     with urllib.request.urlopen(req, timeout=30) as r:
@@ -1364,6 +1390,7 @@ def main():
     if sha:
         try:
             gitee_put(new_data, sha)
+            gitee_put_phone({"version": "1.0", "updated_at": now.isoformat(), "articles": merged2[:50]})
             print(f"OK total={len(merged2)} cost={int(time.time()-t0)}s")
         except Exception as e:
             print("UPLOAD ERR", e)
