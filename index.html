@@ -71,7 +71,7 @@
   <div class="modal-body" id="modalBody"></div>
 </div>
 <script>
-const URL = "https://gitee.com/api/v5/repos/t7950288/news/contents/news.json?ref=master";
+const URL = "https://raw.githubusercontent.com/T7950288/news-fetcher/main/news.json";
 const CATS = [
   ["world","国际大事"],["op-ed","社论"],["finance","财经"],["tech","科技"],["general","综合"]
 ];
@@ -88,10 +88,8 @@ async function triggerFetch(){
 }
 
 async function fetchData(){
-  const r = await fetch(URL + "&_t=" + Date.now(), {cache:"no-store"});
-  const j = await r.json();
-  const text = decodeURIComponent(escape(atob(j.content)));
-  return JSON.parse(text);
+  const r = await fetch(URL + "?_t=" + Date.now(), {cache:"no-store"});
+  return await r.json();
 }
 
 function showData(data){
