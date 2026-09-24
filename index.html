@@ -19,6 +19,7 @@
   .nav-tab.active { background:#fff; color:#1a3a6c; border-color:#fff; }
   .nav-tab:hover { background:rgba(255,255,255,.25); }
   .nav-tab.active:hover { background:#fff; }
+  .nav-tab .short { display:none; }
   .refresh-btn { background:#fff; color:#1a3a6c; border:none; padding:8px 18px; border-radius:6px;
                  font-size:14px; cursor:pointer; font-weight:600; }
   .refresh-btn:active { transform:scale(.96); }
@@ -58,8 +59,17 @@
   /* 手机端适配 */
   @media (max-width:768px){
     header { padding:10px 12px; }
-    .logo { font-size:17px; }
-    .nav-tab { padding:5px 11px; font-size:12.5px; }
+    .nav-tabs-wrap { position:relative; min-width:0; flex:1; }
+    .nav-tabs { overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none;
+                white-space:nowrap; flex-wrap:nowrap; }
+    .nav-tabs::-webkit-scrollbar { display:none; }
+    .nav-tab { display:inline-flex; flex:none; padding:5px 11px; font-size:13px; }
+    .nav-tab .full { display:none; }
+    .nav-tab .short { display:inline; }
+    .nav-tabs-wrap::after { content:""; position:absolute; right:0; top:0; bottom:0; width:20px;
+      background:linear-gradient(to left, rgba(26,58,108,.92), transparent); pointer-events:none;
+      opacity:0; transition:opacity .2s; }
+    .nav-tabs-wrap.scrollable::after { opacity:1; }
     .refresh-btn { padding:7px 14px; font-size:13px; }
     .card { padding:13px 14px; }
     .card-title { font-size:15px; }
@@ -72,10 +82,12 @@
 <body>
 <header>
   <div class="header-inner">
-    <nav class="nav-tabs">
-      <a class="nav-tab active" href="./">谷歌热榜</a>
-      <a class="nav-tab" href="travel/">旅游地图</a>
-    </nav>
+    <div class="nav-tabs-wrap">
+      <nav class="nav-tabs">
+        <a class="nav-tab active" href="./"><span class="full">谷歌热榜</span><span class="short">热榜</span></a>
+        <a class="nav-tab" href="travel/"><span class="full">旅游地图</span><span class="short">地图</span></a>
+      </nav>
+    </div>
     <button class="refresh-btn" id="refreshBtn" onclick="loadNews()">更新</button>
   </div>
 </header>
@@ -86,6 +98,7 @@
 </div>
 <script>
 const URL = "https://t7950288.github.io/news-fetcher/news.json";
+const CACHE_KEY = "gh_news_cache_v1";
 const CATS = [
   ["world","国际大事"],["op-ed","社论"],["finance","财经"],["tech","科技"],["general","综合"]
 ];
@@ -110,7 +123,35 @@ function showData(data){
   ALL = (data.articles||[]).slice().sort((a,b)=> (b.published_at||"").localeCompare(a.published_at||""));
   document.getElementById("meta").textContent =
     "共 " + ALL.length + " 条 · 更新于 " + (data.updated_at||"").replace("T"," ").replace(/\+.*/,"");
+  try{ localStorage.setItem(CACHE_KEY, JSON.stringify({updated_at:lastUpdatedAt, items:ALL.slice()})); }catch(e){}
   renderList();
+}
+
+/* 页面加载：先渲染本地缓存（秒开），再后台拉最新数据比对，有更新才重渲染 */
+async function initNews(){
+  try{
+    const c = JSON.parse(localStorage.getItem(CACHE_KEY)||"null");
+    if(c && c.updated_at && Array.isArray(c.items) && c.items.length){
+      lastUpdatedAt = c.updated_at;
+      ALL = c.items;
+      document.getElementById("meta").textContent =
+        "共 " + ALL.length + " 条 · 更新于 " + c.updated_at.replace("T"," ").replace(/\+.*/,"");
+      renderList();
+    }
+  }catch(e){}
+  try{
+    const d = await fetchData();
+    try{ localStorage.setItem(CACHE_KEY, JSON.stringify({updated_at:d.updated_at||"", items:(d.articles||[]).slice()})); }catch(e){}
+    if(d.updated_at && d.updated_at !== lastUpdatedAt){
+      const y = window.scrollY;
+      showData(d);
+      window.scrollTo(0, y);
+    }else if(!lastUpdatedAt){
+      showData(d);
+    }
+  }catch(e){
+    if(!ALL.length) document.getElementById("meta").textContent = "加载失败：" + e.message;
+  }
 }
 
 async function loadNews(){
@@ -216,9 +257,18 @@ async function autoRefresh5(){
   }catch(e){}
 }
 
-loadNews();
+initNews();
 setInterval(autoCheck, 30000); // 每30秒静默检查数据更新
 setInterval(autoRefresh5, 300000); // 每5分钟自动刷新最新数据
+
+// 版块导航：可滚动时显示右侧渐隐提示
+function checkNavScroll(){
+  const wrap = document.querySelector('.nav-tabs-wrap');
+  const tabs = wrap ? wrap.querySelector('.nav-tabs') : null;
+  if(wrap && tabs) wrap.classList.toggle('scrollable', tabs.scrollWidth > tabs.clientWidth);
+}
+checkNavScroll();
+window.addEventListener('resize', checkNavScroll);
 </script>
 </body>
 </html>
