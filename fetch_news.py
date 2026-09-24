@@ -388,7 +388,13 @@ def fetch_full_text(url, lang):
     try:
         _lazy_load()
         if _TR:
-            hd = _TR.fetch_url(url)
+            hd = None
+            try:
+                rq = requests.get(url, timeout=10, headers={"User-Agent": UA})
+                if rq.status_code == 200:
+                    hd = rq.text
+            except Exception:
+                hd = None
             if hd:
                 txt = _TR.extract(hd, include_comments=False, include_tables=False)
                 if txt:
@@ -1101,6 +1107,12 @@ def agency_full_text(a):
 
 
 def main():
+    import signal
+    def _wd(signum, frame):
+        print("WATCHDOG: 9min timeout, force exit")
+        os._exit(1)
+    signal.signal(signal.SIGALRM, _wd)
+    signal.alarm(540)  # 9 分钟强制结束, 防止卡死拖垮定时队列
     t0 = time.time()
     _log("fetching sources...")
     with ThreadPoolExecutor(max_workers=8) as ex:
