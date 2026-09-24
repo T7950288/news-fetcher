@@ -149,9 +149,9 @@ async function fetchData(){
   try{ return await fetchJson(GITEE_API, true); }
   catch(e){ return await Promise.any(NEWS_SOURCES.map(u => fetchJson(u, false))); }
 }
-/* 后台自动检查专用：只走 GitHub，不占用 Gitee API 配额（避免限流） */
+/* 后台自动检查：Gitee 优先（国内快），失败切 GitHub；频率 3 分钟在限流内 */
 async function fetchDataQuiet(){
-  return await Promise.any(NEWS_SOURCES.map(u => fetchJson(u, false)));
+  return await fetchData();
 }
 
 function showData(data){
@@ -292,7 +292,7 @@ async function autoRefresh5(){
 }
 
 initNews();
-setInterval(autoCheck, 30000); // 每30秒静默检查数据更新
+setInterval(autoCheck, 180000); // 每3分钟静默检查数据更新（Gitee优先）
 setInterval(autoRefresh5, 300000); // 每5分钟自动刷新最新数据
 
 // 版块导航：可滚动时显示右侧渐隐提示
