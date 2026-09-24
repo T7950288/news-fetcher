@@ -253,11 +253,13 @@
       lis[j].addEventListener("click", function(){ playAt(parseInt(this.getAttribute("data-i"),10)); });
     }
   }
-  function addItems(items){
+  function addItems(items, autoPlay){
     for(var i=0;i<items.length;i++){ playlist.push(items[i]); }
     renderList();
-    if(cur<0 && playlist.length) playAt(0);
-    else updateNow();
+    if(cur<0 && playlist.length){
+      if(autoPlay) playAt(0);
+      else updateNow();
+    }
   }
   function clearList(){
     playlist = []; cur = -1;
@@ -433,7 +435,7 @@
     var out = [];
     walkDir(dir, out, function(files){
       files.sort(function(a,b){ return a.name.localeCompare(b.name,"zh"); });
-      addItems(files);
+      addItems(files, false);
       folderMode = true;
       showHint("已读取文件夹："+dir.name+"（"+files.length+" 个音乐/视频文件）");
     });
@@ -462,7 +464,7 @@
       if(k) items.push({name:f.name, kind:k, size:f.size, file:f});
     }
     if(!items.length){ setErr("未识别到音乐/视频文件（支持常见格式）"); return; }
-    addItems(items);
+    addItems(items, false);
     folderMode = false;
     showHint("已添加 "+items.length+" 个文件");
     fileInput.value = "";
