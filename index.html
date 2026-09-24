@@ -5,6 +5,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>谷歌热榜</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231a3a6c'/%3E%3Ctext x='32' y='44' font-size='32' text-anchor='middle' fill='white'%3E谷%3C/text%3E%3C/svg%3E">
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Helvetica Neue", sans-serif;
@@ -61,10 +62,13 @@
   .pane.active { display:block; }
   #mapPane.active { display:block; height:calc(100vh - 54px); }
   #mapFrame { width:100%; height:100%; border:0; display:block; }
+  #mediaPane.active { display:block; height:calc(100vh - 54px); }
+  #mediaFrame { width:100%; height:100%; border:0; display:block; }
   /* 手机端适配 */
   @media (max-width:768px){
     header { padding:10px 12px; }
     #mapPane.active { height:calc(100vh - 50px); }
+    #mediaPane.active { height:calc(100vh - 50px); }
     .nav-tabs-wrap { position:relative; min-width:0; flex:1; }
     .nav-tabs { overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none;
                 white-space:nowrap; flex-wrap:nowrap; }
@@ -92,6 +96,7 @@
       <nav class="nav-tabs">
         <a class="nav-tab active" href="./" data-section="home"><span class="full">谷歌热榜</span><span class="short">谷歌</span></a>
         <a class="nav-tab" href="travel/" data-section="map"><span class="full">旅游地图</span><span class="short">地图</span></a>
+        <a class="nav-tab" href="media/" data-section="media"><span class="full">音乐视频</span><span class="short">音乐</span></a>
       </nav>
     </div>
     <button class="refresh-btn" id="refreshBtn" onclick="loadNews()">更新</button>
@@ -103,6 +108,9 @@
 </div>
 <div id="mapPane" class="pane">
   <iframe id="mapFrame" src="travel/" title="旅游地图"></iframe>
+</div>
+<div id="mediaPane" class="pane">
+  <iframe id="mediaFrame" src="media/" title="音乐视频"></iframe>
 </div>
 <div class="modal" id="modal" onclick="if(event.target===this)closeModal()">
   <div class="modal-body" id="modalBody"></div>
@@ -308,8 +316,10 @@ window.addEventListener('resize', checkNavScroll);
 
 // ===== 无跳转切换：热榜 / 地图 同一页面切换显示 =====
 const mapFrame = document.getElementById('mapFrame');
+const mediaFrame = document.getElementById('mediaFrame');
 const homePane = document.getElementById('homePane');
 const mapPane = document.getElementById('mapPane');
+const mediaPane = document.getElementById('mediaPane');
 const refreshBtn = document.getElementById('refreshBtn');
 let savedHomeScroll = 0;
 
@@ -340,16 +350,23 @@ mapFrame.addEventListener('load', ()=>{
 function switchSection(key){
   document.querySelectorAll('.nav-tab').forEach(t =>
     t.classList.toggle('active', t.dataset.section === key));
-  if(key === 'map'){
+  if(key === 'map' || key === 'media'){
     savedHomeScroll = window.scrollY;
     homePane.classList.remove('active');
-    mapPane.classList.add('active');
+    if(key === 'map'){
+      mapPane.classList.add('active');
+      mediaPane.classList.remove('active');
+      hideMapHeader();
+      fixMapSize();
+    }else{
+      mediaPane.classList.add('active');
+      mapPane.classList.remove('active');
+    }
     if(refreshBtn) refreshBtn.style.display = 'none';
     window.scrollTo(0, 0);
-    hideMapHeader();
-    fixMapSize();
   }else{
     mapPane.classList.remove('active');
+    mediaPane.classList.remove('active');
     homePane.classList.add('active');
     if(refreshBtn) refreshBtn.style.display = '';
     window.scrollTo(0, savedHomeScroll);
