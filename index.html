@@ -111,7 +111,6 @@
 const URL = "https://t7950288.github.io/news-fetcher/news.json";
 /* Gitee API：国内直连快、云端每15分钟实时同步（浏览器已确认可跨域访问） */
 const GITEE_API = "https://gitee.com/api/v5/repos/t7950288/news/contents/news.json?ref=master";
-const GH_API = "https://api.github.com/repos/T7950288/news-fetcher/contents/news.json?ref=main";
 /* GitHub 实时源兜底（jsDelivr 有12小时缓存会返回旧数据，news.json 每15分钟更新，不能用） */
 const NEWS_SOURCES = [
   "https://t7950288.github.io/news-fetcher/news.json",
@@ -132,11 +131,11 @@ async function triggerFetch(){
   throw new Error("readonly");
 }
 
-async function fetchJson(u, isGitee, timeout){
+async function fetchJson(u, isGitee){
   const ctrl = new AbortController();
-  const timer = setTimeout(()=>ctrl.abort(), timeout || 8000);
+  const timer = setTimeout(()=>ctrl.abort(), 8000);
   try{
-    const r = await fetch(u + (isGitee ? "&_t=" : "?_t=") + Date.now(), {cache:"no-store", signal:ctrl.signal});
+    const r = await fetch(u + (isGitee ? "" : "?_t=" + Date.now()), {cache:"no-store", signal:ctrl.signal});
     clearTimeout(timer);
     if(!r.ok) throw new Error("HTTP " + r.status);
     const j = await r.json();
@@ -145,24 +144,14 @@ async function fetchJson(u, isGitee, timeout){
   }catch(e){ clearTimeout(timer); throw e; }
 }
 
-/* 首开/手动更新：并行拉 Gitee API + GitHub Pages + GitHub API 三源，比较时间戳取最新；全部失败再试 raw */
+/* 首开/手动更新：Gitee 优先（国内快），失败切 GitHub 实时源 */
 async function fetchData(){
-  const results = await Promise.all([
-    fetchJson(GITEE_API, true, 6000).catch(e=>null),
-    fetchJson(NEWS_SOURCES[0], false, 6000).catch(e=>null),
-    fetchJson(GH_API, true, 8000).catch(e=>null)
-  ]);
-  let best = null;
-  for(const d of results){
-    if(d && d.updated_at && (!best || d.updated_at > best.updated_at)) best = d;
-  }
-  if(best) return best;
-  try{ return await fetchJson(NEWS_SOURCES[1], false, 8000); }
-  catch(e){ throw new Error("all sources failed"); }
+  try{ return await fetchJson(GITEE_API, true); }
+  catch(e){ return await Promise.any(NEWS_SOURCES.map(u => fetchJson(u, false))); }
 }
-/* 后台自动检查：Gitee 优先（国内快），失败切 GitHub；频率 3 分钟在限流内 */
+/* 后台自动检查：只走 GitHub（不打扰首开），供 30 秒检查与 5 分钟自动刷新 */
 async function fetchDataQuiet(){
-  return await fetchData();
+  return await fetchJson(NEWS_SOURCES[0], false);
 }
 
 function showData(data){
@@ -181,11 +170,7 @@ async function initNews(){
   try{
     const d = await fetchData();
     try{ localStorage.setItem(CACHE_KEY, JSON.stringify({updated_at:d.updated_at||"", items:(d.articles||[]).slice()})); }catch(e){}
-    if(cached && cached.updated_at && d.updated_at && cached.updated_at > d.updated_at){
-      showData({updated_at:cached.updated_at, articles:cached.items});
-    }else{
-      showData(d);
-    }
+    showData(d);
     return;
   }catch(e){
     try{
@@ -221,7 +206,7 @@ async function loadNews(){
         btn.textContent = "抓取中…" + Math.round((i+1)*5) + "秒";
         try{
           const d = await fetchData();
-          if(d.updated_at && d.updated_at > lastUpdatedAt){ showData(d); return; }
+          if(d.updated_at && d.updated_at !== lastUpdatedAt){ showData(d); return; }
         }catch(e){}
       }
     }
@@ -282,7 +267,7 @@ async function autoCheck(){
   if(m && m.classList.contains("show")) return;
   try{
     const d = await fetchDataQuiet();
-    if(d.updated_at && d.updated_at > lastUpdatedAt){
+    if(d.updated_at && d.updated_at !== lastUpdatedAt){
       const y = window.scrollY;
       showData(d);
       window.scrollTo(0, y);
@@ -298,7 +283,7 @@ async function autoRefresh5(){
   if(btn && btn.disabled) return; // 手动"更新"进行中不重复
   try{
     const d = await fetchDataQuiet();
-    if(d.updated_at && d.updated_at > lastUpdatedAt){
+    if(d.updated_at && d.updated_at !== lastUpdatedAt){
       const y = window.scrollY;
       showData(d);
       window.scrollTo(0, y);
@@ -309,6 +294,7 @@ async function autoRefresh5(){
 }
 
 initNews();
+setInterval(autoCheck, 30000); // 每30秒静默检查数据更新（后台走 GitHub）
 setInterval(autoRefresh5, 300000); // 每5分钟自动刷新最新数据
 
 // 版块导航：可滚动时显示右侧渐隐提示
