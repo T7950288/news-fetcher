@@ -35,8 +35,18 @@
   .src-tab { border:1px solid #ddd; background:#fff; color:#333; border-radius:18px;
              padding:6px 18px; font-size:14px; cursor:pointer; flex:none; }
   .src-tab.active { background:#1a3a6c; color:#fff; border-color:#1a3a6c; }
-  .net-view { display:none; flex:1; min-height:0; }
-  .net-view iframe { width:100%; height:100%; border:0; display:block; background:#f9f9f9; }
+  .net-view { display:none; flex:1; min-height:0; flex-direction:column; }
+  .net-tools { display:flex; gap:10px; margin-bottom:8px; }
+  .net-btn { border:1px solid #ddd; background:#fff; color:#333; border-radius:16px;
+             padding:6px 14px; font-size:14px; cursor:pointer; flex:none; }
+  .net-btn:active { background:#eee; }
+  .net-chips { display:flex; gap:8px; overflow-x:auto; margin-bottom:8px; padding-bottom:2px; }
+  .net-chip { display:inline-flex; align-items:center; gap:6px; flex:none; border:1px solid #ddd;
+              background:#fff; color:#333; border-radius:14px; padding:4px 10px; font-size:13px;
+              cursor:pointer; }
+  .net-chip.active { background:#1a3a6c; color:#fff; border-color:#1a3a6c; }
+  .net-chip .x { font-weight:700; opacity:.65; padding:0 2px; }
+  .net-view iframe { width:100%; flex:1; min-height:0; border:0; display:block; background:#f9f9f9; }
 
   .now { display:none; margin-top:14px; background:#fff; border-radius:12px; padding:12px 14px;
          box-shadow:0 1px 3px rgba(0,0,0,.06); align-items:center; gap:10px; }
@@ -102,6 +112,9 @@
     /* 视频区撑满整屏宽（播放前后面积一致），高度让下方按钮完全露出 */
     html, body { height:100%; overflow:hidden; }
     .site-header { display:none; }
+    .net-btn { min-height:38px; font-size:15px; }
+    .net-chip { min-height:32px; font-size:14px; padding:4px 12px; }
+    .net-chips { -webkit-overflow-scrolling:touch; }
     .wrap { padding:0; height:100vh; height:100dvh; display:flex; flex-direction:column; overflow:hidden; }
     .media-top { flex:1; display:flex; flex-direction:column; min-height:0; margin-top:0; }
     .vbox { margin-top:0; border-radius:0; flex:1; min-height:0; }
@@ -176,6 +189,11 @@
   </div>
 
   <div class="net-view" id="netView" style="display:none">
+    <div class="net-tools">
+      <button class="net-btn" id="netAdd" type="button">添加歌单</button>
+      <button class="net-btn" id="netRefresh" type="button">刷新</button>
+    </div>
+    <div class="net-chips" id="netChips"></div>
     <iframe id="netPlayer" src="https://music.163.com/outchain/player?type=0&id=13698350957&auto=0&height=450" allow="autoplay" frameborder="0"></iframe>
   </div>
 
@@ -335,6 +353,67 @@
   var srcNetEl = document.getElementById('srcNet');
   if(srcLocalEl) srcLocalEl.addEventListener('click', function(){ switchSrc('local'); });
   if(srcNetEl) srcNetEl.addEventListener('click', function(){ switchSrc('net'); });
+
+  /* 网络歌单管理（本地存储） */
+  var NET_KEY = 'net_playlists_v1';
+  var netList = [];
+  try{ netList = JSON.parse(localStorage.getItem(NET_KEY) || '[]'); }catch(e){}
+  if(!netList || !netList.length){ netList = [{id:'13698350957', name:'歌单4.17'}]; }
+  var curNetId = netList[0].id;
+  function netPlayerUrl(id){ return 'https://music.163.com/outchain/player?type=0&id=' + id + '&auto=0&height=450'; }
+  function saveNet(){ try{ localStorage.setItem(NET_KEY, JSON.stringify(netList)); }catch(e){} }
+  function renderChips(){
+    var c = document.getElementById('netChips');
+    if(!c) return;
+    c.innerHTML = '';
+    netList.forEach(function(p){
+      var chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'net-chip' + (p.id === curNetId ? ' active' : '');
+      chip.innerHTML = '<span>' + (p.name || '歌单') + '</span><span class="x">×</span>';
+      chip.addEventListener('click', function(ev){
+        if(ev.target.classList.contains('x')){ delPlaylist(p.id); }
+        else { netPlay(p.id); }
+      });
+      c.appendChild(chip);
+    });
+  }
+  function netPlay(id){
+    curNetId = id;
+    var ifr = document.getElementById('netPlayer');
+    if(ifr) ifr.src = netPlayerUrl(id);
+    renderChips();
+  }
+  function delPlaylist(id){
+    netList = netList.filter(function(p){ return p.id !== id; });
+    if(!netList.length){ netList = [{id:'13698350957', name:'默认歌单'}]; }
+    saveNet();
+    if(curNetId === id) curNetId = netList[0].id;
+    var ifr = document.getElementById('netPlayer');
+    if(ifr) ifr.src = netPlayerUrl(curNetId);
+    renderChips();
+  }
+  function addPlaylist(){
+    var link = prompt('粘贴网易云歌单链接或 ID：', '');
+    if(!link || !link.trim()) return;
+    var t = link.trim();
+    var m = t.match(/(?:playlist\/?\??id=)(\d+)/) || t.match(/id=(\d+)/) || t.match(/^(\d{6,})$/);
+    var id = m ? m[1] : null;
+    if(!id){ alert('没认出歌单 ID，请粘贴完整的网易云歌单链接'); return; }
+    if(netList.some(function(p){ return p.id === id; })){ alert('这个歌单已经在列表里了'); return; }
+    netList.push({ id: id, name: '歌单' + id.slice(-6) });
+    saveNet();
+    netPlay(id);
+  }
+  function refreshNet(){
+    var ifr = document.getElementById('netPlayer');
+    if(ifr) ifr.src = netPlayerUrl(curNetId) + '&t=' + Date.now();
+  }
+  var netAddEl = document.getElementById('netAdd');
+  var netRefEl = document.getElementById('netRefresh');
+  if(netAddEl) netAddEl.addEventListener('click', addPlaylist);
+  if(netRefEl) netRefEl.addEventListener('click', refreshNet);
+  renderChips();
 
   updateNow();
       renderList();
@@ -633,6 +712,67 @@
   var srcNetEl = document.getElementById('srcNet');
   if(srcLocalEl) srcLocalEl.addEventListener('click', function(){ switchSrc('local'); });
   if(srcNetEl) srcNetEl.addEventListener('click', function(){ switchSrc('net'); });
+
+  /* 网络歌单管理（本地存储） */
+  var NET_KEY = 'net_playlists_v1';
+  var netList = [];
+  try{ netList = JSON.parse(localStorage.getItem(NET_KEY) || '[]'); }catch(e){}
+  if(!netList || !netList.length){ netList = [{id:'13698350957', name:'歌单4.17'}]; }
+  var curNetId = netList[0].id;
+  function netPlayerUrl(id){ return 'https://music.163.com/outchain/player?type=0&id=' + id + '&auto=0&height=450'; }
+  function saveNet(){ try{ localStorage.setItem(NET_KEY, JSON.stringify(netList)); }catch(e){} }
+  function renderChips(){
+    var c = document.getElementById('netChips');
+    if(!c) return;
+    c.innerHTML = '';
+    netList.forEach(function(p){
+      var chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'net-chip' + (p.id === curNetId ? ' active' : '');
+      chip.innerHTML = '<span>' + (p.name || '歌单') + '</span><span class="x">×</span>';
+      chip.addEventListener('click', function(ev){
+        if(ev.target.classList.contains('x')){ delPlaylist(p.id); }
+        else { netPlay(p.id); }
+      });
+      c.appendChild(chip);
+    });
+  }
+  function netPlay(id){
+    curNetId = id;
+    var ifr = document.getElementById('netPlayer');
+    if(ifr) ifr.src = netPlayerUrl(id);
+    renderChips();
+  }
+  function delPlaylist(id){
+    netList = netList.filter(function(p){ return p.id !== id; });
+    if(!netList.length){ netList = [{id:'13698350957', name:'默认歌单'}]; }
+    saveNet();
+    if(curNetId === id) curNetId = netList[0].id;
+    var ifr = document.getElementById('netPlayer');
+    if(ifr) ifr.src = netPlayerUrl(curNetId);
+    renderChips();
+  }
+  function addPlaylist(){
+    var link = prompt('粘贴网易云歌单链接或 ID：', '');
+    if(!link || !link.trim()) return;
+    var t = link.trim();
+    var m = t.match(/(?:playlist\/?\??id=)(\d+)/) || t.match(/id=(\d+)/) || t.match(/^(\d{6,})$/);
+    var id = m ? m[1] : null;
+    if(!id){ alert('没认出歌单 ID，请粘贴完整的网易云歌单链接'); return; }
+    if(netList.some(function(p){ return p.id === id; })){ alert('这个歌单已经在列表里了'); return; }
+    netList.push({ id: id, name: '歌单' + id.slice(-6) });
+    saveNet();
+    netPlay(id);
+  }
+  function refreshNet(){
+    var ifr = document.getElementById('netPlayer');
+    if(ifr) ifr.src = netPlayerUrl(curNetId) + '&t=' + Date.now();
+  }
+  var netAddEl = document.getElementById('netAdd');
+  var netRefEl = document.getElementById('netRefresh');
+  if(netAddEl) netAddEl.addEventListener('click', addPlaylist);
+  if(netRefEl) netRefEl.addEventListener('click', refreshNet);
+  renderChips();
 
   updateNow();
   updatePlayIcon();
