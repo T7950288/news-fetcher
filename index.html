@@ -60,15 +60,15 @@
   /* 无跳转双版块容器 */
   .pane { display:none; }
   .pane.active { display:block; }
-  #mapPane.active { display:block; height:calc(100vh - 54px); }
+  #mapPane.active { display:block; height:calc(100vh - 54px); height:calc(100dvh - 54px); }
   #mapFrame { width:100%; height:100%; border:0; display:block; }
-  #mediaPane.active { display:block; height:calc(100vh - 54px); }
+  #mediaPane.active { display:block; height:calc(100vh - 54px); height:calc(100dvh - 54px); }
   #mediaFrame { width:100%; height:100%; border:0; display:block; }
   /* 手机端适配 */
   @media (max-width:768px){
     header { padding:10px 12px; }
-    #mapPane.active { height:calc(100vh - 50px); }
-    #mediaPane.active { height:calc(100vh - 50px); }
+    #mapPane.active { height:calc(100vh - 50px); height:calc(100dvh - 50px); }
+    #mediaPane.active { height:calc(100vh - 50px); height:calc(100dvh - 50px); }
     .nav-tabs-wrap { position:relative; min-width:0; flex:1; }
     .nav-tabs { overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none;
                 white-space:nowrap; flex-wrap:nowrap; }
@@ -110,7 +110,7 @@
   <iframe id="mapFrame" src="travel/" title="旅游地图"></iframe>
 </div>
 <div id="mediaPane" class="pane">
-  <iframe id="mediaFrame" src="media/?v=11" title="音乐视频"></iframe>
+  <iframe id="mediaFrame" src="media/?v=12" title="音乐视频"></iframe>
 </div>
 <div class="modal" id="modal" onclick="if(event.target===this)closeModal()">
   <div class="modal-body" id="modalBody"></div>
