@@ -98,7 +98,7 @@
     /* 手机端：选择按钮行整体隐藏（选择文件已移入控制条）；顺序播放/文件列表无用隐藏；底部留白 */
     .btn-row { display:none; }
     .ctrl-row.mid .txt-btn { display:none; }
-    #pickFileBtn { width:120px; flex:none; min-height:48px; font-size:16px; }
+    #pickFileBtn { width:auto; flex:none; min-height:44px; font-size:16px; padding:9px 12px; }
     #pickFileBtn svg { display:none; }
     #seekBar { flex:none; width:calc(100% - 216px); min-width:0; }
     .time { min-width:80px; }
@@ -552,8 +552,8 @@
       row1.insertBefore(volBtn, time);
       row1.insertBefore(volBar, time);
       row1.appendChild(full);
-      row2.insertBefore(pickFile, null);
       row2.insertBefore(time, null);
+      row2.insertBefore(pickFile, null);
     } else {
       // 桌面：还原原顺序（行1 = ◀ ▶ 进度条 时间；行2 = 音量 顺序 文件 全屏；按钮行 = 选择文件夹/文件）
       row1.appendChild(time);
