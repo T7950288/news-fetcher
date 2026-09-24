@@ -358,8 +358,8 @@
   var NET_KEY = 'net_playlists_v1';
   var netList = [];
   try{ netList = JSON.parse(localStorage.getItem(NET_KEY) || '[]'); }catch(e){}
-  if(!netList || !netList.length){ netList = [{id:'18165874802', name:'林栖Official'}]; }
-  if(netList.length === 1 && netList[0].id === '13698350957'){ netList = [{id:'18165874802', name:'林栖Official'}]; try{ localStorage.setItem(NET_KEY, JSON.stringify(netList)); }catch(e){} }
+  if(!netList || !netList.length){ netList = [{id:'18165874802', name:'林栖Official'},{id:'17695223049', name:'林栖'},{id:'8712914117', name:'林栖喜欢的音乐'}]; }
+  if(netList.length === 1 && netList[0].id === '13698350957'){ netList = [{id:'18165874802', name:'林栖Official'},{id:'17695223049', name:'林栖'},{id:'8712914117', name:'林栖喜欢的音乐'}]; try{ localStorage.setItem(NET_KEY, JSON.stringify(netList)); }catch(e){} }
   var curNetId = netList[0].id;
   function netPlayerUrl(id){ return 'https://music.163.com/outchain/player?type=0&id=' + id + '&auto=0&height=450'; }
   function saveNet(){ try{ localStorage.setItem(NET_KEY, JSON.stringify(netList)); }catch(e){} }
@@ -387,7 +387,7 @@
   }
   function delPlaylist(id){
     netList = netList.filter(function(p){ return p.id !== id; });
-    if(!netList.length){ netList = [{id:'18165874802', name:'林栖Official'}]; }
+    if(!netList.length){ netList = [{id:'18165874802', name:'林栖Official'},{id:'17695223049', name:'林栖'},{id:'8712914117', name:'林栖喜欢的音乐'}]; }
     saveNet();
     if(curNetId === id) curNetId = netList[0].id;
     var ifr = document.getElementById('netPlayer');
@@ -718,8 +718,8 @@
   var NET_KEY = 'net_playlists_v1';
   var netList = [];
   try{ netList = JSON.parse(localStorage.getItem(NET_KEY) || '[]'); }catch(e){}
-  if(!netList || !netList.length){ netList = [{id:'18165874802', name:'林栖Official'}]; }
-  if(netList.length === 1 && netList[0].id === '13698350957'){ netList = [{id:'18165874802', name:'林栖Official'}]; try{ localStorage.setItem(NET_KEY, JSON.stringify(netList)); }catch(e){} }
+  if(!netList || !netList.length){ netList = [{id:'18165874802', name:'林栖Official'},{id:'17695223049', name:'林栖'},{id:'8712914117', name:'林栖喜欢的音乐'}]; }
+  if(netList.length === 1 && netList[0].id === '13698350957'){ netList = [{id:'18165874802', name:'林栖Official'},{id:'17695223049', name:'林栖'},{id:'8712914117', name:'林栖喜欢的音乐'}]; try{ localStorage.setItem(NET_KEY, JSON.stringify(netList)); }catch(e){} }
   var curNetId = netList[0].id;
   function netPlayerUrl(id){ return 'https://music.163.com/outchain/player?type=0&id=' + id + '&auto=0&height=450'; }
   function saveNet(){ try{ localStorage.setItem(NET_KEY, JSON.stringify(netList)); }catch(e){} }
@@ -747,7 +747,7 @@
   }
   function delPlaylist(id){
     netList = netList.filter(function(p){ return p.id !== id; });
-    if(!netList.length){ netList = [{id:'18165874802', name:'林栖Official'}]; }
+    if(!netList.length){ netList = [{id:'18165874802', name:'林栖Official'},{id:'17695223049', name:'林栖'},{id:'8712914117', name:'林栖喜欢的音乐'}]; }
     saveNet();
     if(curNetId === id) curNetId = netList[0].id;
     var ifr = document.getElementById('netPlayer');
