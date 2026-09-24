@@ -1,10 +1,10 @@
 <!-- v2-trigger -->
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>国际新闻谷歌热榜 · 全球要闻</title>
+<title>谷歌热榜</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Helvetica Neue", sans-serif;
@@ -18,6 +18,10 @@
                  font-size:14px; cursor:pointer; font-weight:600; }
   .refresh-btn:active { transform:scale(.96); }
   .refresh-btn:disabled { opacity:.5; cursor:wait; }
+  .travel-btn { display:inline-flex; align-items:center; gap:4px; background:rgba(255,255,255,.16);
+                color:#fff; border:1px solid rgba(255,255,255,.45); padding:7px 14px; border-radius:6px;
+                font-size:13.5px; cursor:pointer; text-decoration:none; font-weight:600; }
+  .travel-btn:hover { background:rgba(255,255,255,.28); }
   .page-btn { width:30px; height:30px; border-radius:50%; border:2px solid rgba(255,255,255,.85);
               background:transparent; color:#fff; font-size:15px; font-weight:700; cursor:pointer;
               line-height:1; display:inline-flex; align-items:center; justify-content:center; }
@@ -54,13 +58,28 @@
   .modal p { margin-bottom:10px; font-size:15px; }
   .loading { text-align:center; padding:60px 20px; color:#999; }
   .source-link { font-size:12px; color:#1a3a6c; }
+  /* 手机端适配 */
+  @media (max-width:768px){
+    header { padding:10px 12px; }
+    .logo { font-size:17px; }
+    .logo span { font-size:11px; margin-left:6px; }
+    .travel-btn { padding:6px 10px; font-size:12.5px; }
+    .refresh-btn { padding:7px 14px; font-size:13px; }
+    .page-btn { width:28px; height:28px; font-size:14px; }
+    .card { padding:13px 14px; }
+    .card-title { font-size:15px; }
+    .modal-body { margin:12px auto; padding:20px 16px; border-radius:10px; }
+    .meta, .tabs, .list { padding-left:14px; padding-right:14px; }
+    .tab { padding:5px 12px; font-size:12px; }
+  }
 </style>
 </head>
 <body>
 <header>
   <div class="header-inner">
-    <div class="logo">国际新闻<span>谷歌热榜 · 全球要闻</span></div>
+    <div class="logo">谷歌热榜<span>全球要闻 · 即时翻译</span></div>
     <div style="display:flex;align-items:center;gap:8px;">
+      <a class="travel-btn" href="travel/" title="全国景点地图、行程规划、点亮足迹">🗺️ 旅游地图</a>
       <button class="page-btn" id="pageBtn1" onclick="setPage(1)" title="最新50条">1</button>
       <button class="page-btn" id="pageBtn2" onclick="setPage(2)" title="更早50条">2</button>
       <button class="refresh-btn" id="refreshBtn" onclick="loadNews()">更新</button>
@@ -197,7 +216,7 @@ async function autoCheck(){
   }catch(e){}
 }
 
-// 每5分钟自动刷新一次: 拉取Gitee最新数据, 有更新则静默重渲染(保留滚动位置), 不打扰详情页
+// 每5分钟自动刷新一次: 拉取最新数据, 有更新则静默重渲染(保留滚动位置), 不打扰详情页
 async function autoRefresh5(){
   const m = document.getElementById("modal");
   if(m && m.classList.contains("show")) return;
