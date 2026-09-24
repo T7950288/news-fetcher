@@ -315,7 +315,21 @@ function hideMapHeader(){
     }
   }catch(e){}
 }
-mapFrame.addEventListener('load', hideMapHeader);
+function fixMapSize(){
+  // 地图可能在隐藏容器里初始化过：触发 iframe 内 resize 事件，Leaflet 自动重排尺寸、补加载瓦片
+  setTimeout(()=>{
+    try{
+      const w = mapFrame.contentWindow;
+      if(!w) return;
+      if(w.map && w.map.invalidateSize){ w.map.invalidateSize(); }
+      w.dispatchEvent(new w.Event('resize'));
+    }catch(e){}
+  }, 120);
+}
+mapFrame.addEventListener('load', ()=>{
+  hideMapHeader();
+  if(mapPane.classList.contains('active')) fixMapSize();
+});
 
 function switchSection(key){
   document.querySelectorAll('.nav-tab').forEach(t =>
@@ -327,6 +341,7 @@ function switchSection(key){
     if(refreshBtn) refreshBtn.style.display = 'none';
     window.scrollTo(0, 0);
     hideMapHeader();
+    fixMapSize();
   }else{
     mapPane.classList.remove('active');
     homePane.classList.add('active');
