@@ -19,18 +19,10 @@
   /* ===== 选择按钮 ===== */
   .media-top { order:1; }
   .controls { order:2; }
-  .list-panel { order:3; }
-  .hint { order:4; }
-  /* 手机端：保持原有顺序（选择按钮在最上，视频在中间） */
-  @media (max-width:768px){
-    .media-top { display:flex; flex-direction:column; }
-    .media-top .vbox { order:2; }
-    .media-top .btn-row { order:1; }
-    .now { order:2; }
-    .controls { order:3; }
-    .list-panel { order:4; }
-    .hint { order:5; }
-  }
+  .btn-row { order:3; }
+  .list-panel { order:4; }
+  .hint { order:5; }
+  .now { display:none; } /* 电脑与手机都不显示正在播放名称栏 */
   .big-btn { flex:1; min-height:52px; border:none; border-radius:12px; font-size:16px; font-weight:700;
              cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; }
   .big-btn:active { transform:scale(.97); }
@@ -38,15 +30,15 @@
   .big-btn.ghost { background:#fff; color:#1a3a6c; border:1.5px solid #1a3a6c; }
   .big-btn svg { width:20px; height:20px; flex:none; }
   /* ===== 正在播放 ===== */
-  .now { margin-top:14px; background:#fff; border-radius:12px; padding:12px 14px;
-         box-shadow:0 1px 3px rgba(0,0,0,.06); display:flex; align-items:center; gap:10px; }
+  .now { display:none; margin-top:14px; background:#fff; border-radius:12px; padding:12px 14px;
+         box-shadow:0 1px 3px rgba(0,0,0,.06); align-items:center; gap:10px; }
   .now .badge { font-size:11px; padding:2px 8px; border-radius:6px; flex:none; }
   .badge.audio { background:#e6f4ea; color:#137333; }
   .badge.video { background:#e8f0fe; color:#1a3a6c; }
   .now .nm { font-size:14px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   /* ===== 播放器 ===== */
   .vbox { margin-top:12px; background:#000; border-radius:12px; overflow:hidden; position:relative; }
-  video { width:100%; display:block; max-height:70vh; background:#000; }
+  video { width:100%; display:block; max-height:58vh; background:#000; }
   .err { display:none; position:absolute; inset:0; background:rgba(0,0,0,.72); color:#ffd7d7;
          font-size:14px; padding:24px; text-align:center; align-items:center; justify-content:center; }
   .err.show { display:flex; }
@@ -511,9 +503,27 @@
       for(var i=0;i<btns.length;i++){ btns[i].style.height = bh + 'px'; }
     }
   }
-  window.addEventListener('load', function(){ setTimeout(syncBtnHeight, 60); });
-  window.addEventListener('resize', function(){ setTimeout(syncBtnHeight, 60); });
-  setTimeout(syncBtnHeight, 300);
+  /* 手机端：按钮行移到「控制条」下面（视频顶格→控制条→按钮），桌面端保持视频右侧竖排 */
+  function moveBtnRow(){
+    var row = document.querySelector('.btn-row');
+    if(!row) return;
+    if(window.innerWidth < 769){
+      var ctrl = document.querySelector('.controls');
+      if(ctrl && row.parentNode !== ctrl.parentNode){
+        ctrl.parentNode.insertBefore(row, ctrl.nextSibling);
+      }
+    } else {
+      var top = document.querySelector('.media-top');
+      if(top && row.parentNode !== top){ top.appendChild(row); }
+    }
+  }
+  function layoutAll(){
+    moveBtnRow();
+    setTimeout(syncBtnHeight, 60);
+  }
+  window.addEventListener('load', function(){ layoutAll(); });
+  window.addEventListener('resize', function(){ layoutAll(); });
+  setTimeout(layoutAll, 300);
 
   updateNow();
   updatePlayIcon();
