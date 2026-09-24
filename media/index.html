@@ -93,12 +93,12 @@
     .site-header { padding:12px 14px; }
     /* 视频区撑满整屏宽（播放前后面积一致），高度让下方按钮完全露出 */
     .wrap { padding:0 0 20px; }
-    .vbox { margin-top:0; border-radius:0; height:53vh; }
+    .vbox { margin-top:0; border-radius:0; height:calc(100vh - 248px); min-height:300px; }
     .vbox video { width:100%; height:100%; object-fit:contain; max-height:none; }
     /* 手机端：选择按钮行整体隐藏（选择文件已移入控制条）；顺序播放/文件列表无用隐藏；底部留白 */
     .btn-row { display:none; }
     .ctrl-row.mid .txt-btn { display:none; }
-    #pickFileBtn { width:auto; flex:none; min-height:44px; font-size:16px; padding:9px 12px; }
+    #pickFileBtn { width:auto; flex:none; min-height:52px; font-size:16px; padding:9px 12px; }
     #pickFileBtn svg { display:none; }
     #seekBar { flex:none; width:calc(100% - 206px); min-width:0; }
     .time { min-width:80px; margin-left:5px; }
