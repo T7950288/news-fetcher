@@ -20,6 +20,7 @@ input,select{ font-family:inherit; }
 .nav-tab.active{ background:#fff; color:#1a3a6c; border-color:#fff; }
 .nav-tab:hover{ background:rgba(255,255,255,.25); }
 .nav-tab.active:hover{ background:#fff; }
+.nav-tab .short{ display:none; }
 
 /* 顶栏 */
 #topbar{ height:52px; background:linear-gradient(90deg,var(--green-d),var(--green)); color:#fff;
@@ -243,7 +244,17 @@ body.fs #topbar, body.fs #panel{ display:none; }
 @media (max-width:768px){
   .site-header{ padding:8px 10px; }
   .site-logo{ font-size:16px; }
-  .nav-tab{ padding:4px 11px; font-size:12.5px; }
+  .nav-tabs-wrap{ position:relative; min-width:0; flex:1; }
+  .nav-tabs{ overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none;
+              white-space:nowrap; flex-wrap:nowrap; }
+  .nav-tabs::-webkit-scrollbar{ display:none; }
+  .nav-tab{ display:inline-flex; flex:none; padding:4px 11px; font-size:13px; }
+  .nav-tab .full{ display:none; }
+  .nav-tab .short{ display:inline; }
+  .nav-tabs-wrap::after{ content:""; position:absolute; right:0; top:0; bottom:0; width:20px;
+    background:linear-gradient(to left, rgba(26,58,108,.92), transparent); pointer-events:none;
+    opacity:0; transition:opacity .2s; }
+  .nav-tabs-wrap.scrollable::after{ opacity:1; }
   #topbar{ height:50px; padding:0 10px; gap:10px; }
   .brand{ gap:6px; }
   .brand b{ display:none; }
