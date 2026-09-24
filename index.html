@@ -109,11 +109,10 @@
 </div>
 <script>
 const URL = "https://t7950288.github.io/news-fetcher/news.json";
-/* 多源兜底：主源(Pages)→GitHub raw→jsDelivr CDN，保证首开/点更新能尽快拿到最新 */
+/* 数据源只用实时源（jsDelivr 有12小时缓存会返回旧数据，news.json 每15分钟更新，不能用） */
 const NEWS_SOURCES = [
   "https://t7950288.github.io/news-fetcher/news.json",
-  "https://raw.githubusercontent.com/T7950288/news-fetcher/main/news.json",
-  "https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@main/news.json"
+  "https://raw.githubusercontent.com/T7950288/news-fetcher/main/news.json"
 ];
 const CACHE_KEY = "gh_news_cache_v1";
 const CATS = [
