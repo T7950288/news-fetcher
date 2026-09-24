@@ -144,13 +144,21 @@ async function fetchJson(u, isGitee){
   }catch(e){ clearTimeout(timer); throw e; }
 }
 
-/* 首开/手动更新：Gitee 优先（国内快），失败重试一次，再切 GitHub 实时源 */
+/* 首开/手动更新：Gitee 优先（国内快、与GitHub同源实时同步）；失败则并行拉 GitHub 各源，比较时间戳取最新 */
 async function fetchData(){
-  try{ return await fetchJson(GITEE_API, true); }
-  catch(e){
-    try{ return await fetchJson(GITEE_API, true); }
-    catch(e2){ return await Promise.any(NEWS_SOURCES.map(u => fetchJson(u, false))); }
+  try{
+    const d = await fetchJson(GITEE_API, true);
+    if(d && d.updated_at) return d;
+  }catch(e){}
+  const results = await Promise.allSettled(NEWS_SOURCES.map(u => fetchJson(u, false)));
+  let best = null;
+  for(const r of results){
+    if(r.status === "fulfilled" && r.value && r.value.updated_at){
+      if(!best || r.value.updated_at > best.updated_at) best = r.value;
+    }
   }
+  if(best) return best;
+  throw new Error("all sources failed");
 }
 /* 后台自动检查：Gitee 优先（国内快），失败切 GitHub；频率 3 分钟在限流内 */
 async function fetchDataQuiet(){
