@@ -439,13 +439,28 @@
     fileInput.value = "";
   });
 
-  /* ===== 启动：尝试恢复上次的文件夹 ===== */
+  /* ===== 启动：尝试恢复上次的文件夹（权限被回收时自动请求重新授权） ===== */
   idbGet().then(function(handle){
-    if(handle && handle.queryPermission && handle.queryPermission({mode:"read"})==="granted"){
-      loadFromDir(handle);
-    }else if(handle && handle.requestPermission){
-      // 权限被浏览器回收时静默跳过，用户点按钮重新授权即可
+    if(!handle) return;
+    function tryRestore(){
+      try{
+        if(handle.queryPermission && handle.queryPermission({mode:"read"})==="granted"){
+          loadFromDir(handle);
+          return;
+        }
+        if(handle.requestPermission){
+          handle.requestPermission({mode:"read"}).then(function(s){
+            if(s==="granted") loadFromDir(handle);
+            else showHint("上次的文件夹需重新授权：点「选择文件夹」即可（会自动定位上次位置）");
+          }).catch(function(){
+            showHint("上次的文件夹需重新授权：点「选择文件夹」即可（会自动定位上次位置）");
+          });
+        }
+      }catch(e){
+        showHint("上次的文件夹需重新授权：点「选择文件夹」即可（会自动定位上次位置）");
+      }
     }
+    tryRestore();
   });
 
   /* 嵌入主页时隐藏本页抬头（主页已有蓝色导航行） */
