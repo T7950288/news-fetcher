@@ -92,14 +92,15 @@
   @media (max-width:768px){
     .site-header { padding:12px 14px; }
     /* 视频区撑满整屏宽（播放前后面积一致），高度让下方按钮完全露出 */
-    .wrap { padding:0 0 40px; }
+    .wrap { padding:0 0 20px; }
     .vbox { margin-top:0; border-radius:0; height:53vh; }
     .vbox video { width:100%; height:100%; object-fit:contain; max-height:none; }
     /* 手机端：选择按钮行整体隐藏（选择文件已移入控制条）；顺序播放/文件列表无用隐藏；底部留白 */
     .btn-row { display:none; }
     .ctrl-row.mid .txt-btn { display:none; }
     #pickFileBtn { width:33vw; flex:none; min-height:48px; font-size:16px; }
-    #seekBar { flex:none; width:calc(100% - 232px); min-width:0; }
+    #seekBar { flex:none; width:calc(100% - 264px); min-width:0; }
+    .time { min-width:84px; }
     .list-panel { display:none; }
     .hint { display:none; }
     /* 控制条整体缩小：播放/暂停56、上下曲/音量40、滑块变窄 */
@@ -532,7 +533,7 @@
       if(top && row.parentNode !== top){ top.appendChild(row); }
     }
   }
-  /* 手机端重排：音量↔进度条互换、选择文件移入控制条第二行、顺序/文件按钮隐藏；桌面端还原 */
+  /* 手机端重排：音量↔进度条互换、时间跟随进度条、选择文件移入第二行、顺序/文件按钮隐藏；桌面端还原 */
   function arrangeMobile(){
     var row1 = document.querySelector('.ctrl-row:not(.mid)');
     var row2 = document.querySelector('.ctrl-row.mid');
@@ -543,19 +544,23 @@
     var full = document.getElementById('fullBtn');
     var pickFile = document.getElementById('pickFileBtn');
     var btnRow = document.querySelector('.btn-row');
-    if(!row1 || !row2 || !seek || !volBtn || !volBar || !pickFile || !btnRow) return;
+    if(!row1 || !row2 || !seek || !volBtn || !volBar || !time || !full || !pickFile || !btnRow) return;
     if(window.innerWidth < 769){
-      // 手机：行1 = ◀ ▶ 音量 时间；行2 = 进度条 选择文件 全屏
+      // 手机：行1 = ◀ ▶ 音量 全屏；行2 = 进度条 时间 选择文件
+      row2.insertBefore(seek, row2.firstChild);
       row1.insertBefore(volBtn, time);
       row1.insertBefore(volBar, time);
-      if(seek.parentNode !== row2){ row2.insertBefore(seek, row2.firstChild); }
-      if(pickFile.parentNode !== row2){ row2.insertBefore(pickFile, full ? full.nextSibling : null); }
+      row1.appendChild(full);
+      row2.insertBefore(time, seek.nextSibling);
+      row2.appendChild(pickFile);
     } else {
       // 桌面：还原原顺序（行1 = ◀ ▶ 进度条 时间；行2 = 音量 顺序 文件 全屏；按钮行 = 选择文件夹/文件）
+      row1.appendChild(time);
       row1.insertBefore(seek, time);
       row2.insertBefore(volBtn, row2.firstChild);
-      if(volBar && volBar.parentNode !== row2){ row2.insertBefore(volBar, volBtn.nextSibling); }
-      if(pickFile.parentNode !== btnRow){ btnRow.appendChild(pickFile); }
+      row2.insertBefore(volBar, volBtn.nextSibling);
+      row2.appendChild(full);
+      btnRow.appendChild(pickFile);
     }
   }
   function layoutAll(){
