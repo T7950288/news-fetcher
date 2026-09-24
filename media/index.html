@@ -17,18 +17,17 @@
   .wrap { max-width:760px; margin:0 auto; padding:14px 16px 40px;
           display:flex; flex-direction:column; }
   /* ===== 选择按钮 ===== */
-  .btn-row { display:flex; gap:10px; order:3; }
-  .vbox { order:1; }
+  .media-top { order:1; }
   .controls { order:2; }
-  .now { order:0; }
-  .list-panel { order:4; }
-  .hint { order:5; }
+  .list-panel { order:3; }
+  .hint { order:4; }
   /* 手机端：保持原有顺序（选择按钮在最上，视频在中间） */
   @media (max-width:768px){
-    .btn-row { order:0; }
-    .vbox { order:2; }
+    .media-top { display:flex; flex-direction:column; }
+    .media-top .vbox { order:2; }
+    .media-top .btn-row { order:1; }
+    .now { order:2; }
     .controls { order:3; }
-    .now { order:1; }
     .list-panel { order:4; }
     .hint { order:5; }
   }
@@ -111,15 +110,16 @@
     #fileList li .fname { font-size:15px; }
     .txt-btn { padding:9px 15px; font-size:14px; }
   }
-  /* 电脑端：视频顶格、名称栏隐藏、按钮靠右，一屏内看全 */
+  /* 电脑端：视频左侧顶格、按钮竖排右侧、名称栏隐藏，一屏内看全 */
   @media (min-width:769px){
     .wrap { max-width:960px; padding-top:10px; }
     .now { display:none; }
-    .vbox { margin-top:0; }
-    video { max-height:42vh; }
+    .media-top { display:flex; flex-direction:row; align-items:stretch; gap:12px; }
+    .media-top .vbox { flex:1; margin-top:0; }
+    video { max-height:46vh; }
+    .media-top .btn-row { flex-direction:column; justify-content:center; margin-top:0; width:190px; flex:none; gap:10px; }
+    .media-top .btn-row .big-btn { width:100%; min-height:64px; font-size:16px; }
     .controls { margin-top:8px; }
-    .btn-row { justify-content:flex-end; margin-top:8px; }
-    .big-btn { flex:none; min-width:150px; }
     .list-panel { margin-top:8px; }
     #fileList { max-height:30vh; }
   }
@@ -132,25 +132,26 @@
 </header>
 
 <div class="wrap">
-  <div class="btn-row">
-    <button class="big-btn primary" id="pickFolderBtn" title="电脑端：选择音乐/视频文件夹，下次自动记住">
-      <svg viewBox="0 0 24 24"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/></svg>
-      选择文件夹
-    </button>
-    <button class="big-btn ghost" id="pickFileBtn">
-      <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
-      选择文件
-    </button>
+  <div class="media-top">
+    <div class="vbox">
+      <video id="player" playsinline preload="metadata" controlslist="nodownload noremoteplayback"></video>
+      <div class="err" id="errBox"></div>
+    </div>
+    <div class="btn-row">
+      <button class="big-btn primary" id="pickFolderBtn" title="电脑端：选择音乐/视频文件夹，下次自动记住">
+        <svg viewBox="0 0 24 24"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/></svg>
+        选择文件夹
+      </button>
+      <button class="big-btn ghost" id="pickFileBtn">
+        <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+        选择文件
+      </button>
+    </div>
   </div>
 
   <div class="now">
     <span class="badge audio" id="curKind">音乐</span>
     <span class="nm" id="curName">未选择文件</span>
-  </div>
-
-  <div class="vbox">
-    <video id="player" playsinline preload="metadata" controlslist="nodownload noremoteplayback"></video>
-    <div class="err" id="errBox"></div>
   </div>
 
   <div class="controls">
