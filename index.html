@@ -9,23 +9,20 @@
   * { margin:0; padding:0; box-sizing:border-box; }
   body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Helvetica Neue", sans-serif;
          background:#f5f6f8; color:#1a1a1a; line-height:1.6; }
-  header { background:#1a3a6c; color:#fff; padding:14px 20px; position:sticky; top:0; z-index:100;
+  header { background:#1a3a6c; color:#fff; padding:12px 20px; position:sticky; top:0; z-index:100;
            box-shadow:0 2px 8px rgba(0,0,0,.15); }
-  .header-inner { max-width:960px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; }
-  .logo { font-size:20px; font-weight:700; letter-spacing:1px; }
-  .logo span { font-size:12px; font-weight:400; opacity:.8; margin-left:8px; }
+  .header-inner { max-width:960px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .logo { font-size:20px; font-weight:700; letter-spacing:1px; white-space:nowrap; }
+  .nav-tabs { display:flex; gap:6px; }
+  .nav-tab { padding:6px 16px; border-radius:18px; font-size:14px; color:#fff; text-decoration:none;
+             border:1px solid rgba(255,255,255,.5); font-weight:600; }
+  .nav-tab.active { background:#fff; color:#1a3a6c; border-color:#fff; }
+  .nav-tab:hover { background:rgba(255,255,255,.25); }
+  .nav-tab.active:hover { background:#fff; }
   .refresh-btn { background:#fff; color:#1a3a6c; border:none; padding:8px 18px; border-radius:6px;
                  font-size:14px; cursor:pointer; font-weight:600; }
   .refresh-btn:active { transform:scale(.96); }
   .refresh-btn:disabled { opacity:.5; cursor:wait; }
-  .travel-btn { display:inline-flex; align-items:center; gap:4px; background:rgba(255,255,255,.16);
-                color:#fff; border:1px solid rgba(255,255,255,.45); padding:7px 14px; border-radius:6px;
-                font-size:13.5px; cursor:pointer; text-decoration:none; font-weight:600; }
-  .travel-btn:hover { background:rgba(255,255,255,.28); }
-  .page-btn { width:30px; height:30px; border-radius:50%; border:2px solid rgba(255,255,255,.85);
-              background:transparent; color:#fff; font-size:15px; font-weight:700; cursor:pointer;
-              line-height:1; display:inline-flex; align-items:center; justify-content:center; }
-  .page-btn.active { background:#fff; color:#1a3a6c; border-color:#fff; }
   .meta { max-width:960px; margin:10px auto 0; padding:0 20px; font-size:12px; color:#666; }
   .tabs { max-width:960px; margin:14px auto 0; padding:0 20px; display:flex; gap:8px; flex-wrap:wrap; }
   .tab { padding:6px 16px; border-radius:20px; background:#fff; border:1px solid #ddd; font-size:13px;
@@ -62,10 +59,8 @@
   @media (max-width:768px){
     header { padding:10px 12px; }
     .logo { font-size:17px; }
-    .logo span { font-size:11px; margin-left:6px; }
-    .travel-btn { padding:6px 10px; font-size:12.5px; }
+    .nav-tab { padding:5px 11px; font-size:12.5px; }
     .refresh-btn { padding:7px 14px; font-size:13px; }
-    .page-btn { width:28px; height:28px; font-size:14px; }
     .card { padding:13px 14px; }
     .card-title { font-size:15px; }
     .modal-body { margin:12px auto; padding:20px 16px; border-radius:10px; }
@@ -77,11 +72,12 @@
 <body>
 <header>
   <div class="header-inner">
-    <div class="logo">谷歌热榜<span>全球要闻 · 即时翻译</span></div>
-    <div style="display:flex;align-items:center;gap:8px;">
-      <a class="travel-btn" href="travel/" title="全国景点地图、行程规划、点亮足迹">🗺️ 旅游地图</a>
-      <button class="page-btn" id="pageBtn1" onclick="setPage(1)" title="最新50条">1</button>
-      <button class="page-btn" id="pageBtn2" onclick="setPage(2)" title="更早50条">2</button>
+    <div class="logo">谷歌热榜</div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <nav class="nav-tabs">
+        <a class="nav-tab active" href="./">谷歌热榜</a>
+        <a class="nav-tab" href="travel/">旅游地图</a>
+      </nav>
       <button class="refresh-btn" id="refreshBtn" onclick="loadNews()">更新</button>
     </div>
   </div>
@@ -97,7 +93,6 @@ const CATS = [
   ["world","国际大事"],["op-ed","社论"],["finance","财经"],["tech","科技"],["general","综合"]
 ];
 let ALL = [];
-let curPage = 1;
 let savedScrollY = 0;
 let lastUpdatedAt = "";
 
@@ -117,7 +112,7 @@ function showData(data){
   lastUpdatedAt = data.updated_at||"";
   ALL = (data.articles||[]).slice().sort((a,b)=> (b.published_at||"").localeCompare(a.published_at||""));
   document.getElementById("meta").textContent =
-    "共 " + ALL.length + " 条 · 第" + curPage + "页 · 更新于 " + (data.updated_at||"").replace("T"," ").replace(/\+.*/,"");
+    "共 " + ALL.length + " 条 · 更新于 " + (data.updated_at||"").replace("T"," ").replace(/\+.*/,"");
   renderList();
 }
 
@@ -152,21 +147,11 @@ async function loadNews(){
 
 function srcName(a){ return a._google ? (a.source + " · Google热榜") : a.source; }
 
-function setPage(n){
-  curPage = n;
-  const b1 = document.getElementById("pageBtn1"), b2 = document.getElementById("pageBtn2");
-  if(b1) b1.classList.toggle("active", n===1);
-  if(b2) b2.classList.toggle("active", n===2);
-  window.scrollTo(0,0);
-  renderList();
-}
 function renderList(){
   const el = document.getElementById("list");
   const rows = ALL.slice();
   if(!rows.length){ el.innerHTML = '<div class="loading">暂无新闻</div>'; return; }
-  const pageRows = curPage===1 ? rows.slice(0,50) : rows.slice(50,100);
-  if(!pageRows.length){ el.innerHTML = '<div class="loading">暂无更多旧闻</div>'; return; }
-  el.innerHTML = pageRows.map(a=>{
+  el.innerHTML = rows.map(a=>{
     const time = (a.published_at||"").replace("T"," ").replace(/\+.*/,"").slice(5,16);
     return `<div class="card" onclick='openDetail(${ALL.indexOf(a)})'>
       <div class="card-title">${esc(a.title_orig || a.title_zh || "")}</div>
