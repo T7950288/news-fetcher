@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>豆包旅游地图</title>
+<link rel="stylesheet" href="js/lib/leaflet.css?v100">
+<link rel="stylesheet" href="css/style.css?v100">
+</head>
+<body>
+<div id="app">
+  <header id="topbar">
+    <div class="brand"><a class="home-link" href="../" title="返回谷歌热榜">🏠</a><span class="logo">🏔️</span><b>豆包旅游地图</b></div>
+    <div class="top-search">
+      <input id="topInput" type="text" placeholder="搜索城市或景点，如：成都、故宫" autocomplete="off">
+      <button id="btnTopSearch" title="搜索">🔍</button>
+      <div id="topSuggest" class="suggest"></div>
+    </div>
+    <div class="top-actions">
+      <button id="btnLocate" title="回到全国">🌏</button>
+      <button id="btnFull" title="全屏">⛶</button>
+    </div>
+  </header>
+
+  <div id="main">
+    <aside id="panel">
+      <nav id="tabs">
+        <button class="tab active" data-tab="spots">🗺️ 景点</button>
+        <button class="tab" data-tab="plan">🧳 行程</button>
+        <button class="tab" data-tab="foot">👣 足迹</button>
+      </nav>
+
+      <!-- 景点 -->
+      <section class="pane active" id="pane-spots">
+        <div class="filter-cats" id="catFilter"></div>
+        <div class="list" id="spotList"></div>
+      </section>
+
+      <!-- 行程 -->
+      <section class="pane" id="pane-plan">
+        <div class="form">
+          <label>目的地城市或省份</label>
+          <input id="planCity" list="cityList" placeholder="如：成都市、四川" autocomplete="off">
+          <datalist id="cityList"></datalist>
+          <label>游玩天数</label>
+          <div class="stepper">
+            <button id="dayMinus">−</button><span id="dayNum">2</span><button id="dayPlus">＋</button>
+          </div>
+          <label>出行方式</label>
+          <div class="filter-cats">
+            <button class="chip on" id="modeTransit">🚆 公共交通</button>
+            <button class="chip" id="modeDrive">🚗 自驾</button>
+          </div>
+          <label>我的偏好（可多选）</label>
+          <div class="filter-cats" id="prefs"></div>
+          <button id="btnPlan" class="primary">✨ 自动安排行程</button>
+          <div class="saved-trips">
+            <select id="savedTripSel"><option value="">载入已保存行程…</option></select>
+            <button id="btnDelTrip" title="删除">🗑</button>
+          </div>
+        </div>
+        <div class="list" id="planResult"></div>
+      </section>
+
+      <!-- 足迹 -->
+      <section class="pane" id="pane-foot">
+        <div class="foot-stat" id="footStat"></div>
+        <div class="members" id="memberChips"></div>
+        <div class="member-edit">
+          <input id="newMember" placeholder="添加成员，如：妈妈" maxlength="6">
+          <button id="btnAddMember">＋</button>
+        </div>
+        <button id="btnClearFoot" class="clear-foot">一键清除当前成员足迹</button>
+        <div class="foot-note">勾选成员后，在景点卡片点「标记去过」，或在下方按城市点亮：</div>
+        <div class="list" id="cityFootList"></div>
+      </section>
+    </aside>
+
+    <div id="mapWrap">
+      <div id="map"></div>
+      <button id="panelToggle">☰</button>
+      <div id="mapLegend" class="legend"></div>
+      <div id="mapHint" class="map-hint"></div>
+    </div>
+  </div>
+</div>
+
+<script src="js/lib/leaflet.js?v100"></script>
+<script src="data_bundle.js?v100"></script>
+<script src="js/bridge.js?v100"></script>
+<script src="js/trip_templates.js?v100"></script>
+<script src="js/planner.js?v100"></script>
+<script src="js/footprint.js?v100"></script>
+<script src="js/app.js?v100"></script>
+</body>
+</html>
