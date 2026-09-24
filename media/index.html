@@ -30,6 +30,14 @@
   .big-btn.ghost { background:#fff; color:#1a3a6c; border:1.5px solid #1a3a6c; }
   .big-btn svg { width:20px; height:20px; flex:none; }
   /* ===== 正在播放 ===== */
+  /* ===== 本地/网络切换 ===== */
+  .src-tabs { display:flex; gap:10px; margin-bottom:12px; }
+  .src-tab { border:1px solid #ddd; background:#fff; color:#333; border-radius:18px;
+             padding:6px 18px; font-size:14px; cursor:pointer; flex:none; }
+  .src-tab.active { background:#1a3a6c; color:#fff; border-color:#1a3a6c; }
+  .net-view { display:none; flex:1; min-height:0; }
+  .net-view iframe { width:100%; height:100%; border:0; display:block; background:#f9f9f9; }
+
   .now { display:none; margin-top:14px; background:#fff; border-radius:12px; padding:12px 14px;
          box-shadow:0 1px 3px rgba(0,0,0,.06); align-items:center; gap:10px; }
   .now .badge { font-size:11px; padding:2px 8px; border-radius:6px; flex:none; }
@@ -127,6 +135,7 @@
     .wrap { max-width:960px; padding-top:10px; }
     .now { display:none; }
     .media-top { display:flex; flex-direction:row; align-items:stretch; gap:12px; }
+    .net-view { flex:none; height:80vh; }
     .media-top .vbox { flex:1; margin-top:0; aspect-ratio:16/9; align-self:flex-start; }
     .media-top .vbox video { width:100%; height:100%; object-fit:contain; }
     .media-top .btn-row { flex-direction:column; margin-top:0; width:auto; flex:none; gap:10px; }
@@ -145,6 +154,10 @@
 </header>
 
 <div class="wrap">
+  <div class="src-tabs" id="srcTabs">
+    <button class="src-tab active" id="srcLocal" type="button">本地</button>
+    <button class="src-tab" id="srcNet" type="button">网络</button>
+  </div>
   <div class="media-top">
     <div class="vbox">
       <video id="player" playsinline preload="metadata" controlslist="nodownload noremoteplayback"></video>
@@ -160,6 +173,10 @@
         选择文件
       </button>
     </div>
+  </div>
+
+  <div class="net-view" id="netView" style="display:none">
+    <iframe id="netPlayer" src="https://music.163.com/outchain/player?type=0&id=13698350957&auto=0&height=450" allow="autoplay" frameborder="0"></iframe>
   </div>
 
   <div class="now">
@@ -299,7 +316,27 @@
       if(player.src) URL.revokeObjectURL(player.src);
       player.src = URL.createObjectURL(f);
       player.play().catch(function(){});
-      updateNow();
+      /* 本地/网络切换 */
+  function switchSrc(mode){
+    var net = document.getElementById('netView');
+    var srcLocal = document.getElementById('srcLocal');
+    var srcNet = document.getElementById('srcNet');
+    if(mode === 'net'){ try{ player.pause(); }catch(e){} }
+    var sels = ['.media-top','.now','.controls','.list-panel','.hint'];
+    for(var i=0;i<sels.length;i++){
+      var el = document.querySelector(sels[i]);
+      if(el) el.style.display = (mode === 'local') ? '' : 'none';
+    }
+    if(net) net.style.display = (mode === 'net') ? 'flex' : 'none';
+    if(srcLocal) srcLocal.classList.toggle('active', mode === 'local');
+    if(srcNet) srcNet.classList.toggle('active', mode === 'net');
+  }
+  var srcLocalEl = document.getElementById('srcLocal');
+  var srcNetEl = document.getElementById('srcNet');
+  if(srcLocalEl) srcLocalEl.addEventListener('click', function(){ switchSrc('local'); });
+  if(srcNetEl) srcNetEl.addEventListener('click', function(){ switchSrc('net'); });
+
+  updateNow();
       renderList();
     };
     if(it.handle){
@@ -576,6 +613,26 @@
   window.addEventListener('load', function(){ layoutAll(); });
   window.addEventListener('resize', function(){ layoutAll(); });
   setTimeout(layoutAll, 300);
+
+  /* 本地/网络切换 */
+  function switchSrc(mode){
+    var net = document.getElementById('netView');
+    var srcLocal = document.getElementById('srcLocal');
+    var srcNet = document.getElementById('srcNet');
+    if(mode === 'net'){ try{ player.pause(); }catch(e){} }
+    var sels = ['.media-top','.now','.controls','.list-panel','.hint'];
+    for(var i=0;i<sels.length;i++){
+      var el = document.querySelector(sels[i]);
+      if(el) el.style.display = (mode === 'local') ? '' : 'none';
+    }
+    if(net) net.style.display = (mode === 'net') ? 'flex' : 'none';
+    if(srcLocal) srcLocal.classList.toggle('active', mode === 'local');
+    if(srcNet) srcNet.classList.toggle('active', mode === 'net');
+  }
+  var srcLocalEl = document.getElementById('srcLocal');
+  var srcNetEl = document.getElementById('srcNet');
+  if(srcLocalEl) srcLocalEl.addEventListener('click', function(){ switchSrc('local'); });
+  if(srcNetEl) srcNetEl.addEventListener('click', function(){ switchSrc('net'); });
 
   updateNow();
   updatePlayIcon();
