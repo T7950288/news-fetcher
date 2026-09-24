@@ -5,11 +5,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>谷歌热榜</title>
-<!-- 预加载旅游地图资源：停在主页时后台取缓存，切换过去秒开 -->
-<link rel="prefetch" href="travel/js/lib/leaflet.js?v100">
-<link rel="prefetch" href="travel/js/lib/leaflet.css?v100">
-<link rel="prefetch" href="travel/data_bundle.js?v100">
-<link rel="prefetch" href="travel/css/style.css?v102">
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Helvetica Neue", sans-serif;
@@ -61,9 +56,15 @@
   .modal p { margin-bottom:10px; font-size:15px; }
   .loading { text-align:center; padding:60px 20px; color:#999; }
   .source-link { font-size:12px; color:#1a3a6c; }
+  /* 无跳转双版块容器 */
+  .pane { display:none; }
+  .pane.active { display:block; }
+  #mapPane.active { display:block; height:calc(100vh - 54px); }
+  #mapFrame { width:100%; height:100%; border:0; display:block; }
   /* 手机端适配 */
   @media (max-width:768px){
     header { padding:10px 12px; }
+    #mapPane.active { height:calc(100vh - 50px); }
     .nav-tabs-wrap { position:relative; min-width:0; flex:1; }
     .nav-tabs { overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none;
                 white-space:nowrap; flex-wrap:nowrap; }
@@ -89,15 +90,20 @@
   <div class="header-inner">
     <div class="nav-tabs-wrap">
       <nav class="nav-tabs">
-        <a class="nav-tab active" href="./"><span class="full">谷歌热榜</span><span class="short">谷歌</span></a>
-        <a class="nav-tab" href="travel/"><span class="full">旅游地图</span><span class="short">地图</span></a>
+        <a class="nav-tab active" href="./" data-section="home"><span class="full">谷歌热榜</span><span class="short">谷歌</span></a>
+        <a class="nav-tab" href="travel/" data-section="map"><span class="full">旅游地图</span><span class="short">地图</span></a>
       </nav>
     </div>
     <button class="refresh-btn" id="refreshBtn" onclick="loadNews()">更新</button>
   </div>
 </header>
-<div class="meta" id="meta">正在加载新闻…</div>
-<div class="list" id="list"><div class="loading">加载中…</div></div>
+<div id="homePane" class="pane active">
+  <div class="meta" id="meta">正在加载新闻…</div>
+  <div class="list" id="list"><div class="loading">加载中…</div></div>
+</div>
+<div id="mapPane" class="pane">
+  <iframe id="mapFrame" src="travel/" title="旅游地图"></iframe>
+</div>
 <div class="modal" id="modal" onclick="if(event.target===this)closeModal()">
   <div class="modal-body" id="modalBody"></div>
 </div>
@@ -274,6 +280,47 @@ function checkNavScroll(){
 }
 checkNavScroll();
 window.addEventListener('resize', checkNavScroll);
+
+// ===== 无跳转切换：热榜 / 地图 同一页面切换显示 =====
+const mapFrame = document.getElementById('mapFrame');
+const homePane = document.getElementById('homePane');
+const mapPane = document.getElementById('mapPane');
+const refreshBtn = document.getElementById('refreshBtn');
+let savedHomeScroll = 0;
+
+function hideMapHeader(){
+  try{
+    const doc = mapFrame.contentDocument;
+    if(doc && doc.querySelector('.site-header')){
+      doc.querySelector('.site-header').style.display = 'none';
+    }
+  }catch(e){}
+}
+mapFrame.addEventListener('load', hideMapHeader);
+
+function switchSection(key){
+  document.querySelectorAll('.nav-tab').forEach(t =>
+    t.classList.toggle('active', t.dataset.section === key));
+  if(key === 'map'){
+    savedHomeScroll = window.scrollY;
+    homePane.classList.remove('active');
+    mapPane.classList.add('active');
+    if(refreshBtn) refreshBtn.style.display = 'none';
+    window.scrollTo(0, 0);
+    hideMapHeader();
+  }else{
+    mapPane.classList.remove('active');
+    homePane.classList.add('active');
+    if(refreshBtn) refreshBtn.style.display = '';
+    window.scrollTo(0, savedHomeScroll);
+  }
+}
+document.querySelectorAll('.nav-tab').forEach(t => {
+  t.addEventListener('click', e => {
+    e.preventDefault();
+    switchSection(t.dataset.section);
+  });
+});
 </script>
 </body>
 </html>
