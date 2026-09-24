@@ -5,15 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>豆包旅游地图</title>
 <link rel="stylesheet" href="js/lib/leaflet.css?v100">
-<link rel="stylesheet" href="css/style.css?v101">
+<link rel="stylesheet" href="css/style.css?v102">
 </head>
 <body>
 <header class="site-header">
   <div class="site-inner">
-    <nav class="nav-tabs">
-      <a class="nav-tab" href="../">谷歌热榜</a>
-      <a class="nav-tab active" href="./">旅游地图</a>
-    </nav>
+    <div class="nav-tabs-wrap">
+      <nav class="nav-tabs">
+        <a class="nav-tab" href="../"><span class="full">谷歌热榜</span><span class="short">谷歌</span></a>
+        <a class="nav-tab active" href="./"><span class="full">旅游地图</span><span class="short">地图</span></a>
+      </nav>
+    </div>
   </div>
 </header>
 <div id="app">
@@ -100,5 +102,11 @@
 <script src="js/planner.js?v100"></script>
 <script src="js/footprint.js?v100"></script>
 <script src="js/app.js?v100"></script>
+<script>
+/* 版块导航：检测是否可滚动，显示右侧渐隐提示 */
+(function(){ function c(){ var w=document.querySelector('.nav-tabs-wrap'),t=w&&w.querySelector('.nav-tabs');
+  if(w&&t) w.classList.toggle('scrollable', t.scrollWidth>t.clientWidth); }
+  c(); window.addEventListener('resize', c); })();
+</script>
 </body>
 </html>
