@@ -28,33 +28,47 @@ from bs4 import BeautifulSoup
 # v9: 懒安装 google-news-api(解码Google链接) / trafilatura(正文提取); 云端自动装, 本地失败降级
 _GN = None
 _TR = None
+_lazy_lock = threading.Lock()
 def _lazy_load():
+    """加载/安装可选依赖。只允许一个线程安装(防并发pip崩溃); 其他线程不等待, 直接降级。"""
     global _GN, _TR
     import subprocess
-    if _GN is None:
-        try:
-            import google_news_api
-            _GN = google_news_api
-        except Exception:
+    if _GN is not None and _TR is not None:
+        return
+    if not _lazy_lock.acquire(blocking=False):
+        # 已有线程在安装: 不等, 本线程降级处理
+        if _GN is None:
+            _GN = False
+        if _TR is None:
+            _TR = False
+        return
+    try:
+        if _GN is None:
             try:
-                subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet",
-                                       "google-news-api", "trafilatura"], timeout=90)
                 import google_news_api
                 _GN = google_news_api
             except Exception:
-                _GN = False
-    if _TR is None:
-        try:
-            import trafilatura
-            _TR = trafilatura
-        except Exception:
+                try:
+                    subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet",
+                                           "google-news-api", "trafilatura"], timeout=90)
+                    import google_news_api
+                    _GN = google_news_api
+                except Exception:
+                    _GN = False
+        if _TR is None:
             try:
-                subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet",
-                                       "trafilatura"], timeout=45)
                 import trafilatura
                 _TR = trafilatura
             except Exception:
-                _TR = False
+                try:
+                    subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet",
+                                           "trafilatura"], timeout=45)
+                    import trafilatura
+                    _TR = trafilatura
+                except Exception:
+                    _TR = False
+    finally:
+        _lazy_lock.release()
 
 _GN_client = None
 def decode_google_urls(urls):
