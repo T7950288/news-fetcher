@@ -4,9 +4,22 @@
   --bg:#f4f7f6; --line:#e2e8e6; --muted:#7c8b88;
 }
 html,body{ height:100%; font-family:"Microsoft YaHei","PingFang SC",sans-serif; color:var(--ink); background:var(--bg); overflow:hidden; }
+body{ display:flex; flex-direction:column; }
 button{ font-family:inherit; cursor:pointer; border:none; background:none; color:inherit; }
 input,select{ font-family:inherit; }
-#app{ height:100%; display:flex; flex-direction:column; }
+#app{ flex:1; min-height:0; display:flex; flex-direction:column; }
+
+/* 站点头部（版块导航，与谷歌热榜主页一致） */
+.site-header{ background:#1a3a6c; color:#fff; padding:9px 14px; flex:none; z-index:1300;
+  box-shadow:0 2px 8px rgba(0,0,0,.15); }
+.site-inner{ max-width:1200px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.site-logo{ font-size:18px; font-weight:700; letter-spacing:1px; color:#fff; text-decoration:none; white-space:nowrap; }
+.nav-tabs{ display:flex; gap:6px; }
+.nav-tab{ padding:5px 14px; border-radius:16px; font-size:13.5px; color:#fff; text-decoration:none;
+  border:1px solid rgba(255,255,255,.5); font-weight:600; }
+.nav-tab.active{ background:#fff; color:#1a3a6c; border-color:#fff; }
+.nav-tab:hover{ background:rgba(255,255,255,.25); }
+.nav-tab.active:hover{ background:#fff; }
 
 /* 顶栏 */
 #topbar{ height:52px; background:linear-gradient(90deg,var(--green-d),var(--green)); color:#fff;
@@ -228,6 +241,9 @@ body.fs #topbar, body.fs #panel{ display:none; }
 /* 手机端 */
 #panelToggle.show{ display:block; }
 @media (max-width:768px){
+  .site-header{ padding:8px 10px; }
+  .site-logo{ font-size:16px; }
+  .nav-tab{ padding:4px 11px; font-size:12.5px; }
   #topbar{ height:50px; padding:0 10px; gap:10px; }
   .brand{ gap:6px; }
   .brand b{ display:none; }
