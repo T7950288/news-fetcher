@@ -1,0 +1,460 @@
+<!-- 影音板块：本地音乐/视频播放器（数据不出本机） -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>音乐视频</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231a3a6c'/%3E%3Ctext x='32' y='44' font-size='32' text-anchor='middle' fill='white'%3E音%3C/text%3E%3C/svg%3E">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { font-family:-apple-system,"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif;
+         background:#f5f6f8; color:#1a1a1a; line-height:1.5; }
+  /* ===== 独立访问时的抬头（被主页嵌入时自动隐藏） ===== */
+  .site-header { background:#1a3a6c; color:#fff; padding:12px 20px; }
+  .site-header h1 { font-size:20px; font-weight:700; letter-spacing:1px; }
+  .site-header p { font-size:12px; opacity:.85; margin-top:2px; }
+  .wrap { max-width:760px; margin:0 auto; padding:14px 16px 40px; }
+  /* ===== 选择按钮 ===== */
+  .btn-row { display:flex; gap:10px; }
+  .big-btn { flex:1; min-height:52px; border:none; border-radius:12px; font-size:16px; font-weight:700;
+             cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; }
+  .big-btn:active { transform:scale(.97); }
+  .big-btn.primary { background:#1a3a6c; color:#fff; }
+  .big-btn.ghost { background:#fff; color:#1a3a6c; border:1.5px solid #1a3a6c; }
+  .big-btn svg { width:20px; height:20px; flex:none; }
+  /* ===== 正在播放 ===== */
+  .now { margin-top:14px; background:#fff; border-radius:12px; padding:12px 14px;
+         box-shadow:0 1px 3px rgba(0,0,0,.06); display:flex; align-items:center; gap:10px; }
+  .now .badge { font-size:11px; padding:2px 8px; border-radius:6px; flex:none; }
+  .badge.audio { background:#e6f4ea; color:#137333; }
+  .badge.video { background:#e8f0fe; color:#1a3a6c; }
+  .now .nm { font-size:14px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  /* ===== 播放器 ===== */
+  .vbox { margin-top:12px; background:#000; border-radius:12px; overflow:hidden; position:relative; }
+  video { width:100%; display:block; max-height:70vh; background:#000; }
+  .err { display:none; position:absolute; inset:0; background:rgba(0,0,0,.72); color:#ffd7d7;
+         font-size:14px; padding:24px; text-align:center; align-items:center; justify-content:center; }
+  .err.show { display:flex; }
+  /* ===== 控制条 ===== */
+  .controls { margin-top:10px; background:#fff; border-radius:12px; padding:12px; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+  .ctrl-row { display:flex; align-items:center; gap:10px; }
+  .ctrl-row.mid { margin-top:10px; }
+  input[type=range] { -webkit-appearance:none; appearance:none; background:transparent; }
+  input[type=range]::-webkit-slider-runnable-track { height:8px; border-radius:4px; background:#e2e5ea; }
+  input[type=range]::-moz-range-track { height:8px; border-radius:4px; background:#e2e5ea; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:22px; height:22px; border-radius:50%;
+    background:#1a3a6c; margin-top:-7px; border:3px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,.25); }
+  input[type=range]::-moz-range-thumb { width:20px; height:20px; border-radius:50%; background:#1a3a6c;
+    border:3px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,.25); }
+  .ctrl-btn { width:52px; height:52px; border:none; background:#f1f3f4; border-radius:50%; cursor:pointer;
+              display:flex; align-items:center; justify-content:center; flex:none; }
+  .ctrl-btn:active { background:#e2e5ea; }
+  .ctrl-btn svg { width:24px; height:24px; fill:#1a3a6c; }
+  .ctrl-btn.play { width:64px; height:64px; background:#1a3a6c; }
+  .ctrl-btn.play svg { fill:#fff; width:30px; height:30px; }
+  .ctrl-btn.small { width:44px; height:44px; }
+  .ctrl-btn.small svg { width:20px; height:20px; }
+  .ctrl-btn.active { background:#dbe4f5; }
+  .time { font-size:13px; color:#555; white-space:nowrap; min-width:110px; text-align:center; }
+  #seekBar { flex:1; min-width:0; height:22px; }
+  #volBar { width:90px; }
+  .txt-btn { border:1px solid #ddd; background:#fff; color:#333; border-radius:20px; padding:8px 14px;
+             font-size:13px; cursor:pointer; }
+  .txt-btn.active { background:#1a3a6c; color:#fff; border-color:#1a3a6c; }
+  /* ===== 文件列表 ===== */
+  .list-panel { margin-top:12px; background:#fff; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+  .list-head { display:flex; justify-content:space-between; align-items:center; padding:12px 14px;
+               border-bottom:1px solid #eee; }
+  .list-head span { font-size:13px; color:#666; }
+  .list-head button { border:none; background:none; color:#a50e0e; font-size:13px; cursor:pointer; padding:6px; }
+  #fileList { list-style:none; max-height:52vh; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+  #fileList li { display:flex; align-items:center; gap:10px; padding:13px 14px; border-bottom:1px solid #f3f4f6;
+                 cursor:pointer; }
+  #fileList li:active { background:#f7f8fa; }
+  #fileList li.cur { background:#e8f0fe; }
+  #fileList li .fname { flex:1; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #fileList li .fsize { font-size:11px; color:#999; flex:none; }
+  #fileList li .fkind { font-size:11px; padding:2px 7px; border-radius:6px; flex:none; }
+  .fkind.audio { background:#e6f4ea; color:#137333; }
+  .fkind.video { background:#e8f0fe; color:#1a3a6c; }
+  .empty { padding:34px 20px; text-align:center; color:#999; font-size:14px; }
+  .empty p { margin-top:6px; font-size:12px; color:#bbb; }
+  .hint { margin-top:10px; font-size:12px; color:#888; text-align:center; }
+  .hint b { color:#1a3a6c; }
+  /* 手机端：更宽的可点区域 */
+  @media (max-width:768px){
+    .site-header { padding:12px 14px; }
+    .wrap { padding:12px 12px 30px; }
+    .big-btn { min-height:56px; font-size:17px; }
+    .ctrl-btn { width:56px; height:56px; }
+    .ctrl-btn.small { width:50px; height:50px; }
+    .ctrl-btn.play { width:70px; height:70px; }
+    .time { min-width:104px; font-size:12px; }
+    #volBar { width:70px; }
+    #fileList li { padding:15px 14px; }
+    #fileList li .fname { font-size:15px; }
+    .txt-btn { padding:9px 15px; font-size:14px; }
+  }
+</style>
+</head>
+<body>
+<header class="site-header">
+  <h1>音乐视频</h1>
+  <p>播放本机音乐与视频，数据不出电脑/手机</p>
+</header>
+
+<div class="wrap">
+  <div class="btn-row">
+    <button class="big-btn primary" id="pickFolderBtn" title="电脑端：选择音乐/视频文件夹，下次自动记住">
+      <svg viewBox="0 0 24 24"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/></svg>
+      选择文件夹
+    </button>
+    <button class="big-btn ghost" id="pickFileBtn">
+      <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+      选择文件
+    </button>
+  </div>
+
+  <div class="now">
+    <span class="badge audio" id="curKind">音乐</span>
+    <span class="nm" id="curName">未选择文件</span>
+  </div>
+
+  <div class="vbox">
+    <video id="player" playsinline preload="metadata" controlslist="nodownload noremoteplayback"></video>
+    <div class="err" id="errBox"></div>
+  </div>
+
+  <div class="controls">
+    <div class="ctrl-row">
+      <button class="ctrl-btn small" id="prevBtn" title="上一首/上一个">
+        <svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+      </button>
+      <button class="ctrl-btn play" id="playBtn" title="播放/暂停">
+        <svg id="iconPlay" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        <svg id="iconPause" viewBox="0 0 24 24" style="display:none"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>
+      </button>
+      <button class="ctrl-btn small" id="nextBtn" title="下一首/下一个">
+        <svg viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM6 18l8.5-6L6 6z"/></svg>
+      </button>
+      <input type="range" id="seekBar" min="0" max="1000" value="0" title="进度">
+      <span class="time" id="timeTxt">00:00 / 00:00</span>
+    </div>
+    <div class="ctrl-row mid">
+      <button class="ctrl-btn small" id="volBtn" title="音量">
+        <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z"/></svg>
+      </button>
+      <input type="range" id="volBar" min="0" max="100" value="80" title="音量">
+      <span style="flex:1"></span>
+      <button class="txt-btn" id="loopBtn">顺序播放</button>
+      <button class="txt-btn" id="listBtn">文件列表</button>
+      <button class="ctrl-btn small" id="fullBtn" title="全屏">
+        <svg viewBox="0 0 24 24"><path d="M4 9V4h5m6 0h5v5M20 15v5h-5m-6 0H4v-5"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="list-panel" id="listPanel">
+    <div class="list-head">
+      <span id="listCount">共 0 个文件</span>
+      <button id="clearBtn">清空列表</button>
+    </div>
+    <ul id="fileList"></ul>
+  </div>
+
+  <div class="hint" id="hint">
+    电脑端：点「<b>选择文件夹</b>」授权后自动记住位置，下次打开直接可用<br>
+    手机端：点「<b>选择文件</b>」从手机存储里选音乐或视频（每次需手动选择）
+  </div>
+</div>
+
+<input type="file" id="fileInput" accept="audio/*,video/*" multiple style="display:none">
+
+<script>
+(function(){
+  "use strict";
+  var player = document.getElementById("player");
+  var errBox = document.getElementById("errBox");
+  var playlist = [];   // {name, kind, size, handle 或 file}
+  var cur = -1;
+  var loopMode = "list"; // off / one / list
+  var folderMode = false;
+
+  var AUDIO_EXT = ["mp3","wav","flac","m4a","aac","ogg","opus","wma","ape","amr"];
+  var VIDEO_EXT = ["mp4","webm","mkv","mov","avi","m4v","ts","m2ts","flv","3gp","mpg","mpeg"];
+
+  function extOf(n){ var i=n.lastIndexOf("."); return i<0?"":n.slice(i+1).toLowerCase(); }
+  function kindOf(n){
+    var e = extOf(n);
+    if(AUDIO_EXT.indexOf(e)>=0) return "audio";
+    if(VIDEO_EXT.indexOf(e)>=0) return "video";
+    return "";
+  }
+  function fmtSize(b){
+    if(!b && b!==0) return "";
+    if(b<1024*1024) return (b/1024).toFixed(0)+" KB";
+    if(b<1024*1024*1024) return (b/1024/1024).toFixed(1)+" MB";
+    return (b/1024/1024/1024).toFixed(1)+" GB";
+  }
+  function fmtT(s){
+    if(!isFinite(s)||s<0) s=0;
+    var m=Math.floor(s/60), ss=Math.floor(s%60);
+    return (m<10?"0":"")+m+":"+(ss<10?"0":"")+ss;
+  }
+
+  /* ===== 播放列表 ===== */
+  function renderList(){
+    var ul = document.getElementById("fileList");
+    document.getElementById("listCount").textContent = "共 "+playlist.length+" 个文件";
+    if(!playlist.length){
+      ul.innerHTML = '<div class="empty">还没有文件<br><p>电脑端点「选择文件夹」，手机端点「选择文件」</p></div>';
+      return;
+    }
+    ul.innerHTML = playlist.map(function(it,i){
+      var c = i===cur ? "cur" : "";
+      var k = it.kind==="audio" ? "audio" : "video";
+      var t = it.kind==="audio" ? "音乐" : "视频";
+      return '<li class="'+c+'" data-i="'+i+'"><span class="fkind '+k+'">'+t+'</span>'+
+             '<span class="fname"></span><span class="fsize">'+fmtSize(it.size)+'</span></li>';
+    }).join("");
+    var lis = ul.querySelectorAll("li");
+    for(var j=0;j<lis.length;j++){
+      lis[j].querySelector(".fname").textContent = playlist[j].name;
+      lis[j].addEventListener("click", function(){ playAt(parseInt(this.getAttribute("data-i"),10)); });
+    }
+  }
+  function addItems(items){
+    for(var i=0;i<items.length;i++){ playlist.push(items[i]); }
+    renderList();
+    if(cur<0 && playlist.length) playAt(0);
+    else updateNow();
+  }
+  function clearList(){
+    playlist = []; cur = -1;
+    if(player.src) URL.revokeObjectURL(player.src);
+    player.removeAttribute("src");
+    player.load();
+    document.getElementById("curName").textContent = "未选择文件";
+    document.getElementById("timeTxt").textContent = "00:00 / 00:00";
+    document.getElementById("seekBar").value = 0;
+    setErr(false);
+    renderList();
+  }
+
+  /* ===== 播放 ===== */
+  function playAt(i){
+    if(i<0 || i>=playlist.length) return;
+    cur = i;
+    var it = playlist[i];
+    setErr(false);
+    document.getElementById("curName").textContent = it.name;
+    document.getElementById("curKind").textContent = it.kind==="audio" ? "音乐" : "视频";
+    document.getElementById("curKind").className = "badge " + it.kind;
+    var done = function(f){
+      if(!f) return;
+      if(player.src) URL.revokeObjectURL(player.src);
+      player.src = URL.createObjectURL(f);
+      player.play().catch(function(){});
+      updateNow();
+      renderList();
+    };
+    if(it.handle){
+      it.handle.getFile().then(done).catch(function(){ setErr("无法读取文件：「"+it.name+"」"); });
+    }else if(it.file){
+      done(it.file);
+    }
+  }
+  function next(auto){
+    if(!playlist.length) return;
+    var target;
+    if(auto && loopMode==="off"){ return; } // 顺序播完即停
+    if(loopMode==="one"){ player.currentTime=0; player.play().catch(function(){}); return; }
+    target = cur+1;
+    if(target>=playlist.length){ if(loopMode==="list") target=0; else return; }
+    playAt(target);
+  }
+  function prev(){
+    if(!playlist.length) return;
+    if(player.currentTime>3){ player.currentTime=0; return; }
+    var t = cur-1;
+    if(t<0) t = playlist.length-1;
+    playAt(t);
+  }
+  function updateNow(){
+    document.getElementById("curName").textContent =
+      cur>=0 && playlist[cur] ? playlist[cur].name : "未选择文件";
+    document.getElementById("curKind").textContent =
+      cur>=0 && playlist[cur] ? (playlist[cur].kind==="audio"?"音乐":"视频") : "音乐";
+  }
+  function updatePlayIcon(){
+    document.getElementById("iconPlay").style.display = player.paused ? "" : "none";
+    document.getElementById("iconPause").style.display = player.paused ? "none" : "";
+  }
+  function setErr(msg){
+    if(msg){ errBox.textContent = msg; errBox.classList.add("show"); }
+    else errBox.classList.remove("show");
+  }
+
+  /* ===== 事件绑定 ===== */
+  document.getElementById("playBtn").addEventListener("click", function(){
+    if(!player.src){ if(playlist.length) playAt(cur>=0?cur:0); return; }
+    if(player.paused) player.play().catch(function(){});
+    else player.pause();
+  });
+  document.getElementById("nextBtn").addEventListener("click", function(){ next(false); });
+  document.getElementById("prevBtn").addEventListener("click", prev);
+  player.addEventListener("play", updatePlayIcon);
+  player.addEventListener("pause", updatePlayIcon);
+  player.addEventListener("timeupdate", function(){
+    if(!isFinite(player.duration)||player.duration<=0){ document.getElementById("seekBar").value=0; return; }
+    document.getElementById("seekBar").value = Math.round(player.currentTime/player.duration*1000);
+    document.getElementById("timeTxt").textContent = fmtT(player.currentTime)+" / "+fmtT(player.duration);
+  });
+  player.addEventListener("loadedmetadata", function(){
+    document.getElementById("timeTxt").textContent = "00:00 / "+fmtT(player.duration);
+  });
+  player.addEventListener("ended", function(){ next(true); });
+  player.addEventListener("error", function(){
+    if(player.src){
+      var nm = cur>=0 && playlist[cur] ? playlist[cur].name : "";
+      setErr("无法播放「"+nm+"」\n此格式浏览器不支持，或文件已损坏。");
+    }
+  });
+  document.getElementById("seekBar").addEventListener("input", function(){
+    if(!isFinite(player.duration)||player.duration<=0) return;
+    player.currentTime = this.value/1000*player.duration;
+    document.getElementById("timeTxt").textContent = fmtT(player.currentTime)+" / "+fmtT(player.duration);
+  });
+  document.getElementById("volBar").addEventListener("input", function(){
+    player.volume = this.value/100;
+    player.muted = this.value<=0;
+  });
+  document.getElementById("fullBtn").addEventListener("click", function(){
+    var vbox = document.querySelector(".vbox");
+    if(document.fullscreenElement) document.exitFullscreen();
+    else if(vbox.requestFullscreen) vbox.requestFullscreen();
+  });
+  document.getElementById("loopBtn").addEventListener("click", function(){
+    loopMode = loopMode==="off" ? "one" : (loopMode==="one" ? "list" : "off");
+    this.textContent = loopMode==="off" ? "播完即停" : (loopMode==="one" ? "单曲循环" : "顺序播放");
+  });
+  document.getElementById("listBtn").addEventListener("click", function(){
+    var p = document.getElementById("listPanel");
+    var hide = p.style.display==="none";
+    p.style.display = hide ? "" : "none";
+    this.classList.toggle("active", hide);
+    if(hide) p.scrollIntoView({behavior:"smooth", block:"start"});
+  });
+  document.getElementById("clearBtn").addEventListener("click", function(){
+    if(playlist.length && !confirm("清空当前文件列表？")) return;
+    clearList();
+  });
+
+  /* ===== 电脑端：选择文件夹（File System Access，自动记住） ===== */
+  function idbGet(){
+    return new Promise(function(res){
+      try{
+        var r = indexedDB.open("media_dir_v1", 1);
+        r.onupgradeneeded = function(){ r.result.createObjectStore("kv"); };
+        r.onsuccess = function(){
+          var db = r.result;
+          if(!db.objectStoreNames.contains("kv")){ res(null); return; }
+          var tx = db.transaction("kv","readonly");
+          var g = tx.objectStore("kv").get("dir");
+          g.onsuccess = function(){ res(g.result||null); };
+          g.onerror = function(){ res(null); };
+        };
+        r.onerror = function(){ res(null); };
+      }catch(e){ res(null); }
+    });
+  }
+  function idbSet(handle){
+    return new Promise(function(res){
+      try{
+        var r = indexedDB.open("media_dir_v1", 1);
+        r.onupgradeneeded = function(){ r.result.createObjectStore("kv"); };
+        r.onsuccess = function(){
+          var db = r.result;
+          var tx = db.transaction("kv","readwrite");
+          tx.objectStore("kv").put(handle, "dir");
+          tx.oncomplete = function(){ res(true); };
+          tx.onerror = function(){ res(false); };
+        };
+        r.onerror = function(){ res(false); };
+      }catch(e){ res(false); }
+    });
+  }
+  function isMedia(n){ return kindOf(n)!==""; }
+  function walkDir(dir, out, cb){
+    var p = dir.values();
+    function step(){
+      p.next().then(function(v){
+        if(v.done){ cb(out); return; }
+        var e = v.value;
+        if(e.kind==="file"){ if(isMedia(e.name)) out.push({name:e.name, kind:kindOf(e.name), size:0, handle:e}); }
+        else if(e.kind==="directory"){ walkDir(e, out, step); return; }
+        step();
+      }).catch(function(){ cb(out); });
+    }
+    step();
+  }
+  function showHint(t){ document.getElementById("hint").textContent = t; }
+  async function loadFromDir(dir){
+    var out = [];
+    walkDir(dir, out, function(files){
+      files.sort(function(a,b){ return a.name.localeCompare(b.name,"zh"); });
+      addItems(files);
+      folderMode = true;
+      showHint("已读取文件夹："+dir.name+"（"+files.length+" 个音乐/视频文件）");
+    });
+  }
+  document.getElementById("pickFolderBtn").addEventListener("click", function(){
+    if(!window.showDirectoryPicker){
+      setErr("当前浏览器不支持「选择文件夹」（需 Edge/Chrome 桌面版）。\n手机端请用「选择文件」。");
+      return;
+    }
+    window.showDirectoryPicker({id:"media-dir", mode:"read"}).then(function(dir){
+      idbSet(dir);
+      loadFromDir(dir);
+    }).catch(function(e){
+      if(e && e.name!=="AbortError") setErr("选择文件夹失败："+(e.message||""));
+    });
+  });
+
+  /* ===== 手机端：选择文件 ===== */
+  var fileInput = document.getElementById("fileInput");
+  document.getElementById("pickFileBtn").addEventListener("click", function(){ fileInput.click(); });
+  fileInput.addEventListener("change", function(){
+    var items = [];
+    for(var i=0;i<fileInput.files.length;i++){
+      var f = fileInput.files[i];
+      var k = kindOf(f.name);
+      if(k) items.push({name:f.name, kind:k, size:f.size, file:f});
+    }
+    if(!items.length){ setErr("未识别到音乐/视频文件（支持常见格式）"); return; }
+    addItems(items);
+    folderMode = false;
+    showHint("已添加 "+items.length+" 个文件");
+    fileInput.value = "";
+  });
+
+  /* ===== 启动：尝试恢复上次的文件夹 ===== */
+  idbGet().then(function(handle){
+    if(handle && handle.queryPermission && handle.queryPermission({mode:"read"})==="granted"){
+      loadFromDir(handle);
+    }else if(handle && handle.requestPermission){
+      // 权限被浏览器回收时静默跳过，用户点按钮重新授权即可
+    }
+  });
+
+  /* 嵌入主页时隐藏本页抬头（主页已有蓝色导航行） */
+  try{ if(window.self !== window.top){ document.querySelector(".site-header").style.display = "none"; } }catch(e){}
+
+  updateNow();
+  updatePlayIcon();
+  renderList();
+})();
+</script>
+</body>
+</html>
