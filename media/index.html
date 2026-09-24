@@ -450,7 +450,7 @@
     }
     window.showDirectoryPicker({id:"media-dir", mode:"read"}).then(function(dir){
       idbSet(dir);
-      loadFromDir(dir);
+      loadFromDir(dir, true);
     }).catch(function(e){
       if(e && e.name!=="AbortError") setErr("选择文件夹失败："+(e.message||""));
     });
@@ -467,7 +467,7 @@
       if(k) items.push({name:f.name, kind:k, size:f.size, file:f});
     }
     if(!items.length){ setErr("未识别到音乐/视频文件（支持常见格式）"); return; }
-    addItems(items, false);
+    addItems(items, true);
     folderMode = false;
     showHint("已添加 "+items.length+" 个文件");
     fileInput.value = "";
