@@ -5,6 +5,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>谷歌热榜</title>
+<!-- 预加载旅游地图资源：停在主页时后台取缓存，切换过去秒开 -->
+<link rel="prefetch" href="travel/js/lib/leaflet.js?v100">
+<link rel="prefetch" href="travel/js/lib/leaflet.css?v100">
+<link rel="prefetch" href="travel/data_bundle.js?v100">
+<link rel="prefetch" href="travel/css/style.css?v102">
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Helvetica Neue", sans-serif;
@@ -84,7 +89,7 @@
   <div class="header-inner">
     <div class="nav-tabs-wrap">
       <nav class="nav-tabs">
-        <a class="nav-tab active" href="./"><span class="full">谷歌热榜</span><span class="short">热榜</span></a>
+        <a class="nav-tab active" href="./"><span class="full">谷歌热榜</span><span class="short">谷歌</span></a>
         <a class="nav-tab" href="travel/"><span class="full">旅游地图</span><span class="short">地图</span></a>
       </nav>
     </div>
