@@ -19,7 +19,7 @@
   /* ===== 选择按钮 ===== */
   .media-top { order:1; }
   .controls { order:2; }
-  .btn-row { order:3; }
+  .btn-row { order:3; display:flex; gap:10px; }
   .list-panel { order:4; }
   .hint { order:5; }
   .now { display:none; } /* 电脑与手机都不显示正在播放名称栏 */
@@ -91,16 +91,27 @@
   /* 手机端：更宽的可点区域 */
   @media (max-width:768px){
     .site-header { padding:12px 14px; }
-    .wrap { padding:12px 12px 30px; }
-    .big-btn { min-height:56px; font-size:17px; }
-    .ctrl-btn { width:56px; height:56px; }
-    .ctrl-btn.small { width:50px; height:50px; }
-    .ctrl-btn.play { width:70px; height:70px; }
-    .time { min-width:104px; font-size:12px; }
-    #volBar { width:70px; }
+    /* 视频区撑满整屏宽、固定16:9（播放前后面积一致） */
+    .wrap { padding:0 0 30px; }
+    .vbox { margin-top:0; border-radius:0; aspect-ratio:16/9; }
+    .vbox video { width:100%; height:100%; object-fit:contain; max-height:none; }
+    /* 底部两个选择按钮：并排等宽、变矮 */
+    .btn-row { margin-top:12px; padding:0 12px; }
+    .big-btn { min-height:48px; font-size:16px; }
+    /* 控制条整体缩小：播放/暂停56、上下曲/音量40、滑块变窄 */
+    .controls { margin-top:8px; padding:10px; }
+    .ctrl-row { gap:8px; }
+    .ctrl-btn { width:44px; height:44px; }
+    .ctrl-btn.small { width:40px; height:40px; }
+    .ctrl-btn.play { width:56px; height:56px; }
+    .ctrl-btn svg { width:20px; height:20px; }
+    .ctrl-btn.play svg { width:26px; height:26px; }
+    .time { min-width:96px; font-size:12px; }
+    #volBar { width:56px; }
+    /* 顺序播放/文件列表：横排、字体小、不被拉伸 */
+    .txt-btn { padding:5px 10px; font-size:12px; white-space:nowrap; flex:none; }
     #fileList li { padding:15px 14px; }
     #fileList li .fname { font-size:15px; }
-    .txt-btn { padding:9px 15px; font-size:14px; }
   }
   /* 电脑端：视频左侧顶格、按钮竖排右侧、名称栏隐藏，一屏内看全 */
   @media (min-width:769px){
