@@ -111,6 +111,7 @@
 const URL = "https://t7950288.github.io/news-fetcher/news.json";
 /* Gitee API：国内直连快、云端每15分钟实时同步（浏览器已确认可跨域访问） */
 const GITEE_API = "https://gitee.com/api/v5/repos/t7950288/news/contents/news.json?ref=master";
+const GH_API = "https://api.github.com/repos/T7950288/news-fetcher/contents/news.json?ref=main";
 /* GitHub 实时源兜底（jsDelivr 有12小时缓存会返回旧数据，news.json 每15分钟更新，不能用） */
 const NEWS_SOURCES = [
   "https://t7950288.github.io/news-fetcher/news.json",
@@ -131,9 +132,9 @@ async function triggerFetch(){
   throw new Error("readonly");
 }
 
-async function fetchJson(u, isGitee){
+async function fetchJson(u, isGitee, timeout){
   const ctrl = new AbortController();
-  const timer = setTimeout(()=>ctrl.abort(), 8000);
+  const timer = setTimeout(()=>ctrl.abort(), timeout || 8000);
   try{
     const r = await fetch(u + (isGitee ? "&_t=" : "?_t=") + Date.now(), {cache:"no-store", signal:ctrl.signal});
     clearTimeout(timer);
@@ -144,21 +145,20 @@ async function fetchJson(u, isGitee){
   }catch(e){ clearTimeout(timer); throw e; }
 }
 
-/* 首开/手动更新：Gitee 优先（国内快、与GitHub同源实时同步）；失败则并行拉 GitHub 各源，比较时间戳取最新 */
+/* 首开/手动更新：并行拉 Gitee API + GitHub Pages + GitHub API 三源，比较时间戳取最新；全部失败再试 raw */
 async function fetchData(){
-  try{
-    const d = await fetchJson(GITEE_API, true);
-    if(d && d.updated_at) return d;
-  }catch(e){}
-  const results = await Promise.allSettled(NEWS_SOURCES.map(u => fetchJson(u, false)));
+  const results = await Promise.all([
+    fetchJson(GITEE_API, true, 6000).catch(e=>null),
+    fetchJson(NEWS_SOURCES[0], false, 6000).catch(e=>null),
+    fetchJson(GH_API, true, 8000).catch(e=>null)
+  ]);
   let best = null;
-  for(const r of results){
-    if(r.status === "fulfilled" && r.value && r.value.updated_at){
-      if(!best || r.value.updated_at > best.updated_at) best = r.value;
-    }
+  for(const d of results){
+    if(d && d.updated_at && (!best || d.updated_at > best.updated_at)) best = d;
   }
   if(best) return best;
-  throw new Error("all sources failed");
+  try{ return await fetchJson(NEWS_SOURCES[1], false, 8000); }
+  catch(e){ throw new Error("all sources failed"); }
 }
 /* 后台自动检查：Gitee 优先（国内快），失败切 GitHub；频率 3 分钟在限流内 */
 async function fetchDataQuiet(){
@@ -309,7 +309,6 @@ async function autoRefresh5(){
 }
 
 initNews();
-setInterval(autoCheck, 180000); // 每3分钟静默检查数据更新（Gitee优先）
 setInterval(autoRefresh5, 300000); // 每5分钟自动刷新最新数据
 
 // 版块导航：可滚动时显示右侧渐隐提示
