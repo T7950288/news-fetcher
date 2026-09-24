@@ -91,13 +91,14 @@
   /* 手机端：更宽的可点区域 */
   @media (max-width:768px){
     .site-header { padding:12px 14px; }
-    /* 视频区撑满整屏宽（播放前后面积一致），高度让下方按钮一屏放满 */
-    .wrap { padding:0 0 30px; }
-    .vbox { margin-top:0; border-radius:0; height:56vh; }
+    /* 视频区撑满整屏宽（播放前后面积一致），高度让下方按钮完全露出 */
+    .wrap { padding:0 0 20px; }
+    .vbox { margin-top:0; border-radius:0; height:53vh; }
     .vbox video { width:100%; height:100%; object-fit:contain; max-height:none; }
-    /* 手机端「选择文件夹」不可用，去掉，只留「选择文件」；列表与提示整体去除 */
-    .btn-row { margin-top:12px; padding:0 12px; }
+    /* 手机端「选择文件夹」不可用，去掉，只留「选择文件」（无图标纯文字）；列表与提示整体去除 */
+    .btn-row { margin-top:10px; padding:0 12px; }
     .btn-row .big-btn.primary { display:none; }
+    .btn-row .big-btn svg { display:none; }
     .big-btn { min-height:48px; font-size:16px; }
     .list-panel { display:none; }
     .hint { display:none; }
