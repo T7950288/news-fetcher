@@ -1,0 +1,64 @@
+<!-- v2-trigger -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>棋类</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231a3a6c'/%3E%3Ctext x='32' y='44' font-size='32' text-anchor='middle' fill='white'%3E棋%3C/text%3E%3C/svg%3E">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif;
+         background:#f5f6f8; color:#1a1a1a; line-height:1.6; }
+  header { background:#1a3a6c; color:#fff; padding:12px 20px; box-shadow:0 2px 8px rgba(0,0,0,.15); }
+  .header-inner { max-width:960px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; }
+  .logo { font-size:20px; font-weight:700; letter-spacing:1px; }
+  .container { max-width:960px; margin:24px auto 40px; padding:0 20px; }
+  .section-title { font-size:15px; font-weight:700; color:#1a3a6c; margin-bottom:12px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:16px; }
+  .card { background:#fff; border-radius:12px; padding:22px 20px; cursor:pointer;
+          box-shadow:0 1px 4px rgba(0,0,0,.08); transition:box-shadow .15s, transform .15s;
+          text-decoration:none; color:inherit; display:block; border:1px solid #eef0f4; }
+  .card:hover { box-shadow:0 4px 14px rgba(0,0,0,.12); transform:translateY(-2px); }
+  .card.disabled { cursor:default; opacity:.55; }
+  .card.disabled:hover { transform:none; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+  .card-icon { font-size:34px; margin-bottom:10px; }
+  .card-name { font-size:19px; font-weight:700; margin-bottom:6px; color:#1a3a6c; }
+  .card-desc { font-size:13px; color:#777; }
+  .card-tag { display:inline-block; margin-top:12px; padding:3px 10px; border-radius:12px;
+              font-size:12px; background:#e8f0fe; color:#1a3a6c; }
+  .card-tag.soon { background:#f1f3f4; color:#5f6368; }
+  .back { display:inline-block; margin-top:18px; font-size:13px; color:#1a3a6c; text-decoration:none; }
+  @media (max-width:768px){
+    .container { padding:0 14px; margin-top:16px; }
+    .card { padding:18px 16px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <div class="logo">棋类</div>
+    <a href="../" style="color:#fff;font-size:13px;text-decoration:none;">返回主页</a>
+  </div>
+</header>
+<div class="container">
+  <div class="section-title">选择棋类</div>
+  <div class="grid">
+    <a class="card" href="weiqi.html">
+      <div class="card-icon">⚫⚪</div>
+      <div class="card-name">围棋</div>
+      <div class="card-desc">与电脑 AI 对弈，支持 19/13/9 路棋盘、多档难度、悔棋与数目。</div>
+      <span class="card-tag">开始下棋</span>
+    </a>
+    <div class="card disabled">
+      <div class="card-icon">♟</div>
+      <div class="card-name">象棋</div>
+      <div class="card-desc">正在开发中，敬请期待。</div>
+      <span class="card-tag soon">即将上线</span>
+    </div>
+  </div>
+  <a class="back" href="../">← 返回主页</a>
+</div>
+</body>
+</html>
