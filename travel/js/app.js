@@ -220,7 +220,8 @@
     altFloat.innerHTML = html;
     if(altTimer) clearTimeout(altTimer);
     if(sticky === 'live'){ altTimer = null; return; }   /* 持续跟踪：不自动消失 */
-    altTimer = setTimeout(function(){ altFloat.style.display = 'none'; }, sticky ? 8000 : 3500);
+    var ms = (typeof sticky === 'number') ? sticky : (sticky ? 8000 : 3500);
+    altTimer = setTimeout(function(){ altFloat.style.display = 'none'; }, ms);
   }
 
   /* ---------- 天气：Open-Meteo（免 key，国内可达）实时 + 7天 ---------- */
@@ -264,7 +265,7 @@
     altPin.setLatLng([lat,lng]).setOpacity(1);
     altShow('🗺️ 该点海拔查询中…', false);
     var altTxt = '📍 海拔查询失败', wxTxt = '';
-    function showAltCard(){ altShow(altTxt + (wxTxt ? '<br>' + wxTxt : ''), true); }
+    function showAltCard(){ altShow(altTxt + (wxTxt ? '<br>' + wxTxt : ''), 3000); }
     altFetch(lat,lng).then(function(res){
       altTxt = '📍 该点地表海拔 <b>'+Math.round(res.elevation)+' 米</b><br><small>来源 '+res.source+' · '+lat.toFixed(4)+', '+lng.toFixed(4)+'</small>';
       showAltCard();
