@@ -297,7 +297,7 @@
     const infoLine = document.querySelector(".info-line");
     const availH = box.clientHeight - infoLine.offsetHeight - 12;
     const availW = box.clientWidth - 12;
-    const s = Math.max(240, Math.min(availH, availW, 800));
+    const s = Math.max(240, Math.min(availH, availW));
     canvas.width = s;
     canvas.height = s;
     canvas.style.width = s + "px";
