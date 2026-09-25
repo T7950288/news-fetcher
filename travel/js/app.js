@@ -192,6 +192,150 @@
   const routeLayer = L.layerGroup().addTo(map);
   const litLayer = L.layerGroup().addTo(map);
 
+  /* ---------- 海拔：GPS 实测 + 地图点查（多源高程） ---------- */
+  function altTimeout(p, ms){ return Promise.race([p, new Promise(function(_, rej){ setTimeout(function(){ rej(new Error('超时')); }, ms); })]); }
+  async function altFetch(lat, lng){
+    var list = [
+      { n:'Open-Meteo', u:'https://api.open-meteo.com/v1/elevation?latitude='+lat+'&longitude='+lng, k:function(j){ return j.elevation; } },
+      { n:'OpenTopoData', u:'https://api.opentopodata.org/v1/srtm30m?locations='+lat+','+lng, k:function(j){ return j.results && j.results[0] ? j.results[0].elevation : null; } },
+      { n:'Open-Elevation', u:'https://api.open-elevation.com/api/v1/lookup?locations='+lat+','+lng, k:function(j){ return j.results && j.results[0] ? j.results[0].elevation : null; } }
+    ];
+    for(var i=0;i<list.length;i++){
+      try{
+        var r = await altTimeout(fetch(list[i].u), 7000);
+        if(!r.ok) throw new Error('HTTP '+r.status);
+        var j = await r.json();
+        var v = list[i].k(j);
+        if(v===null || v===undefined || isNaN(v)) throw new Error('无数据');
+        return { elevation: v, source: list[i].n };
+      }catch(e){ /* 尝试下一源 */ }
+    }
+    throw new Error('所有高程源均失败');
+  }
+  var altFloat = document.getElementById('altFloat');
+  var altTimer = null;
+  function altShow(html, sticky){
+    if(!altFloat) return;
+    altFloat.style.display = 'block';
+    altFloat.innerHTML = html;
+    if(altTimer) clearTimeout(altTimer);
+    if(sticky === 'live'){ altTimer = null; return; }   /* 持续跟踪：不自动消失 */
+    altTimer = setTimeout(function(){ altFloat.style.display = 'none'; }, sticky ? 8000 : 3500);
+  }
+
+  /* ---------- 天气：Open-Meteo（免 key，国内可达）实时 + 7天 ---------- */
+  var WXICONS = { 0:'☀️ 晴',1:'🌤️ 多云',2:'⛅ 多云',3:'☁️ 阴',45:'🌫️ 雾',48:'🌫️ 雾',51:'🌦️ 毛毛雨',53:'🌦️ 毛毛雨',55:'🌦️ 毛毛雨',61:'🌧️ 小雨',63:'🌧️ 中雨',65:'🌧️ 大雨',66:'🌧️ 冻雨',67:'🌧️ 冻雨',71:'🌨️ 小雪',73:'🌨️ 中雪',75:'❄️ 大雪',77:'❄️ 雪',80:'🌦️ 阵雨',81:'🌧️ 阵雨',82:'🌧️ 强阵雨',85:'🌨️ 阵雪',86:'❄️ 阵雪',95:'⛈️ 雷雨',96:'⛈️ 雷雨',99:'⛈️ 雷雨' };
+  function wxName(c){ return WXICONS[c] || '🌡️'; }
+  function wxFetch(lat, lng){
+    var u = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lng +
+      '&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m' +
+      '&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=7';
+    return altTimeout(fetch(u), 8000).then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); });
+  }
+  function wxToday(w){
+    if(!w || !w.current) return '🌤️ 天气：查询失败';
+    var c = w.current;
+    return '🌤️ 天气：<b>' + wxName(c.weather_code) + ' ' + Math.round(c.temperature_2m) + '°C</b> · 体感' + Math.round(c.apparent_temperature) + '° · 湿度' + (c.relative_humidity_2m||0) + '% · 风' + Math.round(c.wind_speed_10m||0) + 'km/h';
+  }
+  function wxWeek(w){
+    if(!w || !w.daily || !w.daily.time) return '';
+    var dnames = ['周日','周一','周二','周三','周四','周五','周六'];
+    var out = '<div class="wxweek">';
+    for(var i=0;i<w.daily.time.length;i++){
+      var d = new Date(w.daily.time[i] + 'T00:00:00');
+      var day = (i===0) ? '今天' : dnames[d.getDay()];
+      out += '<div class="wxd"><div class="wxd1">' + day + '</div><div class="wxd2">' + wxName(w.daily.weather_code[i]) + '</div><div class="wxd3">' + Math.round(w.daily.temperature_2m_max[i]) + '°/' + Math.round(w.daily.temperature_2m_min[i]) + '°</div></div>';
+    }
+    return out + '</div>';
+  }
+  function wxCardHTML(lat, lng){
+    return '<div class="wx" data-lat="' + lat + '" data-lng="' + lng + '">🌤️ 天气：查询中…</div>' +
+           '<div class="wxweekbox" data-lat="' + lat + '" data-lng="' + lng + '"></div>';
+  }
+
+  /* 点查十字标记 + GPS 定位标记（独立层，不干扰景点标注） */
+  var altPin = L.marker([35.6,105.5], { interactive:false, icon: L.divIcon({ className:'', html:'<div style="width:18px;height:18px;border:3px solid #ffd479;border-radius:50%;background:rgba(18,42,34,.72);box-shadow:0 0 8px rgba(0,0,0,.5)"></div>', iconSize:[18,18], iconAnchor:[9,9] }) }).addTo(map);
+  altPin.setOpacity(0);
+  var gpsPin = L.marker([35.6,105.5], { interactive:false, icon: L.divIcon({ className:'', html:'<div style="width:16px;height:16px;border-radius:50%;background:#13a06f;border:3px solid #fff;box-shadow:0 0 10px rgba(19,160,111,.95)"></div>', iconSize:[16,16], iconAnchor:[8,8] }) }).addTo(map);
+  gpsPin.setOpacity(0);
+  /* 点地图任意位置 → 查该点地表海拔 + 当天天气 */
+  map.on('click', function(e){
+    var lat=e.latlng.lat, lng=e.latlng.lng;
+    altPin.setLatLng([lat,lng]).setOpacity(1);
+    altShow('🗺️ 该点海拔查询中…', false);
+    var altTxt = '📍 海拔查询失败', wxTxt = '';
+    function showAltCard(){ altShow(altTxt + (wxTxt ? '<br>' + wxTxt : ''), true); }
+    altFetch(lat,lng).then(function(res){
+      altTxt = '📍 该点地表海拔 <b>'+Math.round(res.elevation)+' 米</b><br><small>来源 '+res.source+' · '+lat.toFixed(4)+', '+lng.toFixed(4)+'</small>';
+      showAltCard();
+    }).catch(function(){ altTxt = '📍 海拔查询失败（网络或数据源不可达）'; showAltCard(); });
+    wxFetch(lat,lng).then(function(w){ wxTxt = wxToday(w); showAltCard(); }).catch(function(){ /* 天气失败不影响海拔 */ });
+  });
+  /* GPS 实测当前海拔 + 移动速度（持续跟踪：点一下开始、再点停止） */
+  var gpsWatch = null, spdSamples = [], gpsRunning = false;
+  function fmtSpeed(ms){ return (ms==null || isNaN(ms)) ? '—' : (ms*3.6).toFixed(1); }
+  document.getElementById('btnGps').addEventListener('click', function(){
+    var btn = document.getElementById('btnGps');
+    if(gpsRunning){   /* 再点一次 → 停止 */
+      navigator.geolocation.clearWatch(gpsWatch); gpsWatch = null;
+      gpsRunning = false; spdSamples = [];
+      btn.innerHTML = '📡 海拔'; btn.title = 'GPS 测当前海拔与移动速度';
+      altShow('⏹ 已停止定位', true);
+      return;
+    }
+    if(!('geolocation' in navigator)){ altShow('📡 当前浏览器不支持定位', true); return; }
+    gpsRunning = true; spdSamples = [];
+    btn.innerHTML = '⏹ 停止'; btn.title = '点击停止定位';
+    altShow('📡 定位中…请到开阔室外并移动以测速', 'live');
+    gpsWatch = navigator.geolocation.watchPosition(function(pos){
+      var lat = pos.coords.latitude, lng = pos.coords.longitude;
+      var alt = pos.coords.altitude, spd = pos.coords.speed;
+      var acc = pos.coords.accuracy, altAcc = pos.coords.altitudeAccuracy;
+      gpsPin.setLatLng([lat,lng]).setOpacity(1);
+      if(spd != null && !isNaN(spd)){ spdSamples.push(spd); if(spdSamples.length > 200) spdSamples.shift(); }
+      var avg = spdSamples.length ? spdSamples.reduce(function(a,b){return a+b;},0)/spdSamples.length : null;
+      var max = spdSamples.length ? Math.max.apply(null, spdSamples) : null;
+      var altTxt = (alt==null || isNaN(alt)) ? '未获取' : Math.round(alt)+' 米';
+      var speedLine = '时速 <b>'+fmtSpeed(spd)+' 公里/时</b>' +
+        (avg != null ? '<br><small>平均 '+fmtSpeed(avg)+' · 最高 '+fmtSpeed(max)+' 公里/时</small>' : '');
+      var accTxt = '水平±'+(acc ? Math.round(acc)+' 米' : '未知') + (altAcc ? ' · 垂直±'+Math.round(altAcc)+' 米' : '');
+      altShow('📡 海拔 '+altTxt+'<br>'+speedLine+'<br><small>'+accTxt+'</small>', 'live');
+    }, function(err){
+      gpsRunning = false; if(gpsWatch){ navigator.geolocation.clearWatch(gpsWatch); gpsWatch = null; }
+      btn.innerHTML = '📡 海拔'; btn.title = 'GPS 测当前海拔与移动速度';
+      var m = err.code===1 ? '用户拒绝了定位授权' : (err.code===2 ? 'GPS 信号弱，请到室外' : '定位失败');
+      altShow('📡 '+m+'（代码 '+err.code+'）', true);
+    }, { enableHighAccuracy:true, maximumAge:0 });
+  });
+  /* 「点查」按键：提示进入点地图查海拔 */
+  document.getElementById('btnMapAlt').addEventListener('click', function(){
+    altShow('🗺️ 点查：在地图上点任意一个位置，即可显示该点地表海拔', false);
+  });
+  /* 景点弹窗内补充显示该景点海拔 + 天气（今天 + 7天折叠） */
+  map.on('popupopen', function(e){
+    var el = e.popup && e.popup.getElement();
+    if(!el) return;
+    var pals = el.querySelectorAll('.pal');
+    pals.forEach(function(p){
+      var lat=+p.dataset.lat, lng=+p.dataset.lng;
+      if(isNaN(lat) || isNaN(lng)){ p.innerHTML = '🏔️ 海拔：未知'; return; }
+      altFetch(lat,lng).then(function(res){
+        p.innerHTML = '🏔️ 海拔：<b>'+Math.round(res.elevation)+' 米</b> <small>（地表高程）</small>';
+      }).catch(function(){ p.innerHTML = '🏔️ 海拔：查询失败'; });
+    });
+    var wxs = el.querySelectorAll('.wx');
+    wxs.forEach(function(w){
+      var lat=+w.dataset.lat, lng=+w.dataset.lng;
+      wxFetch(lat,lng).then(function(wj){
+        w.innerHTML = wxToday(wj) + ' <span class="wxmore">[7天▾]</span>';
+        var box = w.parentElement.querySelector('.wxweekbox');
+        if(box){ box.innerHTML = wxWeek(wj); box.style.display = 'none'; }
+        w.onclick = function(ev){ if(box){ ev.stopPropagation(); box.style.display = (box.style.display === 'block') ? 'none' : 'block'; } };
+      }).catch(function(){ w.innerHTML = '🌤️ 天气：查询失败'; });
+    });
+  });
+
+
   function shortProv(n) {
     return n.replace('壮族自治区', '').replace('回族自治区', '').replace('维吾尔自治区', '').replace(/省|市|自治区|特别行政区/g, '');
   }
@@ -424,6 +568,8 @@
       <div class="pinfo">📍 ${s.province} · ${Footprint.normCity(s.city)}<br>🎫 ${ticketTxt(s)}　🕘 ${s.open || ''}<br>⏱ 建议游玩 ${s.dur || 3} 小时　⭐ ${s.rating || 4.5}</div>
       <div class="pintro">${s.intro || ''}</div>
       <div class="ptags">${(s.tags || []).map(t => `<span>${t}</span>`).join('')}</div>
+      <div class="pal" data-lat="${s.lat}" data-lng="${s.lng}">🏔️ 海拔：查询中…</div>
+      ${wxCardHTML(s.lat, s.lng)}
       <div class="pbtns">
         <button class="go" data-act="goplan" data-city="${Footprint.normCity(s.city)}">规划此城行程</button>
         <button class="done" data-act="done" data-id="${s.id}">${done ? '取消去过' : '标记去过(' + active.name + ')'}</button>
@@ -967,25 +1113,9 @@
     }
   });
 
-  /* ---------- 全屏 / 面板 / 复位 ---------- */
-  document.getElementById('btnFull').addEventListener('click', () => {
-    const wrap = document.getElementById('mapWrap');
-    if (!document.fullscreenElement) {
-      (wrap.requestFullscreen || wrap.webkitRequestFullscreen).call(wrap);
-    } else document.exitFullscreen();
-  });
-  document.addEventListener('fullscreenchange', () => {
-    const on = !!document.fullscreenElement;
-    document.getElementById('mapWrap').classList.toggle('fullscreen', on);
-    document.body.classList.toggle('fs', on);
-    setTimeout(() => map.invalidateSize(), 100);
-  });
+  /* ---------- 面板 / 复位 ---------- */
   document.getElementById('panelToggle').addEventListener('click', () => {
     document.getElementById('panel').classList.toggle('open');
-  });
-  document.getElementById('btnLocate').addEventListener('click', () => {
-    map.flyTo([35.6, 105.5], 4, { duration: .7 });
-    routeLayer.clearLayers(); document.getElementById('mapLegend').classList.remove('show');
   });
   window.addEventListener('resize', () => map.invalidateSize());
 
