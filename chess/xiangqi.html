@@ -446,6 +446,31 @@
   /* 初始：自动开始一局，方便直接玩 */
   resizeCanvas();
   newGame();
+
+  /* 自动走子自测（仅 ?autotest=1 触发；正常访问不执行） */
+  if (location.search.indexOf("autotest") >= 0) {
+    setTimeout(function () {
+      try {
+        var log = [];
+        var rect = canvas.getBoundingClientRect();
+        function clickAt(r, c) {
+          var x = rect.left + (c + 0.5) / 9 * rect.width;
+          var y = rect.top + (r + 0.5) / 10 * rect.height;
+          canvas.dispatchEvent(new MouseEvent("click", { clientX: x, clientY: y, bubbles: true }));
+        }
+        clickAt(9, 1);
+        log.push("选马=" + (selected ? selected.r + "," + selected.c : "空"));
+        clickAt(7, 2);
+        log.push("步数=" + moveCount + "|马在=" + (board[7][2] === 4 ? "7,2" : board[7][2]) + "|原位=" + board[9][1]);
+        setTimeout(function () {
+          log.push("AI后步数=" + moveCount + "|轮到=" + (moveHistory.length ? (moveHistory[moveHistory.length - 1].side === playerSide ? "玩家" : "AI") : "?"));
+          document.title = "AUTOTEST:" + log.join(" | ");
+        }, 7000);
+      } catch (e) {
+        document.title = "AUTOTEST_ERR:" + e.message;
+      }
+    }, 800);
+  }
 })();
 </script>
 </body>
