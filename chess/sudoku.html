@@ -117,17 +117,14 @@
       for (var c = 0; c < 9; c++) row.push(0);
       solved.push(row);
     }
-    // 直接按行填入随机排列并验证，失败重试（用 3x3 偏移模板保证合法）
+    // 标准拉丁方模板：shift = 3*(r%3) + floor(r/3)，保证行/列/宫均不重复
     var pattern = shuffle([0, 1, 2, 3, 4, 5, 6, 7, 8]);
     var b = [];
     for (r = 0; r < 9; r++) {
       row = [];
-      var off = [0, 3, 6][Math.floor(r / 3)];
-      var p = pattern.slice();
-      var baseIdx = r % 3;
+      var shift = (3 * (r % 3) + Math.floor(r / 3)) % 9;
       for (var c = 0; c < 9; c++) {
-        var idx = (off + c + baseIdx * 3) % 9;
-        row.push(p[idx] + 1);
+        row.push(pattern[(c + shift) % 9] + 1);
       }
       b.push(row);
     }
