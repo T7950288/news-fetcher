@@ -327,10 +327,8 @@
       altShow('📡 '+m+'（代码 '+err.code+'）', true);
     }, { enableHighAccuracy:true, maximumAge:0 });
   });
-  /* 「点查」按键：提示进入点地图查海拔 */
-  document.getElementById('btnMapAlt').addEventListener('click', function(){
-    altShow('🗺️ 点查：在地图上点任意一个位置，即可显示该点地表海拔', false);
-  });
+  /* 「点查」按键已移除：点地图任意位置即可查该点海拔 + 天气（引导提示） */
+  setTimeout(function(){ altShow('💡 点地图任意位置查看海拔+天气 · 顶部 📡 测当前位置海拔', false); }, 2600);
   /* 景点弹窗内补充显示该景点海拔 + 天气（今天 + 7天折叠） */
   map.on('popupopen', function(e){
     var el = e.popup && e.popup.getElement();
