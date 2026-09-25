@@ -591,7 +591,7 @@
       showHint("已读取文件夹："+dir.name+"（"+files.length+" 个音乐/视频文件）");
     });
   }
-  var isMobile = window.matchMedia('(max-width:768px)').matches;
+  var isMobile = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
   document.getElementById("pickFolderBtn").addEventListener("click", function(){
     if(isMobile){
       setErr("手机端请用「选择文件」播放本地音乐/视频。");
