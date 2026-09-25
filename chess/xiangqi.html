@@ -394,22 +394,27 @@
       render();
       return;
     }
-    if (p !== 0 && Math.sign(p) === aiSide) {
-      flashMsg("这是对方的棋子，你执" + (playerSide === 1 ? "红" : "黑"));
-      return;
-    }
     if (selected) {
-      /* 尝试走棋 */
+      /* 已有选中：先尝试走子（含吃子） */
       const legal = XQ.genLegalMoves(board, playerSide).filter(function (m) {
         return m.fr === selected.r && m.fc === selected.c && m.tr === r && m.tc === c;
       });
       if (legal.length) {
         applyMove(legal[0], playerSide);
+        return;
+      }
+      if (p !== 0 && Math.sign(p) === aiSide) {
+        flashMsg("这是对方的棋子，不在你选中棋子的走法内，吃不了");
       } else {
         flashMsg("该位置不可走（先点选棋子，再点蓝色/红色圆点）");
-        selected = null;
-        render();
       }
+      selected = null;
+      render();
+      return;
+    }
+    if (p !== 0 && Math.sign(p) === aiSide) {
+      flashMsg("这是对方的棋子，你执" + (playerSide === 1 ? "红" : "黑"));
+      return;
     }
   });
 
@@ -492,6 +497,35 @@
         }, 7000);
       } catch (e) {
         document.title = "AUTOTEST_ERR:" + e.message;
+      }
+    }, 800);
+  }
+
+  /* 炮吃子交互自测（仅 ?paotest=1 触发；正常访问不执行） */
+  if (location.search.indexOf("paotest") >= 0) {
+    setTimeout(function () {
+      try {
+        /* 构造局面：红炮(7,1) 隔己方红兵(5,1) 吃黑炮(3,1) */
+        board[5][1] = 7;
+        board[2][1] = 0;
+        board[3][1] = -6;
+        render();
+        var rect = canvas.getBoundingClientRect();
+        function clickAt(r, c) {
+          var x = rect.left + (c + 0.5) / 9 * rect.width;
+          var y = rect.top + (r + 0.5) / 10 * rect.height;
+          canvas.dispatchEvent(new MouseEvent("click", { clientX: x, clientY: y, bubbles: true }));
+        }
+        clickAt(7, 1);
+        var log = ["选炮=" + (selected ? selected.r + "," + selected.c : "空")];
+        var mv = XQ.genLegalMoves(board, playerSide).filter(function (m) { return m.fr === 7 && m.fc === 1; });
+        log.push("炮走法数=" + mv.length);
+        log.push("含吃(3,1)=" + (mv.some(function (m) { return m.tr === 3 && m.tc === 1; }) ? "是" : "否"));
+        clickAt(3, 1);
+        log.push("步数=" + moveCount + "|(3,1)=" + board[3][1] + "|炮原位=" + board[7][1]);
+        document.title = "PAOTEST:" + log.join(" | ");
+      } catch (e) {
+        document.title = "PAOTEST_ERR:" + e.message;
       }
     }, 800);
   }
