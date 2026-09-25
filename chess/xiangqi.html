@@ -534,6 +534,34 @@
       }
     }, 800);
   }
+
+  /* 炮打对方中兵专项自测（仅 ?paotest2=1 触发；正常访问不执行） */
+  if (location.search.indexOf("paotest2") >= 0) {
+    setTimeout(function () {
+      try {
+        /* 局面：红炮(7,4) 中路，隔红兵(6,4) 吃黑卒(3,4)（对方中兵） */
+        board[7][1] = 0;
+        board[7][4] = 6;
+        render();
+        var rect2 = canvas.getBoundingClientRect();
+        function clickAt2(r, c) {
+          var x = rect2.left + (c + 0.5) / 9 * rect2.width;
+          var y = rect2.top + (r + 0.5) / 10 * rect2.height;
+          canvas.dispatchEvent(new MouseEvent("click", { clientX: x, clientY: y, bubbles: true }));
+        }
+        clickAt2(7, 4);
+        var log2 = ["选炮=" + (selected ? selected.r + "," + selected.c : "空")];
+        var mv2 = XQ.genLegalMoves(board, playerSide).filter(function (m) { return m.fr === 7 && m.fc === 4; });
+        log2.push("炮走法数=" + mv2.length);
+        log2.push("含吃(3,4)=" + (mv2.some(function (m) { return m.tr === 3 && m.tc === 4; }) ? "是" : "否"));
+        clickAt2(3, 4);
+        log2.push("步数=" + moveCount + "|(3,4)=" + board[3][4] + "|炮原位=" + board[7][4]);
+        document.title = "PAOTEST2:" + log2.join(" | ");
+      } catch (e) {
+        document.title = "PAOTEST2_ERR:" + e.message;
+      }
+    }, 800);
+  }
 })();
 </script>
 </body>
