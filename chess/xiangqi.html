@@ -404,7 +404,12 @@
         return;
       }
       if (p !== 0 && Math.sign(p) === aiSide) {
-        flashMsg("这是对方的棋子，不在你选中棋子的走法内，吃不了");
+        const sp = selected ? Math.abs(board[selected.r][selected.c]) : 0;
+        if (sp === 6) {
+          flashMsg("炮吃不了这里：炮吃子必须隔一个子当炮架，且目标在直线方向（不能隔两个子、不能吃相邻子）");
+        } else {
+          flashMsg("该目标不在你选中棋子的走法内，吃不了");
+        }
       } else {
         flashMsg("该位置不可走（先点选棋子，再点蓝色/红色圆点）");
       }
