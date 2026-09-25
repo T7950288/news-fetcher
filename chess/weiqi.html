@@ -8,28 +8,25 @@
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231a3a6c'/%3E%3Ctext x='32' y='44' font-size='32' text-anchor='middle' fill='white'%3E棋%3C/text%3E%3C/svg%3E">
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; }
   body { font-family:-apple-system,"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif;
-         background:#f5f6f8; color:#1a1a1a; line-height:1.5; }
-  header { background:#1a3a6c; color:#fff; padding:10px 16px; position:sticky; top:0; z-index:50;
-           box-shadow:0 2px 8px rgba(0,0,0,.15); }
-  .header-inner { max-width:1000px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; }
-  .logo { font-size:19px; font-weight:700; letter-spacing:1px; }
-  .header-inner a { color:#fff; font-size:13px; text-decoration:none; }
-  .wrap { max-width:1000px; margin:14px auto 40px; padding:0 14px; display:flex; gap:16px; align-items:flex-start; }
-  .board-box { flex:1; min-width:0; background:#fff; border-radius:12px; padding:14px;
-               box-shadow:0 1px 4px rgba(0,0,0,.08); }
-  #board { display:block; width:100%; height:auto; touch-action:manipulation; cursor:pointer; }
-  .info-line { display:flex; justify-content:space-between; align-items:center; margin-top:10px; gap:8px; flex-wrap:wrap; }
+         background:#f5f6f8; color:#1a1a1a; line-height:1.5; height:100dvh; overflow:hidden; }
+  .wrap { height:100dvh; padding:10px 14px; display:flex; gap:14px; align-items:stretch; }
+  .board-box { flex:1; min-width:0; background:#fff; border-radius:12px; padding:8px;
+               box-shadow:0 1px 4px rgba(0,0,0,.08);
+               display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; }
+  #board { display:block; touch-action:manipulation; cursor:pointer; }
+  .info-line { display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; width:100%; }
   .turn-badge { font-size:14px; font-weight:700; color:#1a3a6c; background:#e8f0fe; padding:4px 12px; border-radius:14px; }
   .turn-badge.ai { color:#a50e0e; background:#fce8e6; }
   .small { font-size:12px; color:#888; }
-  .panel { width:280px; flex:none; display:flex; flex-direction:column; gap:12px; }
-  .group { background:#fff; border-radius:12px; padding:14px; box-shadow:0 1px 4px rgba(0,0,0,.08); }
-  .group h3 { font-size:13px; font-weight:700; color:#1a3a6c; margin-bottom:10px; }
-  .row { display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:13px; }
+  .panel { width:280px; flex:none; display:flex; flex-direction:column; gap:10px; justify-content:center; }
+  .group { background:#fff; border-radius:12px; padding:12px 14px; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+  .group h3 { font-size:13px; font-weight:700; color:#1a3a6c; margin-bottom:8px; }
+  .row { display:flex; align-items:center; gap:8px; margin-bottom:7px; font-size:13px; }
   .row label { flex:none; width:64px; color:#444; }
   .row select, .row input { flex:1; padding:5px 8px; border:1px solid #ccc; border-radius:6px; font-size:13px; background:#fff; }
-  .btn { border:none; border-radius:8px; padding:9px 0; font-size:14px; font-weight:600; cursor:pointer; width:100%; }
+  .btn { border:none; border-radius:8px; padding:8px 0; font-size:14px; font-weight:600; cursor:pointer; width:100%; }
   .btn:active { transform:scale(.97); }
   .btn-start { background:#4CAF50; color:#fff; }
   .btn-pass { background:#f1f3f4; color:#333; }
@@ -42,21 +39,18 @@
   .stats { font-size:13px; color:#333; }
   .stats div { margin-bottom:4px; }
   .result { color:#d32f2f; font-weight:700; font-size:13px; margin-top:6px; }
-  .ai-note { font-size:11px; color:#888; margin-top:8px; line-height:1.5; }
+  .ai-note { font-size:11px; color:#888; margin-top:6px; line-height:1.5; }
   @media (max-width:760px){
-    .wrap { flex-direction:column; padding:0 10px; margin-top:10px; }
-    .panel { width:100%; }
-    .board-box { padding:8px; }
+    .wrap { flex-direction:column; padding:6px 10px; gap:8px; }
+    .board-box { padding:6px; gap:5px; }
+    .panel { width:100%; overflow-y:auto; }
+    .group { padding:10px 12px; }
+    .group h3 { margin-bottom:6px; }
+    .row { margin-bottom:5px; }
   }
 </style>
 </head>
 <body>
-<header>
-  <div class="header-inner">
-    <div class="logo">围棋 · 人机对弈</div>
-    <a href="./">返回棋类</a>
-  </div>
-</header>
 <div class="wrap">
   <div class="board-box">
     <canvas id="board"></canvas>
@@ -82,8 +76,9 @@
         <select id="selColor"><option>黑棋（先手）</option><option>白棋（后手）</option></select></div>
       <div class="row"><label>AI难度</label>
         <select id="selDiff">
-          <option>入门</option><option>初级</option><option>中级</option>
-          <option selected>高级</option><option>职业</option><option>最强</option>
+          <option>简单</option>
+          <option selected>中等</option>
+          <option>困难</option>
         </select></div>
       <button class="btn btn-start" id="btnStart">开始新游戏</button>
     </div>
@@ -108,7 +103,7 @@
         <div>提子：黑0 / 白0</div>
       </div>
     </div>
-    <div class="ai-note">AI 在浏览器本地思考，思考时长随难度升高而增加。棋盘越大、难度越高，等待越久，请耐心。</div>
+    <div class="ai-note">难度说明：简单约 5 秒/步，中等约 20 秒/步，困难约 1 分钟/步（越强想得越久，请耐心等待）。</div>
   </div>
 </div>
 
@@ -124,7 +119,7 @@
   let size = 19, komi = 7.5;
   let playerColor = 1;         // 1黑 2白
   let aiColor = 2;
-  let difficulty = "高级";
+  let difficulty = "中等";
   let playing = false;
   let aiThinking = false;
   let countMode = false;
@@ -298,9 +293,15 @@
   /* ---------- 绘制 ---------- */
   let cell = 0, pad = 0;
   function resizeCanvas() {
-    const w = canvas.parentElement.clientWidth - 4;
-    canvas.width = Math.max(280, Math.min(720, w));
-    canvas.height = canvas.width;
+    const box = canvas.parentElement;
+    const infoLine = document.querySelector(".info-line");
+    const availH = box.clientHeight - infoLine.offsetHeight - 12;
+    const availW = box.clientWidth - 12;
+    const s = Math.max(240, Math.min(availH, availW, 800));
+    canvas.width = s;
+    canvas.height = s;
+    canvas.style.width = s + "px";
+    canvas.style.height = s + "px";
     cell = canvas.width / (size + 1);   // 两侧各留一格边距，确保 19 条线全部落在画布内
     pad = cell;
     render();
