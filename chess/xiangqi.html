@@ -1,0 +1,452 @@
+<!-- v1-trigger -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>象棋 · 人机对弈</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231a3a6c'/%3E%3Ctext x='32' y='44' font-size='32' text-anchor='middle' fill='white'%3E棋%3C/text%3E%3C/svg%3E">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; }
+  body { font-family:-apple-system,"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif;
+         background:#f5f6f8; color:#1a1a1a; line-height:1.5; height:100dvh; overflow:hidden; }
+  .wrap { height:100dvh; padding:10px 14px; display:flex; gap:14px; align-items:stretch; }
+  .board-box { flex:1; min-width:0; background:#fff; border-radius:12px; padding:8px;
+               box-shadow:0 1px 4px rgba(0,0,0,.08);
+               display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; }
+  #board { display:block; touch-action:manipulation; cursor:pointer; }
+  .info-line { display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; width:100%; }
+  .turn-badge { font-size:14px; font-weight:700; color:#1a3a6c; background:#e8f0fe; padding:4px 12px; border-radius:14px; }
+  .turn-badge.ai { color:#a50e0e; background:#fce8e6; }
+  .small { font-size:12px; color:#888; }
+  .panel { width:280px; flex:none; display:flex; flex-direction:column; gap:10px; justify-content:center; }
+  .group { background:#fff; border-radius:12px; padding:12px 14px; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+  .group h3 { font-size:13px; font-weight:700; color:#1a3a6c; margin-bottom:8px; }
+  .row { display:flex; align-items:center; gap:8px; margin-bottom:7px; font-size:13px; }
+  .row label { flex:none; width:64px; color:#444; }
+  .row select { flex:1; padding:5px 8px; border:1px solid #ccc; border-radius:6px; font-size:13px; background:#fff; }
+  .btn { border:none; border-radius:8px; padding:8px 0; font-size:14px; font-weight:600; cursor:pointer; width:100%; }
+  .btn:active { transform:scale(.97); }
+  .btn-start { background:#4CAF50; color:#fff; }
+  .btn-undo { background:#f1f3f4; color:#333; }
+  .btn-resign { background:#f44336; color:#fff; }
+  .btn:disabled { opacity:.45; cursor:wait; }
+  .op-row { display:flex; gap:8px; }
+  .op-row .btn { flex:1; }
+  .stats { font-size:13px; color:#333; }
+  .stats div { margin-bottom:4px; }
+  .result { color:#d32f2f; font-weight:700; font-size:13px; margin-top:6px; }
+  .ai-note { font-size:11px; color:#888; margin-top:6px; line-height:1.5; }
+  @media (max-width:760px){
+    .wrap { flex-direction:column; padding:6px 10px; gap:8px; }
+    .board-box { padding:6px; gap:5px; }
+    .panel { width:100%; overflow-y:auto; }
+    .group { padding:10px 12px; }
+    .group h3 { margin-bottom:6px; }
+    .row { margin-bottom:5px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="board-box">
+    <canvas id="board"></canvas>
+    <div class="info-line">
+      <span class="turn-badge" id="turnBadge">准备开始</span>
+      <span class="small" id="moveInfo">步数 0</span>
+      <span class="small" id="captureInfo">吃子 红0 / 黑0</span>
+    </div>
+    <div class="result" id="resultBox"></div>
+  </div>
+
+  <div class="panel">
+    <div class="group">
+      <h3>游戏设置</h3>
+      <div class="row"><label>棋盘</label><span style="flex:1;color:#333;">标准 9×10（楚河汉界）</span></div>
+      <div class="row"><label>你执</label>
+        <select id="selColor"><option>红棋（先行）</option><option>黑棋（后行）</option></select></div>
+      <div class="row"><label>AI难度</label>
+        <select id="selDiff">
+          <option>简单</option>
+          <option selected>中等</option>
+          <option>困难</option>
+        </select></div>
+      <button class="btn btn-start" id="btnStart">开始新游戏</button>
+    </div>
+
+    <div class="group">
+      <h3>游戏操作</h3>
+      <div class="op-row">
+        <button class="btn btn-undo" id="btnUndo">悔棋</button>
+        <button class="btn btn-resign" id="btnResign">认输</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <h3>对局信息</h3>
+      <div class="stats" id="statsBox">
+        <div>当前：未开始</div>
+        <div>步数：0</div>
+        <div>吃子：红0 / 黑0</div>
+      </div>
+    </div>
+    <div class="ai-note">难度说明：简单约 1 秒/步，中等约 3 秒/步，困难约 8 秒/步（深度 6 全盘推演，越强想得越久，请耐心等待）。</div>
+  </div>
+</div>
+
+<script src="xiangqi_engine.js"></script>
+<script>
+(function () {
+  "use strict";
+  const canvas = document.getElementById("board");
+  const ctx = canvas.getContext("2d");
+
+  /* ---------- 状态 ---------- */
+  let board = null;            // 引擎棋盘
+  let playerSide = 1;          // 1红 -1黑
+  let aiSide = -1;
+  let difficulty = "中等";
+  let playing = false;
+  let aiThinking = false;
+  let selected = null;         // 选中的己方棋子 {r,c}
+  let moveCount = 0;
+  const moveHistory = [];      // [{mv, side}]
+
+  const DIFF_CFG = {
+    "简单": { depth: 2, timeMs: 600 },
+    "中等": { depth: 4, timeMs: 2500 },
+    "困难": { depth: 6, timeMs: 8000 }
+  };
+  const PIECE_NAME = { 1: "帅", 2: "仕", 3: "相", 4: "马", 5: "车", 6: "炮", 7: "兵",
+                      "-1": "将", "-2": "士", "-3": "象", "-4": "马", "-5": "车", "-6": "炮", "-7": "卒" };
+
+  /* ---------- Web Worker AI ---------- */
+  let worker = null;
+  let moveId = 0;
+  function ensureWorker() {
+    if (worker) return;
+    try {
+      worker = new Worker("xiangqi_engine.js");
+      worker.onmessage = onWorkerMsg;
+    } catch (e) {
+      worker = null;
+      console.warn("Worker 不可用，将降级为主线程计算（页面可能短暂卡顿）");
+    }
+  }
+  function requestAIMove() {
+    aiThinking = true;
+    updateUI();
+    render();
+    const msg = { type: "genmove", id: ++moveId, board: board, side: aiSide, cfg: DIFF_CFG[difficulty] };
+    if (worker) {
+      worker.postMessage(msg);
+    } else {
+      setTimeout(function () {
+        const res = XQ.search(msg.board, msg.side, msg.cfg);
+        onAIMove(res);
+      }, 30);
+    }
+  }
+  function onWorkerMsg(e) {
+    const msg = e.data;
+    if (msg && msg.type === "move" && msg.id === moveId) {
+      onAIMove({ mv: msg.mv, score: msg.score, mate: msg.mate });
+    }
+  }
+  function onAIMove(res) {
+    aiThinking = false;
+    if (!playing) { updateUI(); render(); return; }
+    if (res && res.mv) {
+      applyMove(res.mv, aiSide);
+    } else {
+      /* AI 无合法走法 */
+      finishByStalemate(aiSide);
+    }
+  }
+
+  /* ---------- 对局流程 ---------- */
+  function newGame() {
+    playerSide = document.getElementById("selColor").value.indexOf("红") === 0 ? 1 : -1;
+    aiSide = -playerSide;
+    difficulty = document.getElementById("selDiff").value;
+    board = XQ.initialBoard();
+    playing = true;
+    selected = null;
+    moveCount = 0;
+    moveHistory.length = 0;
+    document.getElementById("resultBox").textContent = "";
+    ensureWorker();
+    resizeCanvas();
+    updateUI();
+    if (playerSide === -1) requestAIMove();   // 执黑：AI 执红先行
+  }
+
+  function applyMove(mv, side) {
+    if (!board || !playing) return;
+    board = XQ.apply(board, mv);
+    moveHistory.push({ mv: mv, side: side });
+    moveCount++;
+    selected = null;
+    render();
+    /* 将军提示 */
+    if (XQ.inCheck(board, -side)) {
+      document.getElementById("resultBox").textContent = "将军！";
+    } else {
+      if (moveCount > 0 && moveHistory[moveHistory.length - 1].side === side) {
+        const last = moveHistory[moveHistory.length - 1];
+        if (XQ.inCheck(board, side)) { /* 刚被将军已有提示 */ }
+      }
+    }
+    /* 检查对局是否结束 */
+    if (!XQ.genLegalMoves(board, -side).length) {
+      finishGame(-side);
+      return;
+    }
+    updateUI();
+    if (side === playerSide && playing) {
+      requestAIMove();   // 玩家刚走，AI 应手
+    }
+  }
+
+  function finishGame(loserSide) {
+    playing = false;
+    const loserName = loserSide === 1 ? "红方" : "黑方";
+    const winnerName = loserSide === 1 ? "黑方" : "红方";
+    const youWin = loserSide === aiSide;
+    document.getElementById("resultBox").textContent =
+      (youWin ? "你赢了！" : "你输了。") + "（" + loserName + "无棋可走，" + winnerName + "胜）";
+    updateUI();
+  }
+
+  function finishByStalemate(side) {
+    finishGame(side);
+  }
+
+  function undoMove() {
+    if (!playing && !moveHistory.length) return;
+    if (aiThinking) return;
+    let removed = 0;
+    /* 撤掉最近两手：AI 的一手 + 玩家的一手（若轮到玩家下则只撤玩家） */
+    while (moveHistory.length && removed < 2) {
+      const last = moveHistory.pop();
+      board = XQ.apply(board, { fr: last.mv.tr, fc: last.mv.tc, tr: last.mv.fr, tc: last.mv.fc });
+      moveCount--;
+      removed++;
+      if (last.side === playerSide) break;
+    }
+    if (removed) {
+      selected = null;
+      document.getElementById("resultBox").textContent = "";
+      render();
+      updateUI();
+    }
+  }
+
+  function resign() {
+    if (!playing) return;
+    if (!confirm("确定要认输吗？")) return;
+    playing = false;
+    const who = playerSide === 1 ? "黑方" : "红方";
+    document.getElementById("resultBox").textContent = "你认输了，" + who + "胜";
+    updateUI();
+  }
+
+  /* ---------- 绘制 ---------- */
+  let cell = 0;
+  function resizeCanvas() {
+    const box = canvas.parentElement;
+    const infoLine = document.querySelector(".info-line");
+    const availH = box.clientHeight - infoLine.offsetHeight - 12;
+    const availW = box.clientWidth - 12;
+    const s = Math.max(240, Math.min(availH, availW / 0.9, 900));
+    canvas.height = s;
+    canvas.width = Math.round(s * 0.9);
+    canvas.style.height = s + "px";
+    canvas.style.width = Math.round(s * 0.9) + "px";
+    cell = canvas.height / 10;
+    render();
+  }
+  function X(c) { return cell * (c + 0.5); }
+  function Y(r) { return cell * (r + 0.5); }
+
+  function render() {
+    if (!board) return;
+    const W = canvas.width, H = canvas.height, S = cell;
+    /* 棋盘底 */
+    ctx.fillStyle = "#e3b678";
+    ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = "#5a4632";
+    ctx.lineWidth = 1;
+    /* 横线（10 条） */
+    ctx.beginPath();
+    for (let r = 0; r < 10; r++) {
+      ctx.moveTo(X(0), Y(r)); ctx.lineTo(X(8), Y(r));
+    }
+    /* 竖线（9 条，河界断开：上段 r0-4、下段 r5-9） */
+    for (let c = 0; c < 9; c++) {
+      ctx.moveTo(X(c), Y(0)); ctx.lineTo(X(c), Y(4));
+      ctx.moveTo(X(c), Y(5)); ctx.lineTo(X(c), Y(9));
+    }
+    ctx.stroke();
+    /* 九宫斜线 */
+    ctx.beginPath();
+    ctx.moveTo(X(3), Y(7)); ctx.lineTo(X(5), Y(9));   /* 红九宫 */
+    ctx.moveTo(X(5), Y(7)); ctx.lineTo(X(3), Y(9));
+    ctx.moveTo(X(3), Y(0)); ctx.lineTo(X(5), Y(2));   /* 黑九宫 */
+    ctx.moveTo(X(5), Y(0)); ctx.lineTo(X(3), Y(2));
+    ctx.stroke();
+    /* 兵/炮位标记 */
+    ctx.lineWidth = 1.4;
+    const marks = [[6,0],[6,2],[6,4],[6,6],[6,8],[7,1],[7,7],[3,0],[3,2],[3,4],[3,6],[3,8],[2,1],[2,7]];
+    for (let i = 0; i < marks.length; i++) {
+      const m = marks[i], x = X(m[1]), y = Y(m[0]), d = S * 0.14;
+      ctx.beginPath();
+      ctx.moveTo(x - d, y); ctx.lineTo(x + d, y);
+      ctx.moveTo(x, y - d); ctx.lineTo(x, y + d);
+      ctx.stroke();
+    }
+    ctx.lineWidth = 1;
+    /* 楚河 汉界 */
+    ctx.fillStyle = "#5a4632";
+    ctx.font = "bold " + Math.round(S * 0.42) + "px \"KaiTi\",\"STKaiti\",\"Microsoft YaHei\",serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("楚  河", X(1.8), Y(4.5));
+    ctx.fillText("汉  界", X(7.2), Y(4.5));
+    /* 棋子 */
+    for (let r = 0; r < 10; r++) {
+      for (let c = 0; c < 9; c++) {
+        const p = board[r][c];
+        if (p === 0) continue;
+        const x = X(c), y = Y(r), R = S * 0.42;
+        /* 棋子底 */
+        const grad = ctx.createRadialGradient(x - R * 0.25, y - R * 0.25, R * 0.15, x, y, R);
+        grad.addColorStop(0, "#fff8e1"); grad.addColorStop(1, "#e2c98f");
+        ctx.beginPath();
+        ctx.arc(x, y, R, 0, Math.PI * 2);
+        ctx.fillStyle = grad;
+        ctx.fill();
+        ctx.strokeStyle = "#8a6d3b";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        /* 文字 */
+        const isRed = p > 0;
+        ctx.fillStyle = isRed ? "#c62828" : "#212121";
+        ctx.font = "bold " + Math.round(S * 0.52) + "px \"KaiTi\",\"STKaiti\",\"Microsoft YaHei\",serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(PIECE_NAME[p], x, y + 1);
+      }
+    }
+    /* 选中高亮 + 可走点 */
+    if (selected && playing && !aiThinking) {
+      const x = X(selected.c), y = Y(selected.r);
+      ctx.strokeStyle = "#1565C0";
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(x, y, S * 0.46, 0, Math.PI * 2);
+      ctx.stroke();
+      const moves = XQ.genLegalMoves(board, playerSide).filter(function (m) {
+        return m.fr === selected.r && m.fc === selected.c;
+      });
+      for (let i = 0; i < moves.length; i++) {
+        const m = moves[i];
+        ctx.fillStyle = board[m.tr][m.tc] !== 0 ? "#e53935" : "#1565C0";
+        ctx.beginPath();
+        ctx.arc(X(m.tc), Y(m.tr), m.cap ? S * 0.2 : S * 0.1, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.lineWidth = 1;
+    }
+    /* 最后一手标记 */
+    if (moveHistory.length) {
+      const last = moveHistory[moveHistory.length - 1].mv;
+      ctx.fillStyle = "rgba(21,101,192,.55)";
+      ctx.beginPath();
+      ctx.arc(X(last.tc), Y(last.tr), Math.max(3, S * 0.08), 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  /* ---------- 交互 ---------- */
+  canvas.addEventListener("click", function (e) {
+    if (!playing || aiThinking) return;
+    const rect = canvas.getBoundingClientRect();
+    const c = Math.round((e.clientX - rect.left) / rect.width * 9 - 0.5);
+    const r = Math.round((e.clientY - rect.top) / rect.height * 10 - 0.5);
+    if (r < 0 || r >= 10 || c < 0 || c >= 9) return;
+    const p = board[r][c];
+    if (p !== 0 && Math.sign(p) === playerSide) {
+      /* 选己方棋子 */
+      selected = { r: r, c: c };
+      render();
+      return;
+    }
+    if (selected) {
+      /* 尝试走棋 */
+      const legal = XQ.genLegalMoves(board, playerSide).filter(function (m) {
+        return m.fr === selected.r && m.fc === selected.c && m.tr === r && m.tc === c;
+      });
+      if (legal.length) {
+        applyMove(legal[0], playerSide);
+      } else {
+        selected = null;
+        render();
+      }
+    }
+  });
+
+  /* ---------- UI 更新 ---------- */
+  function captureCount(side) {
+    /* 红方被黑吃掉的子数（黑已不在盘上的黑子+被吃）——用初始-当前 */
+    let cnt = 0;
+    const init = { 1: 1, 2: 2, 3: 2, 4: 2, 5: 2, 6: 2, 7: 5 };
+    const now = {};
+    for (let r = 0; r < 10; r++) for (let c = 0; c < 9; c++) {
+      const p = board[r][c];
+      if (p !== 0) now[Math.abs(p)] = (now[Math.abs(p)] || 0) + 1;
+    }
+    if (side === 1) { /* 红被吃 = 黑吃的 */
+      for (const k in init) cnt += init[k] - (now[k] || 0);
+    }
+    return Math.max(0, cnt);
+  }
+
+  function updateUI() {
+    const badge = document.getElementById("turnBadge");
+    const stats = document.getElementById("statsBox");
+    const redEaten = captureCount(1), blackEaten = captureCount(-1);
+    if (!playing) {
+      badge.textContent = "未开始 / 已结束";
+      badge.className = "turn-badge";
+      stats.innerHTML = "<div>当前：未开始</div><div>步数：" + moveCount + "</div><div>吃子：红" + blackEaten + " / 黑" + redEaten + "</div>";
+    } else if (aiThinking) {
+      badge.textContent = "AI 思考中…";
+      badge.className = "turn-badge ai";
+      stats.innerHTML = "<div>当前：AI 思考中…</div><div>步数：" + moveCount + "</div><div>吃子：红" + blackEaten + " / 黑" + redEaten + "</div>";
+    } else {
+      const turn = moveHistory.length ? -moveHistory[moveHistory.length - 1].side : 1;
+      const isPlayer = turn === playerSide;
+      badge.textContent = (turn === 1 ? "红方" : "黑方") + "行棋" + (isPlayer ? "（你）" : "（AI）");
+      badge.className = isPlayer ? "turn-badge" : "turn-badge ai";
+      stats.innerHTML = "<div>当前：" + (turn === 1 ? "红方" : "黑方") + (isPlayer ? "（你）" : "（AI）") + "</div>" +
+        "<div>步数：" + moveCount + "</div><div>吃子：红" + blackEaten + " / 黑" + redEaten + "</div>";
+    }
+    document.getElementById("moveInfo").textContent = "步数 " + moveCount;
+    document.getElementById("captureInfo").textContent = "吃子 红" + blackEaten + " / 黑" + redEaten;
+  }
+
+  /* ---------- 绑定 ---------- */
+  document.getElementById("btnStart").addEventListener("click", newGame);
+  document.getElementById("btnUndo").addEventListener("click", undoMove);
+  document.getElementById("btnResign").addEventListener("click", resign);
+  window.addEventListener("resize", resizeCanvas);
+
+  /* 初始：自动开始一局，方便直接玩 */
+  resizeCanvas();
+  newGame();
+})();
+</script>
+</body>
+</html>
