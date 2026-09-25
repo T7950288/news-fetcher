@@ -31,7 +31,7 @@
   .big-btn svg { width:20px; height:20px; flex:none; }
   /* ===== 正在播放 ===== */
   /* ===== 本地/网络切换 ===== */
-  .src-tabs { display:flex; gap:10px; margin-bottom:12px; }
+  .src-tabs { display:flex; gap:10px; align-items:center; margin-bottom:12px; }
   .src-tab { border:1px solid #ddd; background:#fff; color:#333; border-radius:18px;
              padding:6px 18px; font-size:14px; cursor:pointer; flex:none; }
   .src-tab.active { background:#1a3a6c; color:#fff; border-color:#1a3a6c; }
@@ -46,6 +46,7 @@
               cursor:pointer; }
   .net-chip.active { background:#1a3a6c; color:#fff; border-color:#1a3a6c; }
   .net-chip .x { font-weight:700; opacity:.65; padding:0 2px; }
+  .net-chip span:first-child { max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .net-view iframe { width:100%; flex:1; min-height:0; border:0; display:block; background:#f9f9f9; }
 
   .now { display:none; margin-top:14px; background:#fff; border-radius:12px; padding:12px 14px;
@@ -170,6 +171,9 @@
   <div class="src-tabs" id="srcTabs">
     <button class="src-tab active" id="srcLocal" type="button">本地</button>
     <button class="src-tab" id="srcNet" type="button">网络</button>
+    <span style="flex:1"></span>
+    <button class="net-btn" id="netAdd" type="button">添加歌单</button>
+    <button class="net-btn" id="netRefresh" type="button">刷新</button>
   </div>
   <div class="media-top">
     <div class="vbox">
@@ -189,12 +193,8 @@
   </div>
 
   <div class="net-view" id="netView" style="display:none">
-    <div class="net-tools">
-      <button class="net-btn" id="netAdd" type="button">添加歌单</button>
-      <button class="net-btn" id="netRefresh" type="button">刷新</button>
-    </div>
     <div class="net-chips" id="netChips"></div>
-    <iframe id="netPlayer" src="https://music.163.com/outchain/player?type=0&id=18165874802&auto=0&height=450" allow="autoplay" frameborder="0"></iframe>
+    <iframe id="netPlayer" src="https://music.163.com/outchain/player?type=0&id=18165874802&auto=0&height=520" allow="autoplay" frameborder="0"></iframe>
   </div>
 
   <div class="now">
@@ -363,7 +363,7 @@
   var curNetId = netList[0].id;
   var ifr0 = document.getElementById('netPlayer');
   if(ifr0) ifr0.src = netPlayerUrl(curNetId);
-  function netPlayerUrl(id){ return 'https://music.163.com/outchain/player?type=0&id=' + id + '&auto=0&height=450'; }
+  function netPlayerUrl(id){ return 'https://music.163.com/outchain/player?type=0&id=' + id + '&auto=0&height=520'; }
   function saveNet(){ try{ localStorage.setItem(NET_KEY, JSON.stringify(netList)); }catch(e){} }
   function renderChips(){
     var c = document.getElementById('netChips');
@@ -404,7 +404,11 @@
     var id = m ? m[1] : null;
     if(!id){ alert('没认出歌单 ID，请粘贴完整的网易云歌单链接'); return; }
     if(netList.some(function(p){ return p.id === id; })){ alert('这个歌单已经在列表里了'); return; }
-    netList.push({ id: id, name: '歌单' + id.slice(-6) });
+    var defName = '歌单' + id.slice(-6);
+    var nm = prompt('歌单名称（可改成网易云上的名字）：', defName);
+    if(nm === null) return;
+    var name = (nm && nm.trim()) ? nm.trim() : defName;
+    netList.push({ id: id, name: name });
     saveNet();
     netPlay(id);
   }
@@ -414,8 +418,8 @@
   }
   var netAddEl = document.getElementById('netAdd');
   var netRefEl = document.getElementById('netRefresh');
-  if(netAddEl) netAddEl.addEventListener('click', addPlaylist);
-  if(netRefEl) netRefEl.addEventListener('click', refreshNet);
+  if(netAddEl) netAddEl.addEventListener('click', function(){ switchSrc('net'); addPlaylist(); });
+  if(netRefEl) netRefEl.addEventListener('click', function(){ switchSrc('net'); refreshNet(); });
   renderChips();
 
   updateNow();
@@ -725,7 +729,7 @@
   var curNetId = netList[0].id;
   var ifr0 = document.getElementById('netPlayer');
   if(ifr0) ifr0.src = netPlayerUrl(curNetId);
-  function netPlayerUrl(id){ return 'https://music.163.com/outchain/player?type=0&id=' + id + '&auto=0&height=450'; }
+  function netPlayerUrl(id){ return 'https://music.163.com/outchain/player?type=0&id=' + id + '&auto=0&height=520'; }
   function saveNet(){ try{ localStorage.setItem(NET_KEY, JSON.stringify(netList)); }catch(e){} }
   function renderChips(){
     var c = document.getElementById('netChips');
@@ -766,7 +770,11 @@
     var id = m ? m[1] : null;
     if(!id){ alert('没认出歌单 ID，请粘贴完整的网易云歌单链接'); return; }
     if(netList.some(function(p){ return p.id === id; })){ alert('这个歌单已经在列表里了'); return; }
-    netList.push({ id: id, name: '歌单' + id.slice(-6) });
+    var defName = '歌单' + id.slice(-6);
+    var nm = prompt('歌单名称（可改成网易云上的名字）：', defName);
+    if(nm === null) return;
+    var name = (nm && nm.trim()) ? nm.trim() : defName;
+    netList.push({ id: id, name: name });
     saveNet();
     netPlay(id);
   }
@@ -776,8 +784,8 @@
   }
   var netAddEl = document.getElementById('netAdd');
   var netRefEl = document.getElementById('netRefresh');
-  if(netAddEl) netAddEl.addEventListener('click', addPlaylist);
-  if(netRefEl) netRefEl.addEventListener('click', refreshNet);
+  if(netAddEl) netAddEl.addEventListener('click', function(){ switchSrc('net'); addPlaylist(); });
+  if(netRefEl) netRefEl.addEventListener('click', function(){ switchSrc('net'); refreshNet(); });
   renderChips();
 
   updateNow();
