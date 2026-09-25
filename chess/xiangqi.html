@@ -482,7 +482,7 @@
   newGame();
 
   /* 自动走子自测（仅 ?autotest=1 触发；正常访问不执行） */
-  if (location.search.indexOf("autotest") >= 0) {
+  if (/(\?|&)autotest(=|&|$)/.test(location.search)) {
     setTimeout(function () {
       try {
         var log = [];
@@ -507,7 +507,7 @@
   }
 
   /* 炮吃子交互自测（仅 ?paotest=1 触发；正常访问不执行） */
-  if (location.search.indexOf("paotest") >= 0) {
+  if (/(\?|&)paotest(=|&|$)/.test(location.search)) {
     setTimeout(function () {
       try {
         /* 构造局面：红炮(7,1) 隔己方红兵(5,1) 吃黑炮(3,1) */
@@ -536,7 +536,7 @@
   }
 
   /* 炮打对方中兵专项自测（仅 ?paotest2=1 触发；正常访问不执行） */
-  if (location.search.indexOf("paotest2") >= 0) {
+  if (/(\?|&)paotest2(=|&|$)/.test(location.search)) {
     setTimeout(function () {
       try {
         /* 局面：红炮(7,4) 中路，隔红兵(6,4) 吃黑卒(3,4)（对方中兵） */
