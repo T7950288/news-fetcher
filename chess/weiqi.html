@@ -71,8 +71,7 @@
   <div class="panel">
     <div class="group">
       <h3>游戏设置</h3>
-      <div class="row"><label>棋盘</label>
-        <select id="selSize"><option>19路</option><option>13路</option><option selected>9路</option></select></div>
+      <div class="row"><label>棋盘</label><span style="flex:1;color:#333;">19路（标准）</span></div>
       <div class="row"><label>贴目</label>
         <select id="selKomi">
           <option value="0">0</option><option value="2.5">2.5</option>
@@ -122,7 +121,7 @@
 
   /* ---------- 状态 ---------- */
   let board = null;            // GoBoard
-  let size = 9, komi = 7.5;
+  let size = 19, komi = 7.5;
   let playerColor = 1;         // 1黑 2白
   let aiColor = 2;
   let difficulty = "高级";
@@ -196,7 +195,7 @@
 
   /* ---------- 对局流程 ---------- */
   function newGame() {
-    size = parseInt(document.getElementById("selSize").value, 10);
+    size = 19;  // 固定标准 19 路棋盘
     komi = parseFloat(document.getElementById("selKomi").value);
     playerColor = document.getElementById("selColor").value.indexOf("黑") === 0 ? 1 : 2;
     aiColor = 3 - playerColor;
@@ -302,8 +301,8 @@
     const w = canvas.parentElement.clientWidth - 4;
     canvas.width = Math.max(280, Math.min(720, w));
     canvas.height = canvas.width;
-    cell = canvas.width / (size - 1);
-    pad = cell / 2;
+    cell = canvas.width / (size + 1);   // 两侧各留一格边距，确保 19 条线全部落在画布内
+    pad = cell;
     render();
   }
   function render() {
@@ -425,7 +424,7 @@
   document.getElementById("btnCount").addEventListener("click", toggleCount);
   window.addEventListener("resize", resizeCanvas);
 
-  /* 初始：自动开始一局 9 路对弈，方便直接玩 */
+  /* 初始：自动开始一局 19 路对弈，方便直接玩 */
   resizeCanvas();
   newGame();
 })();
