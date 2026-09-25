@@ -191,6 +191,14 @@ input,select{ font-family:inherit; }
 .pop-card .pintro{ font-size:13px; line-height:1.65; margin:6px 0; }
 .pop-card .ptags{ display:flex; flex-wrap:wrap; gap:4px; margin:6px 0; }
 .pop-card .ptags span{ font-size:11px; background:#eef2f1; border-radius:9px; padding:2px 8px; color:var(--muted); }
+.pop-card .wx{ font-size:12.5px; margin:5px 0 2px; padding:4px 8px; background:#eef6f3; border-radius:8px; cursor:pointer; line-height:1.6; }
+.pop-card .wxmore{ color:var(--green); font-size:11px; margin-left:2px; }
+.pop-card .wxweekbox{ display:none; margin:2px 0 4px; }
+.pop-card .wxweek{ display:flex; gap:4px; overflow-x:auto; padding:4px 2px; }
+.pop-card .wxd{ flex:0 0 auto; min-width:46px; text-align:center; background:#f7f9f8; border-radius:8px; padding:4px 2px; }
+.pop-card .wxd1{ font-size:10.5px; color:var(--muted); }
+.pop-card .wxd2{ font-size:11px; margin:2px 0; }
+.pop-card .wxd3{ font-size:11px; font-weight:600; }
 .pop-card .pbtns{ display:flex; gap:6px; margin-top:8px; }
 .pop-card .pbtns button{ flex:1; height:32px; border-radius:8px; font-size:12.5px; background:#eef2f1; }
 .pop-card .pbtns button.go{ background:var(--green); color:#fff; }
