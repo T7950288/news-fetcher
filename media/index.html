@@ -46,6 +46,7 @@
               cursor:pointer; }
   .net-chip.active { background:#1a3a6c; color:#fff; border-color:#1a3a6c; }
   .net-chip .x { font-weight:700; opacity:.65; padding:0 2px; }
+  .net-chip .edit { font-size:11px; opacity:.55; padding:0 2px; }
   .net-chip span:first-child { max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .net-view iframe { width:100%; flex:1; min-height:0; border:0; display:block; background:#f9f9f9; }
 
@@ -373,10 +374,15 @@
       var chip = document.createElement('button');
       chip.type = 'button';
       chip.className = 'net-chip' + (p.id === curNetId ? ' active' : '');
-      chip.innerHTML = '<span>' + (p.name || '歌单') + '</span><span class="x">×</span>';
+      chip.innerHTML = '<span>' + (p.name || '歌单') + '</span><span class="edit" title="改歌单名">✎</span><span class="x">×</span>';
       chip.addEventListener('click', function(ev){
         if(ev.target.classList.contains('x')){ delPlaylist(p.id); }
+        else if(ev.target.classList.contains('edit')){ editName(p); }
         else { netPlay(p.id); }
+      });
+      chip.addEventListener('dblclick', function(ev){
+        if(ev.target.classList.contains('x') || ev.target.classList.contains('edit')) return;
+        editName(p);
       });
       c.appendChild(chip);
     });
@@ -394,6 +400,14 @@
     if(curNetId === id) curNetId = netList[0].id;
     var ifr = document.getElementById('netPlayer');
     if(ifr) ifr.src = netPlayerUrl(curNetId);
+    renderChips();
+  }
+  function editName(p){
+    var nm = prompt('修改歌单名称：', p.name || '');
+    if(nm === null) return;
+    var name = (nm && nm.trim()) ? nm.trim() : (p.name || '歌单');
+    p.name = name;
+    saveNet();
     renderChips();
   }
   function addPlaylist(){
@@ -739,10 +753,15 @@
       var chip = document.createElement('button');
       chip.type = 'button';
       chip.className = 'net-chip' + (p.id === curNetId ? ' active' : '');
-      chip.innerHTML = '<span>' + (p.name || '歌单') + '</span><span class="x">×</span>';
+      chip.innerHTML = '<span>' + (p.name || '歌单') + '</span><span class="edit" title="改歌单名">✎</span><span class="x">×</span>';
       chip.addEventListener('click', function(ev){
         if(ev.target.classList.contains('x')){ delPlaylist(p.id); }
+        else if(ev.target.classList.contains('edit')){ editName(p); }
         else { netPlay(p.id); }
+      });
+      chip.addEventListener('dblclick', function(ev){
+        if(ev.target.classList.contains('x') || ev.target.classList.contains('edit')) return;
+        editName(p);
       });
       c.appendChild(chip);
     });
@@ -760,6 +779,14 @@
     if(curNetId === id) curNetId = netList[0].id;
     var ifr = document.getElementById('netPlayer');
     if(ifr) ifr.src = netPlayerUrl(curNetId);
+    renderChips();
+  }
+  function editName(p){
+    var nm = prompt('修改歌单名称：', p.name || '');
+    if(nm === null) return;
+    var name = (nm && nm.trim()) ? nm.trim() : (p.name || '歌单');
+    p.name = name;
+    saveNet();
     renderChips();
   }
   function addPlaylist(){
