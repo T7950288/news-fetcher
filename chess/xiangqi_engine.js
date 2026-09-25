@@ -168,18 +168,18 @@
       if (!inBoard(nr, nc)) continue;
       a = b[nr][nc];
       if (bySide === 1) {
-        if (a === 5 || a === 1) return true;          /* 黑车 / 黑将照面 */
+        if (a === 5 || a === 1) return true;          /* 红车 / 红帅照面（红方攻击） */
         if (a !== 0) {                               /* 第一个子做隔子，看第二个子是否是炮 */
           nr += dr; nc += dc;
           while (inBoard(nr, nc) && b[nr][nc] === 0) { nr += dr; nc += dc; }
-          if (inBoard(nr, nc) && b[nr][nc] === -6) return true;  /* 黑炮隔子 */
+          if (inBoard(nr, nc) && b[nr][nc] === 6) return true;  /* 红炮隔子 */
         }
       } else {
-        if (a === -5 || a === -1) return true;        /* 红车 / 红帅照面 */
+        if (a === -5 || a === -1) return true;        /* 黑车 / 黑将照面（黑方攻击） */
         if (a !== 0) {
           nr += dr; nc += dc;
           while (inBoard(nr, nc) && b[nr][nc] === 0) { nr += dr; nc += dc; }
-          if (inBoard(nr, nc) && b[nr][nc] === 6) return true;    /* 红炮隔子 */
+          if (inBoard(nr, nc) && b[nr][nc] === -6) return true;  /* 黑炮隔子 */
         }
       }
     }
@@ -189,7 +189,7 @@
       const nr = r + hm[i][0], nc = c + hm[i][1];
       if (inBoard(nr, nc)) {
         const p = b[nr][nc];
-        if ((bySide === 1 && p === -4) || (bySide === -1 && p === 4)) {
+        if ((bySide === 1 && p === 4) || (bySide === -1 && p === -4)) {
           /* 蹩马腿：竖跳2时腿在中间行同列；横跳2时腿在中间列同行 */
           let lr, lc;
           if (hm[i][0] % 2 === 0) { lr = r + hm[i][0] / 2; lc = c + hm[i][1]; }
@@ -200,14 +200,15 @@
     }
     /* 兵/卒 */
     if (bySide === 1) {
+      /* 红兵攻击 (r,c)：正上方 r-1 或横向（过河 r<=4） */
+      if (inBoard(r - 1, c) && b[r - 1][c] === 7) return true;
+      if (inBoard(r, c - 1) && b[r][c - 1] === 7 && r <= 4) return true;
+      if (inBoard(r, c + 1) && b[r][c + 1] === 7 && r <= 4) return true;
+    } else {
       /* 黑卒攻击 (r,c)：正下方 r+1 或横向（过河 r>=5） */
       if (inBoard(r + 1, c) && b[r + 1][c] === -7) return true;
       if (inBoard(r, c - 1) && b[r][c - 1] === -7 && r >= 5) return true;
       if (inBoard(r, c + 1) && b[r][c + 1] === -7 && r >= 5) return true;
-    } else {
-      if (inBoard(r - 1, c) && b[r - 1][c] === 7) return true;
-      if (inBoard(r, c - 1) && b[r][c - 1] === 7 && r <= 4) return true;
-      if (inBoard(r, c + 1) && b[r][c + 1] === 7 && r <= 4) return true;
     }
     return false;
   }
