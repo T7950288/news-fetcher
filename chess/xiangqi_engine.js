@@ -253,7 +253,58 @@
   };
 
   /* ---------- 局面评估 ---------- */
-  const PIECE_VAL = [0, 100000, 200, 200, 450, 1000, 450, 100];
+  /* 子力：马 470 略重于炮 440（传统中国象棋），兵 120 */
+  const PIECE_VAL = [0, 100000, 200, 200, 470, 1000, 440, 120];
+
+  /* 位置表（红方视角，行 0=黑方底线；黑方棋子用 9-r 翻转查表） */
+  const PST_M = [  /* 马 */
+    [-10, -5, -5, -5, -5, -5, -5, -5, -10],
+    [ -5,  0,  0,  0,  0,  0,  0,  0,  -5],
+    [ -5,  0,  5, 10, 10, 10,  5,  0,  -5],
+    [ -5,  5, 10, 15, 15, 15, 10,  5,  -5],
+    [ -5,  5, 10, 15, 15, 15, 10,  5,  -5],
+    [ -5,  5, 10, 15, 15, 15, 10,  5,  -5],
+    [ -5,  0,  5, 10, 10, 10,  5,  0,  -5],
+    [ -5,  0,  0,  0,  0,  0,  0,  0,  -5],
+    [ -5,  0,  0,  0,  0,  0,  0,  0,  -5],
+    [-10, -5, -5, -5, -5, -5, -5, -5, -10]
+  ];
+  const PST_P = [  /* 炮：中路强、底线弱 */
+    [  0,  0,  0,  0,  0,  0,  0,  0,  0],
+    [  0,  0,  0,  0,  0,  0,  0,  0,  0],
+    [ -5,  0,  0,  5,  5,  5,  0,  0,  -5],
+    [ -5,  0,  5, 10, 15, 10,  5,  0,  -5],
+    [  0,  0,  5, 10, 15, 10,  5,  0,  0],
+    [  0,  0,  5, 10, 15, 10,  5,  0,  0],
+    [  0,  0,  5, 10, 15, 10,  5,  0,  0],
+    [ -5,  0,  0,  5,  5,  5,  0,  0,  -5],
+    [ -5,  0,  0,  0,  0,  0,  0,  0,  -5],
+    [  0,  0,  0,  0,  0,  0,  0,  0,  0]
+  ];
+  const PST_R = [  /* 车：巡河/占中/通头 */
+    [  0, 10, 10, 10, 10, 10, 10, 10,  0],
+    [  0, 10, 10, 10, 10, 10, 10, 10,  0],
+    [ -5,  5,  5, 10, 10, 10,  5,  5, -5],
+    [ -5,  5,  5, 10, 10, 10,  5,  5, -5],
+    [  0,  5,  5, 10, 15, 10,  5,  5,  0],
+    [  0,  5,  5, 10, 15, 10,  5,  5,  0],
+    [ -5,  5,  5, 10, 10, 10,  5,  5, -5],
+    [ -5,  5,  5, 10, 10, 10,  5,  5, -5],
+    [  0, 10, 10, 10, 10, 10, 10, 10,  0],
+    [  0, 10, 10, 10, 10, 10, 10, 10,  0]
+  ];
+  const PST_B = [  /* 兵/卒：未过河无分，过河递增，中路强（红方视角） */
+    [100, 100, 110, 120, 130, 120, 110, 100, 100],
+    [ 90,  90, 100, 110, 120, 110, 100,  90,  90],
+    [ 80,  80,  90, 100, 110, 100,  90,  80,  80],
+    [ 60,  60,  70,  80,  90,  80,  70,  60,  60],
+    [ 40,  40,  50,  60,  70,  60,  50,  40,  40],
+    [ 20,  20,  20,  25,  30,  25,  20,  20,  20],
+    [  0,   0,   0,   0,   0,   0,   0,   0,   0],
+    [  0,   0,   0,   0,   0,   0,   0,   0,   0],
+    [  0,   0,   0,   0,   0,   0,   0,   0,   0],
+    [  0,   0,   0,   0,   0,   0,   0,   0,   0]
+  ];
 
   XQ.evaluate = function (b) {
     let score = 0;
@@ -264,23 +315,17 @@
         const s = sideOf(p);
         const a = Math.abs(p);
         let v = PIECE_VAL[a];
-        if (a === 7) {                      /* 兵：过河加分，深入敌营再加 */
-          if (s === 1) {
-            if (r <= 4) v += 70;
-            if (r <= 2) v += 60;
-          } else {
-            if (r >= 5) v += 70;
-            if (r >= 7) v += 60;
-          }
-        } else if (a === 4) {               /* 马：中宫活跃，边角减分 */
-          if (r >= 3 && r <= 6 && c >= 2 && c <= 6) v += 40;
-          if (c === 0 || c === 8 || r === 0 || r === 9) v -= 25;
-        } else if (a === 5) {               /* 车：巡河、占中加分 */
-          if (r === 4 || r === 5) v += 20;
-          if (c === 4 && r >= 3 && r <= 6) v += 15;
-        } else if (a === 6) {               /* 炮：占中加分，底线减分 */
-          if (c === 4 && r >= 3 && r <= 6) v += 20;
-          if (r === 0 || r === 9) v -= 15;
+        const rr = s === 1 ? r : 9 - r;          /* 红方视角行 */
+        if (a === 4) v += PST_M[rr][c];
+        else if (a === 6) v += PST_P[rr][c];
+        else if (a === 5) v += PST_R[rr][c];
+        else if (a === 7) v += PST_B[rr][c];
+        else if (a === 2 || a === 3) {            /* 仕/相：回防加分，外出减分 */
+          if (rr >= 7) v += 15;
+          if (rr <= 4) v -= 20;
+        } else if (a === 1) {                     /* 帅/将：底线稳，上前危险 */
+          if (rr === 0) v += (c === 4 ? 10 : 0);
+          if (rr === 1) v -= 15;
         }
         score += s * v;
       }
@@ -289,6 +334,29 @@
   };
 
   /* ---------- 搜索：置换表 + 历史启发 + 将军延伸 + Alpha-Beta ---------- */
+
+  /* 静态搜索：叶子节点继续只搜吃子，消除水平线效应 */
+  function quiesce(ctx, b, side, alpha, beta) {
+    if (ctx.deadline && Date.now() > ctx.deadline) { const e = new Error("timeout"); e.timeout = true; throw e; }
+    const stand = XQ.evaluate(b);
+    if (stand >= beta) return stand;
+    if (stand > alpha) alpha = stand;
+    const capMoves = XQ.genLegalMoves(b, side).filter(function (m) { return m.cap; });
+    capMoves.sort(function (x, y) { return y.capScore - x.capScore; });
+    for (let i = 0; i < capMoves.length && i < 8; i++) {
+      const val = -quiesce(ctx, XQ.apply(b, capMoves[i]), -side, -beta, -alpha);
+      if (val > alpha) alpha = val;
+      if (alpha >= beta) break;
+    }
+    return alpha;
+  }
+
+  /* 开局库：前两手走常见开局，杜绝开局乱走送子 */
+  function openingMove(b, n) {
+    if (n === 0) return { fr: 7, fc: 7, tr: 7, tc: 4, cap: 0, capScore: 0 };  /* 红先：炮二平五（当头炮） */
+    if (n === 1) return { fr: 0, fc: 7, tr: 2, tc: 7, cap: 0, capScore: 0 };   /* 黑应：马8进7（屏风马） */
+    return null;
+  }
   function boardKey(b, side) {
     let s = "";
     for (let r = 0; r < ROWS; r++) {
@@ -315,18 +383,31 @@
       if (hit.flag === 2 && hit.score >= beta) return hit.score;   /* upper bound */
     }
 
+    /* null-move 剪枝：未被将军时让一手仍超 beta 则剪枝（省时，同预算想更深） */
+    if (d >= 3 && ctx.nullMove !== false && !XQ.inCheck(b, side)) {
+      const nm = -alphaBeta(ctx, b, -side, d - 2, -beta, -beta + 1);
+      if (nm >= beta) return nm;
+    }
+
     const moves = XQ.genLegalMoves(b, side);
     if (moves.length === 0) {
       const sc = XQ.inCheck(b, side) ? -INF + (10 - d) : -INF / 2;
       ctx.tt.set(key, { depth: d, score: sc, flag: 0 });
       return sc;
     }
-    if (d === 0) return XQ.evaluate(b);
+    if (d === 0) return quiesce(ctx, b, side, alpha, beta);
 
-    /* 着法排序：吃子 MVV-LVA（被吃价值高优先）+ 历史启发 */
+    /* 着法排序：吃子 MVV-LVA + 历史启发 + 杀手着法 */
+    const karr = ctx.killers[d];
     for (let i = 0; i < moves.length; i++) {
       const m = moves[i];
-      m.order = (m.capScore > 0 ? m.capScore * 100 - PIECE_VAL[Math.abs(b[m.fr][m.fc])] : 0) + (ctx.hist.get(m.fr * 90 + m.fc) || 0) * 4;
+      let killer = 0;
+      if (karr) {
+        for (let k = 0; k < karr.length; k++) {
+          if (karr[k].fr === m.fr && karr[k].fc === m.fc && karr[k].tr === m.tr && karr[k].tc === m.tc) { killer = 900; break; }
+        }
+      }
+      m.order = (m.capScore > 0 ? m.capScore * 100 - PIECE_VAL[Math.abs(b[m.fr][m.fc])] : 0) + (ctx.hist.get(m.fr * 90 + m.fc) || 0) * 4 + killer;
     }
     moves.sort(function (x, y) { return y.order - x.order; });
 
@@ -338,9 +419,15 @@
       if (val > best) best = val;
       if (val > alpha) alpha = val;
       if (alpha >= beta) {
-        /* 剪枝：历史启发加分 */
+        /* 剪枝：历史启发加分 + 记录杀手着法（同级复用） */
         const hk = mv.fr * 90 + mv.fc;
         ctx.hist.set(hk, (ctx.hist.get(hk) || 0) + d * d);
+        const kd = (ctx.killers[d] = ctx.killers[d] || []);
+        let dup = false;
+        for (let k = 0; k < kd.length; k++) {
+          if (kd[k].fr === mv.fr && kd[k].fc === mv.fc && kd[k].tr === mv.tr && kd[k].tc === mv.tc) { dup = true; break; }
+        }
+        if (!dup) { kd.push(mv); if (kd.length > 2) kd.shift(); }
         flag = 2;   /* upper bound */
         break;
       }
@@ -355,11 +442,16 @@
   XQ.search = function (b, side, cfg) {
     const maxDepth = cfg.depth || 3;
     const deadline = Date.now() + (cfg.timeMs || 3000);
+    /* 开局库：前两手走常见开局（杜绝开局乱走送子） */
+    if (cfg.opening !== undefined) {
+      const om = openingMove(b, cfg.opening);
+      if (om) return { mv: om, score: 0, mate: false };
+    }
     const firstLegal = XQ.genLegalMoves(b, side);
     if (firstLegal.length === 0) return { mv: null, score: -INF, mate: XQ.inCheck(b, side) };
     firstLegal.sort(function (x, y) { return (y.capScore - x.capScore); });
 
-    const ctx = { deadline: deadline, tt: new Map(), hist: new Map(), checkExt: cfg.checkExt !== false };
+    const ctx = { deadline: deadline, tt: new Map(), hist: new Map(), killers: {}, checkExt: cfg.checkExt !== false };
     let bestMove = firstLegal[0];
     let bestScore = -INF;
     for (let d = 1; d <= maxDepth; d++) {
