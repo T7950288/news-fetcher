@@ -394,6 +394,10 @@
       render();
       return;
     }
+    if (p !== 0 && Math.sign(p) === aiSide) {
+      flashMsg("这是对方的棋子，你执" + (playerSide === 1 ? "红" : "黑"));
+      return;
+    }
     if (selected) {
       /* 尝试走棋 */
       const legal = XQ.genLegalMoves(board, playerSide).filter(function (m) {
@@ -402,11 +406,20 @@
       if (legal.length) {
         applyMove(legal[0], playerSide);
       } else {
+        flashMsg("该位置不可走（先点选棋子，再点蓝色/红色圆点）");
         selected = null;
         render();
       }
     }
   });
+
+  /* 短暂提示 */
+  function flashMsg(text) {
+    const rb = document.getElementById("resultBox");
+    rb.textContent = text;
+    clearTimeout(rb._t);
+    rb._t = setTimeout(function () { document.getElementById("resultBox").textContent = ""; }, 1800);
+  }
 
   /* ---------- UI 更新 ---------- */
   function captureCount(side) {
