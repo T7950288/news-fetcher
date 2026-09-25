@@ -398,5 +398,9 @@ if (typeof self !== "undefined" && typeof importScripts === "function") {
       var res = XQ.search(msg.board, msg.side, msg.cfg);
       self.postMessage({ type: "move", id: msg.id, mv: res.mv, score: res.score, mate: res.mate });
     }
+    if (msg && msg.type === "ping") {
+      var b = XQ.initialBoard();
+      self.postMessage({ type: "pong", moves: XQ.genLegalMoves(b, 1).length, piece: b[9][1] });
+    }
   };
 }
