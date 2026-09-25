@@ -114,8 +114,6 @@
     /* 视频区撑满整屏宽（播放前后面积一致），高度让下方按钮完全露出 */
     html, body { height:100%; overflow:hidden; }
     .site-header { display:none; }
-    .net-view { overflow:hidden; }
-    .net-view iframe { width:calc(100% + 24px); }
     .src-tabs { margin-bottom:4px; gap:8px; }
     .net-btn { min-height:30px; font-size:13px; padding:3px 9px; }
     .net-chip { min-height:26px; font-size:13px; padding:3px 9px; }
@@ -593,7 +591,12 @@
       showHint("已读取文件夹："+dir.name+"（"+files.length+" 个音乐/视频文件）");
     });
   }
+  var isMobile = window.matchMedia('(max-width:768px)').matches;
   document.getElementById("pickFolderBtn").addEventListener("click", function(){
+    if(isMobile){
+      setErr("手机端请用「选择文件」播放本地音乐/视频。");
+      return;
+    }
     if(!window.showDirectoryPicker){
       setErr("当前浏览器不支持「选择文件夹」（需 Edge/Chrome 桌面版）。\n手机端请用「选择文件」。");
       return;
