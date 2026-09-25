@@ -548,14 +548,11 @@ class MCTSAI {
   constructor(boardSize = 19, komi = 7.5) {
     this.boardSize = boardSize;
     this.komi = komi;
-    this.currentDifficulty = "高级";
+    this.currentDifficulty = "中等";
     this.difficultyConfig = {
-      "入门": { sims: 300,   time: 3 },
-      "初级": { sims: 1500,  time: 6 },
-      "中级": { sims: 5000,  time: 12 },
-      "高级": { sims: 15000, time: 20 },
-      "职业": { sims: 40000, time: 30 },
-      "最强": { sims: 90000, time: 45 }
+      "简单": { sims: 3000,   time: 5 },
+      "中等": { sims: 20000,  time: 20 },
+      "困难": { sims: 120000, time: 90 }
     };
   }
 
