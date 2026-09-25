@@ -114,10 +114,10 @@
     /* 视频区撑满整屏宽（播放前后面积一致），高度让下方按钮完全露出 */
     html, body { height:100%; overflow:hidden; }
     .site-header { display:none; }
-    .src-tabs { margin-bottom:6px; gap:8px; }
-    .net-btn { min-height:32px; font-size:13px; padding:4px 10px; }
-    .net-chip { min-height:28px; font-size:13px; padding:3px 10px; }
-    .net-chips { margin-bottom:5px; -webkit-overflow-scrolling:touch; }
+    .src-tabs { margin-bottom:4px; gap:8px; }
+    .net-btn { min-height:30px; font-size:13px; padding:3px 9px; }
+    .net-chip { min-height:26px; font-size:13px; padding:3px 9px; }
+    .net-chips { margin-bottom:4px; -webkit-overflow-scrolling:touch; }
     .wrap { padding:0; height:100vh; height:100dvh; display:flex; flex-direction:column; overflow:hidden; }
     .media-top { flex:1; display:flex; flex-direction:column; min-height:0; margin-top:0; }
     .vbox { margin-top:0; border-radius:0; flex:1; min-height:0; }
@@ -132,15 +132,16 @@
     .list-panel { display:none; }
     .hint { display:none; }
     /* 控制条整体缩小：播放/暂停56、上下曲/音量40、滑块变窄 */
-    .controls { margin-top:8px; padding:10px; }
-    .ctrl-row { gap:8px; }
-    .ctrl-btn { width:44px; height:44px; }
-    .ctrl-btn.small { width:40px; height:40px; }
-    .ctrl-btn.play { width:56px; height:56px; }
-    .ctrl-btn svg { width:20px; height:20px; }
-    .ctrl-btn.play svg { width:26px; height:26px; }
-    .time { min-width:96px; font-size:12px; }
-    #volBar { width:56px; }
+    .controls { margin-top:6px; padding:7px; }
+    .ctrl-row { gap:6px; }
+    .ctrl-btn { width:40px; height:40px; }
+    .ctrl-btn.small { width:36px; height:36px; }
+    .ctrl-btn.play { width:50px; height:50px; }
+    .ctrl-btn svg { width:18px; height:18px; }
+    .ctrl-btn.play svg { width:24px; height:24px; }
+    .time { min-width:84px; font-size:11px; }
+    #volBar { width:48px; }
+    .ctrl-row.mid { margin-top:6px; }
     /* 顺序播放/文件列表：横排、字体小、不被拉伸 */
     .txt-btn { padding:5px 10px; font-size:12px; white-space:nowrap; flex:none; }
     #fileList li { padding:15px 14px; }
@@ -151,7 +152,7 @@
     .wrap { max-width:960px; padding-top:10px; }
     .now { display:none; }
     .media-top { display:flex; flex-direction:row; align-items:stretch; gap:12px; }
-    .net-view { flex:none; height:80vh; }
+    .net-view { flex:none; height:80vh; max-width:520px; margin:0 auto; width:100%; }
     .media-top .vbox { flex:1; margin-top:0; aspect-ratio:16/9; align-self:flex-start; }
     .media-top .vbox video { width:100%; height:100%; object-fit:contain; }
     .media-top .btn-row { flex-direction:column; margin-top:0; width:auto; flex:none; gap:10px; }
