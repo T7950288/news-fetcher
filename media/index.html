@@ -114,9 +114,10 @@
     /* 视频区撑满整屏宽（播放前后面积一致），高度让下方按钮完全露出 */
     html, body { height:100%; overflow:hidden; }
     .site-header { display:none; }
-    .net-btn { min-height:38px; font-size:15px; }
-    .net-chip { min-height:32px; font-size:14px; padding:4px 12px; }
-    .net-chips { -webkit-overflow-scrolling:touch; }
+    .src-tabs { margin-bottom:6px; gap:8px; }
+    .net-btn { min-height:32px; font-size:13px; padding:4px 10px; }
+    .net-chip { min-height:28px; font-size:13px; padding:3px 10px; }
+    .net-chips { margin-bottom:5px; -webkit-overflow-scrolling:touch; }
     .wrap { padding:0; height:100vh; height:100dvh; display:flex; flex-direction:column; overflow:hidden; }
     .media-top { flex:1; display:flex; flex-direction:column; min-height:0; margin-top:0; }
     .vbox { margin-top:0; border-radius:0; flex:1; min-height:0; }
@@ -195,7 +196,7 @@
 
   <div class="net-view" id="netView" style="display:none">
     <div class="net-chips" id="netChips"></div>
-    <iframe id="netPlayer" src="https://music.163.com/outchain/player?type=0&id=18165874802&auto=0&height=520" allow="autoplay" frameborder="0"></iframe>
+    <iframe id="netPlayer" src="https://music.163.com/outchain/player?type=0&id=18165874802&auto=0&height=580" allow="autoplay" frameborder="0"></iframe>
   </div>
 
   <div class="now">
@@ -364,7 +365,7 @@
   var curNetId = netList[0].id;
   var ifr0 = document.getElementById('netPlayer');
   if(ifr0) ifr0.src = netPlayerUrl(curNetId);
-  function netPlayerUrl(id){ return 'https://music.163.com/outchain/player?type=0&id=' + id + '&auto=0&height=520'; }
+  function netPlayerUrl(id){ return 'https://music.163.com/outchain/player?type=0&id=' + id + '&auto=0&height=580'; }
   function saveNet(){ try{ localStorage.setItem(NET_KEY, JSON.stringify(netList)); }catch(e){} }
   function renderChips(){
     var c = document.getElementById('netChips');
@@ -743,7 +744,7 @@
   var curNetId = netList[0].id;
   var ifr0 = document.getElementById('netPlayer');
   if(ifr0) ifr0.src = netPlayerUrl(curNetId);
-  function netPlayerUrl(id){ return 'https://music.163.com/outchain/player?type=0&id=' + id + '&auto=0&height=520'; }
+  function netPlayerUrl(id){ return 'https://music.163.com/outchain/player?type=0&id=' + id + '&auto=0&height=580'; }
   function saveNet(){ try{ localStorage.setItem(NET_KEY, JSON.stringify(netList)); }catch(e){} }
   function renderChips(){
     var c = document.getElementById('netChips');
