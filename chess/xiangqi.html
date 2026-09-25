@@ -175,6 +175,8 @@
     selected = null;
     moveCount = 0;
     moveHistory.length = 0;
+    aiThinking = false;
+    moveId++;   /* 使在途的 AI 消息失效，避免串到新对局 */
     document.getElementById("resultBox").textContent = "";
     ensureWorker();
     resizeCanvas();
@@ -184,8 +186,9 @@
 
   function applyMove(mv, side) {
     if (!board || !playing) return;
+    const eaten = board[mv.tr][mv.tc];
     board = XQ.apply(board, mv);
-    moveHistory.push({ mv: mv, side: side });
+    moveHistory.push({ mv: mv, side: side, eaten: eaten });
     moveCount++;
     selected = null;
     render();
@@ -231,6 +234,7 @@
     while (moveHistory.length && removed < 2) {
       const last = moveHistory.pop();
       board = XQ.apply(board, { fr: last.mv.tr, fc: last.mv.tc, tr: last.mv.fr, tc: last.mv.fc });
+      if (last.eaten) board[last.mv.tr][last.mv.tc] = last.eaten;  /* 恢复被吃子 */
       moveCount--;
       removed++;
       if (last.side === playerSide) break;
@@ -371,7 +375,14 @@
 
   /* ---------- 交互 ---------- */
   canvas.addEventListener("click", function (e) {
-    if (!playing || aiThinking) return;
+    if (!playing) return;
+    if (aiThinking) {
+      const rb = document.getElementById("resultBox");
+      rb.textContent = "AI 思考中…请稍候";
+      clearTimeout(rb._t);
+      rb._t = setTimeout(function () { if (document.getElementById("resultBox").textContent.indexOf("AI 思考中") === 0) document.getElementById("resultBox").textContent = ""; }, 1500);
+      return;
+    }
     const rect = canvas.getBoundingClientRect();
     const c = Math.round((e.clientX - rect.left) / rect.width * 9 - 0.5);
     const r = Math.round((e.clientY - rect.top) / rect.height * 10 - 0.5);
