@@ -128,8 +128,13 @@
     try {
       worker = new Worker("xq_xqw_wrapper.js");
       worker.onmessage = onWorkerMsg;
+      worker.onerror = function (e) {
+        document.title = "WORKER_ERR:" + (e.message || e.filename || "unknown");
+        worker = null;
+      };
     } catch (e) {
       worker = null;
+      document.title = "WORKER_ERR:" + e.message;
       console.warn("Worker 不可用，将降级为主线程计算（页面可能短暂卡顿）");
     }
   }
