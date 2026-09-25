@@ -351,10 +351,18 @@
     return alpha;
   }
 
-  /* 开局库：前两手走常见开局，杜绝开局乱走送子 */
-  function openingMove(b, n) {
-    if (n === 0) return { fr: 7, fc: 7, tr: 7, tc: 4, cap: 0, capScore: 0 };  /* 红先：炮二平五（当头炮） */
-    if (n === 1) return { fr: 0, fc: 7, tr: 2, tc: 7, cap: 0, capScore: 0 };   /* 黑应：马8进7（屏风马） */
+  /* 开局库：前两手走常见开局；仅当该着法当前仍然合法（如未悔棋打乱局面）才生效，
+     否则回退正常搜索，绝不出非法着法 */
+  function openingMove(b, side, n) {
+    let cand = null;
+    if (n === 0 && side === 1) cand = { fr: 7, fc: 7, tr: 7, tc: 4, cap: 0, capScore: 0 };  /* 红先：炮二平五 */
+    else if (n === 1 && side === -1) cand = { fr: 0, fc: 1, tr: 2, tc: 2, cap: 0, capScore: 0 };  /* 黑应：马8进7（屏风马） */
+    if (!cand) return null;
+    const legals = XQ.genLegalMoves(b, side);
+    for (let i = 0; i < legals.length; i++) {
+      const m = legals[i];
+      if (m.fr === cand.fr && m.fc === cand.fc && m.tr === cand.tr && m.tc === cand.tc) return cand;
+    }
     return null;
   }
   function boardKey(b, side) {
@@ -444,7 +452,7 @@
     const deadline = Date.now() + (cfg.timeMs || 3000);
     /* 开局库：前两手走常见开局（杜绝开局乱走送子） */
     if (cfg.opening !== undefined) {
-      const om = openingMove(b, cfg.opening);
+      const om = openingMove(b, side, cfg.opening);
       if (om) return { mv: om, score: 0, mate: false };
     }
     const firstLegal = XQ.genLegalMoves(b, side);
