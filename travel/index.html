@@ -12,8 +12,6 @@
     font-size:13px; font-weight:700; background:rgba(255,255,255,.16); color:#fff; }
   .top-actions #btnGps{ background:#e8a33d; color:#3a2605; }
   .top-actions #btnGps:active{ background:#d18f2a; }
-  .top-actions #btnMapAlt{ background:#1f7a6d; color:#fff; }
-  .top-actions #btnMapAlt:active{ background:#175f55; }
   /* 海拔结果浮层（地图底部居中，避开右下缩放控件） */
   .alt-float{ position:absolute; left:50%; bottom:88px; transform:translateX(-50%); z-index:1500;
     background:rgba(18,42,34,.94); color:#eaf7f1; border:1px solid rgba(127,214,178,.55);
@@ -52,8 +50,7 @@
       <div id="topSuggest" class="suggest"></div>
     </div>
     <div class="top-actions">
-      <button id="btnGps" title="GPS 测当前海拔">📡 海拔</button>
-      <button id="btnMapAlt" title="点地图查海拔">🗺️ 点查</button>
+      <button id="btnGps" title="GPS 测当前位置海拔与移动速度">📡 海拔</button>
     </div>
   </header>
 
