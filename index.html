@@ -64,11 +64,14 @@
   #mapFrame { width:100%; height:100%; border:0; display:block; }
   #mediaPane.active { display:block; height:calc(100vh - 54px); height:calc(100dvh - 54px); }
   #mediaFrame { width:100%; height:100%; border:0; display:block; }
+  #chessPane.active { display:block; height:calc(100vh - 54px); height:calc(100dvh - 54px); }
+  #chessFrame { width:100%; height:100%; border:0; display:block; }
   /* 手机端适配 */
   @media (max-width:768px){
     header { padding:10px 12px; }
     #mapPane.active { height:calc(100vh - 50px); height:calc(100dvh - 50px); }
     #mediaPane.active { height:calc(100vh - 50px); height:calc(100dvh - 50px); }
+    #chessPane.active { height:calc(100vh - 50px); height:calc(100dvh - 50px); }
     .nav-tabs-wrap { position:relative; min-width:0; flex:1; }
     .nav-tabs { overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none;
                 white-space:nowrap; flex-wrap:nowrap; }
@@ -97,6 +100,7 @@
         <a class="nav-tab active" href="./" data-section="home"><span class="full">谷歌热榜</span><span class="short">谷歌</span></a>
         <a class="nav-tab" href="travel/" data-section="map"><span class="full">旅游地图</span><span class="short">地图</span></a>
         <a class="nav-tab" href="media/" data-section="media"><span class="full">音乐视频</span><span class="short">音乐</span></a>
+        <a class="nav-tab" href="chess/" data-section="chess"><span class="full">棋类</span><span class="short">棋类</span></a>
       </nav>
     </div>
     <button class="refresh-btn" id="refreshBtn" onclick="loadNews()">更新</button>
@@ -111,6 +115,9 @@
 </div>
 <div id="mediaPane" class="pane">
   <iframe id="mediaFrame" src="media/?v=20" title="音乐视频"></iframe>
+</div>
+<div id="chessPane" class="pane">
+  <iframe id="chessFrame" src="chess/" title="棋类"></iframe>
 </div>
 <div class="modal" id="modal" onclick="if(event.target===this)closeModal()">
   <div class="modal-body" id="modalBody"></div>
@@ -317,9 +324,11 @@ window.addEventListener('resize', checkNavScroll);
 // ===== 无跳转切换：热榜 / 地图 同一页面切换显示 =====
 const mapFrame = document.getElementById('mapFrame');
 const mediaFrame = document.getElementById('mediaFrame');
+const chessFrame = document.getElementById('chessFrame');
 const homePane = document.getElementById('homePane');
 const mapPane = document.getElementById('mapPane');
 const mediaPane = document.getElementById('mediaPane');
+const chessPane = document.getElementById('chessPane');
 const refreshBtn = document.getElementById('refreshBtn');
 let savedHomeScroll = 0;
 
@@ -350,23 +359,22 @@ mapFrame.addEventListener('load', ()=>{
 function switchSection(key){
   document.querySelectorAll('.nav-tab').forEach(t =>
     t.classList.toggle('active', t.dataset.section === key));
-  if(key === 'map' || key === 'media'){
+  if(key === 'map' || key === 'media' || key === 'chess'){
     savedHomeScroll = window.scrollY;
     homePane.classList.remove('active');
+    mapPane.classList.toggle('active', key === 'map');
+    mediaPane.classList.toggle('active', key === 'media');
+    chessPane.classList.toggle('active', key === 'chess');
     if(key === 'map'){
-      mapPane.classList.add('active');
-      mediaPane.classList.remove('active');
       hideMapHeader();
       fixMapSize();
-    }else{
-      mediaPane.classList.add('active');
-      mapPane.classList.remove('active');
     }
     if(refreshBtn) refreshBtn.style.display = 'none';
     window.scrollTo(0, 0);
   }else{
     mapPane.classList.remove('active');
     mediaPane.classList.remove('active');
+    chessPane.classList.remove('active');
     homePane.classList.add('active');
     if(refreshBtn) refreshBtn.style.display = '';
     window.scrollTo(0, savedHomeScroll);
