@@ -4,8 +4,33 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>豆包旅游地图</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@main/travel/js/lib/leaflet.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@main/travel/css/style.css">
+<link rel="stylesheet" href="js/lib/leaflet.css">
+<link rel="stylesheet" href="css/style.css">
+<style>
+  /* 顶栏海拔按键：替换原「地球/全屏」，改为文字胶囊 */
+  .top-actions button{ width:auto; min-width:58px; height:34px; padding:0 11px; border-radius:17px;
+    font-size:13px; font-weight:700; background:rgba(255,255,255,.16); color:#fff; }
+  .top-actions #btnGps{ background:#e8a33d; color:#3a2605; }
+  .top-actions #btnGps:active{ background:#d18f2a; }
+  .top-actions #btnMapAlt{ background:#1f7a6d; color:#fff; }
+  .top-actions #btnMapAlt:active{ background:#175f55; }
+  /* 海拔结果浮层（地图底部居中，避开右下缩放控件） */
+  .alt-float{ position:absolute; left:50%; bottom:88px; transform:translateX(-50%); z-index:1500;
+    background:rgba(18,42,34,.94); color:#eaf7f1; border:1px solid rgba(127,214,178,.55);
+    border-radius:12px; padding:11px 16px; font-size:14px; line-height:1.7; max-width:88%;
+    box-shadow:0 6px 24px rgba(0,0,0,.4); text-align:center; display:none;
+    -webkit-backdrop-filter:blur(3px); backdrop-filter:blur(3px); }
+  .alt-float b{ color:#ffd479; font-size:18px; }
+  .alt-float small{ color:#9dbdb0; font-size:12px; }
+  /* 景点卡片内新增的海拔行 */
+  .pop-card .pal{ font-size:13px; color:var(--green-d); margin:6px 0 0; padding-top:6px;
+    border-top:1px dashed var(--line); }
+  .pop-card .pal b{ color:#c1121f; }
+  @media (max-width:768px){
+    .top-actions button{ min-width:52px; height:32px; font-size:13px; padding:0 8px; }
+    .alt-float{ bottom:80px; max-width:90%; font-size:13px; }
+  }
+</style>
 </head>
 <body>
 <header class="site-header">
@@ -27,8 +52,8 @@
       <div id="topSuggest" class="suggest"></div>
     </div>
     <div class="top-actions">
-      <button id="btnLocate" title="回到全国">🌏</button>
-      <button id="btnFull" title="全屏">⛶</button>
+      <button id="btnGps" title="GPS 测当前海拔">📡 海拔</button>
+      <button id="btnMapAlt" title="点地图查海拔">🗺️ 点查</button>
     </div>
   </header>
 
@@ -91,17 +116,18 @@
       <button id="panelToggle">☰</button>
       <div id="mapLegend" class="legend"></div>
       <div id="mapHint" class="map-hint"></div>
+      <div id="altFloat" class="alt-float"></div>
     </div>
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@main/travel/js/lib/leaflet.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@main/travel/data_bundle.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@main/travel/js/bridge.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@main/travel/js/trip_templates.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@main/travel/js/planner.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@main/travel/js/footprint.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@main/travel/js/app.js"></script>
+<script src="js/lib/leaflet.js"></script>
+<script src="data_bundle.js"></script>
+<script src="js/bridge.js"></script>
+<script src="js/trip_templates.js"></script>
+<script src="js/planner.js"></script>
+<script src="js/footprint.js"></script>
+<script src="js/app.js"></script>
 <script>
 /* 版块导航：检测是否可滚动，显示右侧渐隐提示 */
 (function(){ function c(){ var w=document.querySelector('.nav-tabs-wrap'),t=w&&w.querySelector('.nav-tabs');
