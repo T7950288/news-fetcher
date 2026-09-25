@@ -274,6 +274,21 @@
   /* GPS 实测当前海拔 + 移动速度（持续跟踪：点一下开始、再点停止） */
   var gpsWatch = null, spdSamples = [], gpsRunning = false;
   function fmtSpeed(ms){ return (ms==null || isNaN(ms)) ? '—' : (ms*3.6).toFixed(1); }
+  /* GPS 拿不到高度时的兜底：用定位经纬度查地表高程（8 秒内不重复查） */
+  var fallbackLast = 0, fallbackBusy = false;
+  function tryFallback(lat, lng){
+    if(fallbackBusy) return;
+    var now = Date.now();
+    if(now - fallbackLast < 8000) return;
+    fallbackLast = now; fallbackBusy = true;
+    altFetch(lat,lng).then(function(res){
+      fallbackBusy = false;
+      altShow('📡 GPS 未返回高度，按你所在位置地面海拔约 <b>' + Math.round(res.elevation) + ' 米</b><br><small>（不含楼层）</small>', 'live');
+    }).catch(function(){
+      fallbackBusy = false;
+      altShow('📡 海拔未获取（GPS 高度不可用，且地面海拔查询失败）', 'live');
+    });
+  }
   document.getElementById('btnGps').addEventListener('click', function(){
     var btn = document.getElementById('btnGps');
     if(gpsRunning){   /* 再点一次 → 停止 */
@@ -295,11 +310,16 @@
       if(spd != null && !isNaN(spd)){ spdSamples.push(spd); if(spdSamples.length > 200) spdSamples.shift(); }
       var avg = spdSamples.length ? spdSamples.reduce(function(a,b){return a+b;},0)/spdSamples.length : null;
       var max = spdSamples.length ? Math.max.apply(null, spdSamples) : null;
-      var altTxt = (alt==null || isNaN(alt)) ? '未获取' : Math.round(alt)+' 米';
       var speedLine = '时速 <b>'+fmtSpeed(spd)+' 公里/时</b>' +
         (avg != null ? '<br><small>平均 '+fmtSpeed(avg)+' · 最高 '+fmtSpeed(max)+' 公里/时</small>' : '');
       var accTxt = '水平±'+(acc ? Math.round(acc)+' 米' : '未知') + (altAcc ? ' · 垂直±'+Math.round(altAcc)+' 米' : '');
-      altShow('📡 海拔 '+altTxt+'<br>'+speedLine+'<br><small>'+accTxt+'</small>', 'live');
+      if(alt != null && !isNaN(alt)){
+        altShow('📡 海拔 <b>'+Math.round(alt)+' 米</b><br>'+speedLine+'<br><small>'+accTxt+'</small>', 'live');
+      } else {
+        /* GPS 高度不可用 → 提示并自动查所在位置地面海拔兜底 */
+        altShow('📡 海拔 未获取（正在查所在位置地面海拔…）<br>'+speedLine, 'live');
+        tryFallback(lat, lng);
+      }
     }, function(err){
       gpsRunning = false; if(gpsWatch){ navigator.geolocation.clearWatch(gpsWatch); gpsWatch = null; }
       btn.innerHTML = '📡 海拔'; btn.title = 'GPS 测当前海拔与移动速度';
