@@ -126,7 +126,7 @@
   function ensureWorker() {
     if (worker) return;
     try {
-      worker = new Worker("xiangqi_engine.js");
+      worker = new Worker("xq_xqw_wrapper.js");
       worker.onmessage = onWorkerMsg;
     } catch (e) {
       worker = null;
@@ -137,7 +137,7 @@
     aiThinking = true;
     updateUI();
     render();
-    const msg = { type: "genmove", id: ++moveId, board: board, side: aiSide, cfg: Object.assign({}, DIFF_CFG[difficulty], { opening: moveCount }) };
+    const msg = { type: "genmove", id: ++moveId, board: board, side: aiSide, cfg: DIFF_CFG[difficulty] };
     if (worker) {
       worker.postMessage(msg);
     } else {
