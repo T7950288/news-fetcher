@@ -68,9 +68,9 @@
 <div class="topbar">
   <a class="back" href="index.html">← 棋类</a>
   <select class="sel" id="selDiff">
-    <option value="15000">容易</option>
-    <option value="30000" selected>中等</option>
-    <option value="60000">困难</option>
+    <option value="8000">容易</option>
+    <option value="15000" selected>中等</option>
+    <option value="30000">困难</option>
   </select>
   <select class="sel" id="selColor">
     <option value="1" selected>执黑（先手）</option>
@@ -78,6 +78,7 @@
   </select>
   <div class="spacer"></div>
   <button class="tbtn" id="btnNew">新局</button>
+  <button class="tbtn" id="btnCount">数目</button>
   <button class="tbtn" id="btnUndo" disabled>悔棋</button>
   <button class="tbtn" id="btnPass" disabled>虚手</button>
   <button class="tbtn danger" id="btnResign" disabled>认输</button>
@@ -103,7 +104,8 @@
   <div class="result-box" id="resultBox">
     <div class="rt" id="resultTitle"></div>
     <div class="rs" id="resultText"></div>
-    <button class="btn" id="btnResultNew">再来一局</button>
+    <button class="btn" id="btnResultNew" style="display:none">再来一局</button>
+    <button class="btn" id="btnResultGo" style="display:none;margin-left:8px">继续对弈</button>
   </div>
 </div>
 
@@ -298,7 +300,9 @@ class GoAI {
 
     // 自适应 playouts：目标时间 / 单次前向耗时，上下限 8..400
     let playouts = Math.floor(targetMs / perPredict);
-    if (playouts < 8) playouts = 8;
+    // 动态下限：慢机器 1 次保底（秒级响应），快机器至少 4 次保棋力
+    let lower = Math.max(1, Math.min(5, Math.floor(1000 / perPredict)));
+    if (playouts < lower) playouts = lower;
     if (playouts > 400) playouts = 400;
     const realPlayouts = playouts;
 
@@ -507,7 +511,8 @@ class GoAI {
     badge.className = "badge ai";
     setBtns(false);
     try {
-      const result = await ai.search(board, komi, targetMs);
+      const t = board.moveHistory.length < 6 ? 2500 : targetMs;
+      const result = await ai.search(board, komi, t);
       if (gameOver) return;
       if (result.move.pass) {
         board.passMove(aiColor);
@@ -541,8 +546,10 @@ class GoAI {
     else if (whiteTotal > blackTotal) title = "白棋胜";
     else title = "和棋";
     $("resultTitle").textContent = title;
-    $("resultText").textContent = "黑 " + blackTotal + " 目 ｜ 白 " + whiteTotal + " 目（含贴目 " + komi + "）";
+    $("resultText").textContent = "黑 " + blackTotal.toFixed(1) + " 目 ｜ 白 " + whiteTotal.toFixed(1) + " 目（含贴目 " + komi + "）";
     $("resultBox").style.display = "block";
+    $("btnResultGo").style.display = "none";
+    $("btnResultNew").style.display = "";
     badge.textContent = "对局结束";
     badge.className = "badge";
     winrateInfo.textContent = "";
@@ -590,6 +597,34 @@ class GoAI {
   }
 
   $("btnNew").addEventListener("click", () => startNewGame(false));
+  $("btnCount").addEventListener("click", () => {
+    if (!engineReady || gameOver || board.moveHistory.length === 0) return;
+    showForm(true);
+  });
+  $("btnResultGo").addEventListener("click", () => {
+    $("resultBox").style.display = "none";
+    $("btnResultGo").style.display = "none";
+    $("btnResultNew").style.display = "none";
+  });
+  function showForm(isLive) {
+    const res = board.countTerritory();
+    const blackTotal = res.blackScore;
+    const whiteTotal = res.whiteScore + komi;
+    let title;
+    if (blackTotal > whiteTotal) title = "黑棋领先 " + (blackTotal - whiteTotal).toFixed(1) + " 目";
+    else if (whiteTotal > blackTotal) title = "白棋领先 " + (whiteTotal - blackTotal).toFixed(1) + " 目";
+    else title = "形势持平";
+    $("resultTitle").textContent = title;
+    $("resultText").textContent = "黑 " + blackTotal.toFixed(1) + " 目 ｜ 白 " + whiteTotal.toFixed(1) + " 目（含贴目 " + komi + "）";
+    if (isLive) {
+      $("btnResultGo").style.display = "";
+      $("btnResultNew").style.display = "none";
+    } else {
+      $("btnResultGo").style.display = "none";
+      $("btnResultNew").style.display = "";
+    }
+    $("resultBox").style.display = "block";
+  }
   $("btnResultNew").addEventListener("click", () => startNewGame(false));
   $("btnPass").addEventListener("click", () => {
     if (!engineReady || gameOver || aiThinking) return;
@@ -601,10 +636,10 @@ class GoAI {
   });
   $("btnUndo").addEventListener("click", () => {
     if (!engineReady || gameOver || aiThinking) return;
-    board.undo();
-    if (sideToMove() === aiColor && board.moveHistory.length > 0) board.undo();
+    board.undo();  // 只回退一手
     updateUI();
     setBtns(true);
+    if (!gameOver && sideToMove() === aiColor) requestAIMove();
   });
   $("btnResign").addEventListener("click", () => {
     if (!engineReady || gameOver) return;
