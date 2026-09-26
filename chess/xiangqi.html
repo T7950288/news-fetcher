@@ -133,6 +133,11 @@
       window._xqLines.push(msg.line);
       if (window._xqLines.length > 200) window._xqLines.shift();
     }
+    else if (msg.type === "dbg") {
+      window._xqDbg = window._xqDbg || [];
+      window._xqDbg.push(msg.line);
+      if (window._xqDbg.length > 200) window._xqDbg.shift();
+    }
     else if (msg.type === "move" && msg.id === moveId) {
       if (msg.uci) onAIMove(msg.uci);
     }
