@@ -17,7 +17,7 @@
   .bar { display: flex; position: relative; align-items: center; gap: 5px; flex-wrap: nowrap; margin: 3px 0; flex: 0 0 auto; }
   .title { font-size: 17px; font-weight: bold; color: #3f5a78; white-space: nowrap; }
   .lbl { font-size: 13px; color: #4a5160; white-space: nowrap; }
-  input[type=number] { width: 50px; font-size: 17px; padding: 3px 4px; border: 1px solid #c3c9d2;
+  input[type=number] { width: 40px; font-size: 16px; padding: 3px 3px; border: 1px solid #c3c9d2;
     border-radius: 6px; text-align: center; background: #fff; }
   button { font-size: 14px; padding: 6px 10px; border: 1px solid #c3c9d2; border-radius: 8px;
     background: #fff; color: #1a1a1a; cursor: pointer; white-space: nowrap; }
@@ -58,10 +58,9 @@
   <div class="bar">
     <span class="title">数独</span>
     <span style="flex:1;display:flex;justify-content:center;align-items:center;"><a class="board-back" href="index.html">← 棋类</a></span>
-    <button class="nav" id="prevBtn">◀ 上一关</button>
-    <span class="lbl">关卡</span>
+    <button class="nav" id="prevBtn">◀</button>
     <input type="number" id="levelInput" min="1" max="999" value="1">
-    <button class="nav" id="nextBtn">下一关 ▶</button>
+    <button class="nav" id="nextBtn">▶</button>
     <button class="primary" id="startBtn">开始</button>
   </div>
   <div id="status"><span id="statusText"></span></div>
