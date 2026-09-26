@@ -393,6 +393,7 @@ class GoAI {
   let gameOver = false;
   let aiThinking = false;
   let engineReady = false;
+  let playerTakesTurn = false;  // 悔棋后若轮到 AI，由玩家先下
   let targetMs = 30000;
   let cell = 30, ox = 0, oy = 0;
   const komi = 7.5;
@@ -488,7 +489,7 @@ class GoAI {
   canvas.addEventListener("click", (e) => {
     if (!engineReady || gameOver || aiThinking) return;
     const st = sideToMove();
-    if (st !== playerColor) return;
+    if (st !== playerColor && !playerTakesTurn) return;
     const rect = canvas.getBoundingClientRect();
     const mx = e.clientX - rect.left, my = e.clientY - rect.top;
     const c = Math.round((mx - ox) / cell), r = Math.round((my - oy) / cell);
@@ -496,6 +497,7 @@ class GoAI {
     const { valid } = board.isValidMove(r, c, playerColor);
     if (!valid) return;
     board.play(r, c, playerColor);
+    playerTakesTurn = false;
     updateUI();
     requestAIMove();
   });
@@ -579,6 +581,7 @@ class GoAI {
     board = new GoBoard(N);
     gameOver = false;
     aiThinking = false;
+    playerTakesTurn = false;
     winrateInfo.textContent = "";
     $("resultBox").style.display = "none";
     playerColor = parseInt($("selColor").value);
@@ -628,7 +631,8 @@ class GoAI {
   $("btnResultNew").addEventListener("click", () => startNewGame(false));
   $("btnPass").addEventListener("click", () => {
     if (!engineReady || gameOver || aiThinking) return;
-    if (sideToMove() !== playerColor) return;
+    if (sideToMove() !== playerColor && !playerTakesTurn) return;
+    playerTakesTurn = false;
     board.passMove(playerColor);
     updateUI();
     if (board.passCount >= 2) { finishGame(); return; }
@@ -636,10 +640,16 @@ class GoAI {
   });
   $("btnUndo").addEventListener("click", () => {
     if (!engineReady || gameOver || aiThinking) return;
-    board.undo();  // 只回退一手
+    board.undo();  // 每点一次退一手，可连续点
+    playerTakesTurn = false;
     updateUI();
     setBtns(true);
-    if (!gameOver && sideToMove() === aiColor) requestAIMove();
+    if (!gameOver && sideToMove() === aiColor) {
+      // 轮到 AI 也不让它先下：由玩家先下一手
+      playerTakesTurn = true;
+      badge.textContent = (playerColor === 1 ? "黑棋" : "白棋") + "行棋（你）";
+      badge.className = "badge";
+    }
   });
   $("btnResign").addEventListener("click", () => {
     if (!engineReady || gameOver) return;
