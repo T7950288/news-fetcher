@@ -1120,6 +1120,90 @@ def agency_full_text(a):
     return a
 
 
+# ================= GDELT 模式 (试验: 自带缩略图 socialimage) =================
+GDELT_MODE = True
+
+def _gdelt_time(s):
+    try:
+        return (s[:4] + "-" + s[4:6] + "-" + s[6:8] + "T" + s[9:11] + ":" + s[11:13] + ":" + s[13:15] + "+00:00")
+    except Exception:
+        return datetime.now(timezone.utc).isoformat()
+
+def fetch_gdelt_top():
+    """GDELT DOC API: 全球时政热点, 自带 socialimage 缩略图; 返回带正文的条目列表"""
+    queries = [
+        "China OR Ukraine OR Russia OR Iran OR Israel OR Gaza OR election OR summit OR president OR parliament OR diplomacy OR NATO OR UN OR economy OR technology OR earthquake OR typhoon OR ceasefire OR sanctions OR treaty OR trade OR court OR vote OR minister OR talks OR attack OR strike",
+        "world OR government OR politics OR war OR crisis OR policy OR inflation OR climate OR defense OR security OR peace OR summit OR parliament OR diplomacy"
+    ]
+    raw = []
+    for q in queries:
+        try:
+            u = ("https://api.gdeltproject.org/api/v2/doc/doc?query=" +
+                 urllib.parse.quote(q) +
+                 "&mode=artlist&format=json&maxrecords=250&sort=datedesc&timespan=24h")
+            r = requests.get(u, timeout=30, headers={"User-Agent": UA})
+            if r.status_code == 200:
+                js = r.json()
+                raw.extend(js.get("articles", []) or [])
+            else:
+                print("GDELT HTTP", r.status_code)
+        except Exception as e:
+            print("GDELT ERR", e)
+        time.sleep(6)
+    arts = []
+    seen = set()
+    for a in raw:
+        t = (a.get("title") or "").strip()
+        if not t or len(t) < 20:
+            continue
+        if (a.get("language") or "en") != "en":
+            continue
+        if skip_news(t, "", "en", a.get("url") or ""):
+            continue
+        key = re.sub(r"\W+", "", t.lower())[:60]
+        if key in seen:
+            continue
+        seen.add(key)
+        cat, w = classify(t, "", "en", "world")
+        if cat is None:
+            continue
+        arts.append({
+            "id": "g" + hashlib.md5((a.get("url") or t).encode()).hexdigest()[:8],
+            "title_orig": t,
+            "title_zh": t,
+            "summary_zh": "",
+            "content_orig": "",
+            "content_zh": "",
+            "translate_by": "none",
+            "source": (a.get("domain") or "GDELT"),
+            "country": (a.get("sourcecountry") or "US").upper(),
+            "category": cat,
+            "published_at": _gdelt_time(a.get("seendate") or ""),
+            "url": a.get("url") or "",
+            "image": a.get("socialimage") or "",
+            "_google": False,
+            "_full": False,
+            "_w": w,
+        })
+    # 分类权重 + 时间排序, 取前60并发抓正文(真实媒体链接)
+    arts.sort(key=lambda x: (x["_w"], x.get("published_at", "")), reverse=False)
+    arts = arts[:60]
+    with ThreadPoolExecutor(max_workers=10) as ex:
+        def grab(a):
+            if not a["url"]:
+                return a
+            try:
+                ft = fetch_full_text(a["url"], "en")
+                if ft and len(ft) >= 300:
+                    a["content_orig"] = ft[:MAX_BODY]
+                    a["_full"] = True
+            except Exception:
+                pass
+            return a
+        arts = list(ex.map(grab, arts))
+    arts.sort(key=lambda x: (x.get("_full", False), x.get("published_at", "")), reverse=True)
+    return arts[:50]
+
 def main():
     import signal
     def _wd(signum, frame):
@@ -1128,9 +1212,13 @@ def main():
     signal.signal(signal.SIGALRM, _wd)
     signal.alarm(540)  # 9 分钟强制结束, 防止卡死拖垮定时队列
     t0 = time.time()
+    G_TARGET = 50 if GDELT_MODE else TARGET
     _log("fetching sources...")
-    with ThreadPoolExecutor(max_workers=8) as ex:
-        results = list(ex.map(lambda f: fetch_one(*f), FEEDS))
+    if GDELT_MODE:
+        results = fetch_gdelt_top()
+    else:
+        with ThreadPoolExecutor(max_workers=8) as ex:
+            results = list(ex.map(lambda f: fetch_one(*f), FEEDS))
     all_arts = []
     for r in results:
         all_arts.extend(r)
@@ -1252,7 +1340,7 @@ def main():
                     a["url"] = u2
                     DIAG["fetch_ok"] += 1
             return a
-        pool = fetch_rss_pool()  # v7.9: 全量RSS池并行抓一次
+        pool = fetch_rss_pool() if any(a.get("_google") for a in uniq) else {}  # GDELT模式无需RSS池
         DIAG["rss_domains"] = len(pool)
         uniq = list(ex.map(enrich, uniq))
     full_n = sum(1 for a in uniq if a.get("_full"))
@@ -1272,7 +1360,7 @@ def main():
     main_list = [a for a in uniq if not a.get("_china")]
     recent_main = [a for a in main_list
                    if 0 <= (now - datetime.fromisoformat(a["published_at"])).total_seconds() < 86400]
-    recent_main = pick_news(recent_main, TARGET)
+    recent_main = pick_news(recent_main, G_TARGET)
     recent_china = [a for a in china_list
                     if 0 <= (now - datetime.fromisoformat(a["published_at"])).total_seconds() < 86400]
     # 中国相关: 保持Google搜索排序取前6; 与主榜重复标题跳过
@@ -1313,7 +1401,7 @@ def main():
             a["summary_zh"] = ""
             a["translate_by"] = "none"
     MAX_TOTAL = 100  # v8: 网页第1页最新50条 + 第2页被覆盖旧闻50条
-    merged2 = recent[:TARGET + len(recent_china)]  # 本轮 42+8 = 50 条
+    merged2 = recent[:G_TARGET + len(recent_china)]  # 本轮 42+8 = 50 条
     # 24h内被覆盖的旧条目(有正文即可), 按时间倒序补位到最多100条 —— 翻译取消后不再限已翻译
     have = {a["id"] for a in merged2}
     for a in sorted(old_by_id.values(), key=lambda x: x.get("published_at", ""), reverse=True):
