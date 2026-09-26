@@ -1141,14 +1141,21 @@ def fetch_gdelt_top():
             u = ("https://api.gdeltproject.org/api/v2/doc/doc?query=" +
                  urllib.parse.quote(q) +
                  "&mode=artlist&format=json&maxrecords=250&sort=datedesc&timespan=24h")
-            r = requests.get(u, timeout=30, headers={"User-Agent": UA})
-            if r.status_code == 200:
-                js = r.json()
-                raw.extend(js.get("articles", []) or [])
-            else:
-                print("GDELT HTTP", r.status_code)
+            for attempt in range(3):
+                r = requests.get(u, timeout=30, headers={"User-Agent": UA})
+                if r.status_code == 200:
+                    js = r.json()
+                    raw.extend(js.get("articles", []) or [])
+                    break
+                elif r.status_code == 429:
+                    print("GDELT 429, 等待30s重试", attempt+1)
+                    time.sleep(30)
+                else:
+                    print("GDELT HTTP", r.status_code)
+                    break
         except Exception as e:
             print("GDELT ERR", e)
+            time.sleep(10)
         time.sleep(6)
     arts = []
     seen = set()
@@ -1417,6 +1424,9 @@ def main():
     merged2 = merged2[:MAX_TOTAL]
     print("MERGED country", dict(_C(a["country"] for a in merged2)))
     print("MERGED ai", sum(1 for a in merged2 if a.get("translate_by") == "ai"))
+    if not merged2:
+        print("本轮抓取0条, 跳过上传(防止清空线上库)")
+        sys.exit(0)
     new_data = {"version": "1.0", "updated_at": now.isoformat(), "articles": merged2}
     # v9.7: GitHub 是权威数据源(网页读 raw), 必须成功; Gitee 尽力写, 快失败不拖时间
     gh_ok = False
