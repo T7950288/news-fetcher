@@ -286,8 +286,9 @@ class GoAI {
   /* ---------- MCTS 搜索 ----------
    * targetMs: 目标思考时长（毫秒）。按实测单次前向耗时自适应 playouts，
    * 慢机器控思考时间，快机器自动加搜索量变强。 */
-  async search(board, komi, targetMs, onProgress) {
-    const side = (board.moveHistory.length % 2 === 0) ? 1 : 2; // 黑先，pass 也计一手
+  async search(board, komi, targetMs, side) {
+    // 颜色显式传入（悔棋接管等场景棋谱奇偶可能错乱，不能靠棋谱推断）
+    if (!side) side = (board.moveHistory.length % 2 === 0) ? 1 : 2;
     const root = new GoNode(null, null, 0);
     const initBoard = board.copy();
 
@@ -514,7 +515,7 @@ class GoAI {
     setBtns(false);
     try {
       const t = board.moveHistory.length < 6 ? 2500 : targetMs;
-      const result = await ai.search(board, komi, t);
+      const result = await ai.search(board, komi, t, aiColor);
       if (gameOver) return;
       if (result.move.pass) {
         board.passMove(aiColor);
