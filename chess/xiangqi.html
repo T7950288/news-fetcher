@@ -446,8 +446,8 @@
     const redEaten = captureCount(1), blackEaten = captureCount(-1);
     if (!playing) { badge.textContent = "已结束"; badge.className = "badge"; }
     else if (aiThinking) {
-      badge.textContent = "AI 思考中…";
-      badge.className = "badge ai";
+      if (engineReady) { badge.textContent = "AI 思考中…"; badge.className = "badge ai"; }
+      else { badge.textContent = "引擎加载中…"; badge.className = "badge load"; }
     } else {
       const turn = moveHistory.length ? -moveHistory[moveHistory.length - 1].side : 1;
       const isPlayer = turn === playerSide;
