@@ -24,13 +24,14 @@
   button:active { background: #dfe6f0; }
   button.primary { background: #3f5a78; color: #fff; border-color: #3f5a78; }
   button.nav { font-size: 13px; padding: 6px 8px; }
-  #status { text-align: center; font-size: 12px; color: #4a5160; margin: 1px 0; flex: 0 0 auto; }
+  #status { display: flex; align-items: center; font-size: 12px; color: #4a5160; margin: 1px 0; flex: 0 0 auto; }
+  #statusText { flex: 1; text-align: center; }
   #boardWrap { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; margin: 8px 0; min-height: 0; position: relative; }
-  .board-back { position:absolute; top:6px; right:6px; z-index:30;
+  .board-back { position:relative; z-index:30; flex:0 0 auto;
     background:rgba(255,255,255,.92); color:#333; text-decoration:none;
-    border:1px solid rgba(0,0,0,.18); border-radius:10px;
-    font-size:14px; font-weight:700; padding:8px 12px; line-height:1;
-    box-shadow:0 2px 8px rgba(0,0,0,.18); }
+    border:1px solid rgba(0,0,0,.18); border-radius:8px;
+    font-size:13px; font-weight:700; padding:7px 10px; line-height:1;
+    box-shadow:0 1px 4px rgba(0,0,0,.12); }
   .board-back:active { background:#e8e8e8; }
 
   canvas { display: block; flex: none; background: #eef1f5; border-radius: 8px; }
@@ -60,7 +61,7 @@
     <button class="nav" id="nextBtn">下一关 ▶</button>
     <button class="primary" id="startBtn">开始</button>
   </div>
-  <div id="status"></div>
+  <div id="status"><span id="statusText"></span><a class="board-back" href="index.html">← 棋类</a></div>
   <div id="boardWrap"><a class="board-back" href="index.html">← 棋类</a><canvas id="cv"></canvas></div>
   <div id="digits"></div>
   <div id="fnRow1">
@@ -211,7 +212,7 @@ function draw(){
 }
 
 function updateStatus(){
-  document.getElementById('status').textContent=
+  document.getElementById('statusText').textContent=
     '第 '+level+' 关 · 已知数字 '+countClues(given)+' 个 · '+(mode==='cand'?'候选模式':'实填模式');
 }
 function countClues(b){ let k=0; for(const row of b) for(const v of row) if(v!==0) k++; return k; }
