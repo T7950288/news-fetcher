@@ -15,6 +15,7 @@ function handleChunk(chunk) {
     const line = buffer.slice(0, idx).replace(/\r$/, "").trim();
     buffer = buffer.slice(idx + 1);
     if (!line) continue;
+    self.postMessage({ type: "stdout", line: line });
     if (line.indexOf("bestmove") === 0) {
       const parts = line.split(/\s+/);
       if (parts.length >= 2 && parts[1] !== "(none)") {
