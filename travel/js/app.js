@@ -183,9 +183,9 @@
     if (c) map.setView([c.center[1], c.center[0]], COUNTIES.some(x => x.name === name) ? 10 : 9, { animate: false });
   };
   const baseTile = L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}',
-    { subdomains: ['1', '2', '3', '4'], maxZoom: 18, minZoom: 3 }).addTo(map);
+    { subdomains: ['1', '2', '3', '4'], maxZoom: 18, minZoom: 3, keepBuffer: 4 }).addTo(map);
   const satTile = L.tileLayer('https://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}',
-    { subdomains: ['1', '2', '3', '4'], maxZoom: 18, minZoom: 3 });
+    { subdomains: ['1', '2', '3', '4'], maxZoom: 18, minZoom: 3, keepBuffer: 4 });
   var satOn = false;
   function toggleSat() {
     satOn = !satOn;
