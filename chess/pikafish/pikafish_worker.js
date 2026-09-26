@@ -7,6 +7,7 @@ importScripts("pikafish.js");
 
 let engine = null;
 let buffer = "";
+let currentId = 0;
 
 function handleChunk(chunk) {
   buffer += chunk;
@@ -19,7 +20,7 @@ function handleChunk(chunk) {
     if (line.indexOf("bestmove") === 0) {
       const parts = line.split(/\s+/);
       if (parts.length >= 2 && parts[1] !== "(none)") {
-        self.postMessage({ type: "move", uci: parts[1], ponder: parts.length >= 4 ? parts[3] : null });
+        self.postMessage({ type: "move", id: currentId, uci: parts[1], ponder: parts.length >= 4 ? parts[3] : null });
       }
     }
   }
@@ -49,6 +50,7 @@ self.onmessage = function (e) {
     });
   } else if (msg.type === "go") {
     if (!engine) return;
+    currentId = msg.id || 0;
     let cmd = "position startpos";
     if (msg.moves && msg.moves.length) cmd += " moves " + msg.moves.join(" ");
     engine.send_command(cmd);
