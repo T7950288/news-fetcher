@@ -53,12 +53,13 @@
   .result-box .btn { border:none; background:#1a3a6c; color:#fff; border-radius:8px;
                      padding:8px 22px; font-size:14px; cursor:pointer; }
   @media (max-width:600px){
-    .topbar { gap:5px; padding:4px 6px; }
-    .back { font-size:14px; padding:2px 6px 2px 2px; }
-    .tbtn { padding:5px 8px; font-size:13px; }
-    .sel { padding:5px 6px; font-size:13px; }
-    .statusbar { font-size:12px; gap:7px; padding:3px 8px; }
-    .board-wrap { padding:4px; }
+    .topbar { gap:3px; padding:2px 4px; }
+    .back { font-size:12px; padding:1px 4px 1px 1px; }
+    .tbtn { padding:3px 5px; font-size:11px; border-radius:6px; }
+    .sel { padding:3px 4px; font-size:11px; }
+    .statusbar { font-size:11px; gap:5px; padding:1px 5px; }
+    .board-wrap { padding:0; }
+    .loading-card { padding:12px 16px; }
   }
 </style>
 </head>
@@ -405,7 +406,7 @@ class GoAI {
     try {
       const backend = await ai.load(MODEL_URL);
       engineReady = true;
-      engInfo.textContent = "引擎就绪" + (backend === "webgl" ? "（GPU）" : "（CPU）");
+      engInfo.textContent = window.innerWidth <= 600 ? "引擎就绪" : "引擎就绪" + (backend === "webgl" ? "（GPU）" : "（CPU）");
       engInfo.className = "badge";
       $("loadingMask").style.display = "none";
       startNewGame(true);
@@ -420,13 +421,21 @@ class GoAI {
     const wrap = canvas.parentElement;
     const W = wrap.clientWidth, H = wrap.clientHeight;
     const dpr = window.devicePixelRatio || 1;
-    cell = Math.floor(Math.min((W - 16) / (N + 0.6), (H - 16) / (N + 0.6)));
-    if (cell < 14) cell = Math.min((W - 8) / N, (H - 8) / N);
-    const bw = (N - 1) * cell + 24, bh = (N - 1) * cell + 24;
+    const isMobile = window.innerWidth <= 600;
+    if (isMobile) {
+      // 手机：贴边最大化（四周仅留半个格子的边距）
+      cell = Math.floor(Math.min(W / 19.2, H / 19.2));
+      if (cell < 9) cell = Math.floor(Math.min(W / 19, H / 19));
+      ox = 8; oy = 8;
+    } else {
+      cell = Math.floor(Math.min((W - 16) / (N + 0.6), (H - 16) / (N + 0.6)));
+      if (cell < 14) cell = Math.min((W - 8) / N, (H - 8) / N);
+      ox = 12; oy = 12;
+    }
+    const bw = (N - 1) * cell + ox * 2, bh = (N - 1) * cell + oy * 2;
     canvas.width = bw * dpr; canvas.height = bh * dpr;
     canvas.style.width = bw + "px"; canvas.style.height = bh + "px";
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ox = 12; oy = 12;
     drawBoard();
   }
 
