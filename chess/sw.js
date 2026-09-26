@@ -1,11 +1,19 @@
-/* 引擎文件永久缓存（首次下载后秒开） */
-var CACHE = "pika-v1";
+/* 引擎文件永久缓存（首次下载后秒开）——象棋 pikafish + 围棋模型/tfjs */
+var CACHE = "chess-v2";
 self.addEventListener("install", function (e) { self.skipWaiting(); });
 self.addEventListener("activate", function (e) { e.waitUntil(self.clients.claim()); });
 self.addEventListener("fetch", function (e) {
   var url;
   try { url = new URL(e.request.url); } catch (err) { return; }
-  if (url.origin === location.origin && url.pathname.indexOf("/chess/pikafish/") >= 0) {
+  if (url.origin !== location.origin) return;
+  var p = url.pathname;
+  var cacheable =
+    p.indexOf("/chess/pikafish/") >= 0 ||
+    p.indexOf("/chess/go_model/") >= 0 ||
+    p === "/news-fetcher/chess/vendor/tf.min.js" ||
+    p === "/news-fetcher/chess/weiqi.html" ||
+    p === "/news-fetcher/chess/go_engine.js";
+  if (cacheable) {
     e.respondWith(
       caches.open(CACHE).then(function (c) {
         return c.match(e.request).then(function (r) {
