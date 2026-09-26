@@ -65,17 +65,10 @@ var Pikafish = (() => {
           var REMOTE_PACKAGE_SIZE = metadata['remote_package_size'];
 
           function fetchRemotePackage(packageName, packageSize, callback, errback) {
-            // console.log('readLocalPackage', packageName, packageSize);
-
-            fs.readFile(packageName, (err, data) => {
-              if (err) {
-                errback(err);
-              } else {
-                // Convert the Buffer to ArrayBuffer
-                const arrayBuffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
-                callback(arrayBuffer);
-              }
-            });
+            fetch(packageName, { credentials: 'same-origin' }).then(function (response) {
+              if (!response['ok']) throw 'failed to load data file at ' + packageName;
+              return response['arrayBuffer']();
+            }).then(callback, errback);
           }
 
           function handleError(error) {
@@ -963,22 +956,11 @@ var Pikafish = (() => {
             return instantiateArrayBuffer(receiveInstantiationResult);
           }
 
-          return new Promise((resolve, reject) => {
-            fs.readFile(wasmBinaryFile, (err, data) => {
-              if (err) {
-                reject(err);
-              } else {
-                WebAssembly.instantiate(data, info)
-                  .then(
-                    receiveInstantiationResult,
-                    reason => {
-                      console.error('wasm streaming compile failed: ' + reason);
-                      console.error('falling back to ArrayBuffer instantiation');
-                      return instantiateArrayBuffer(receiveInstantiationResult);
-                    }
-                  );
-              }
-            });
+          return getBinaryPromise().then(function (binary) {
+            return WebAssembly.instantiate(binary, info);
+          }).then(receiveInstantiationResult, function (reason) {
+            err('wasm streaming compile failed: ' + reason);
+            return instantiateArrayBuffer(receiveInstantiationResult);
           });
         }
 
