@@ -17,10 +17,6 @@ header{background:#1a3a6c;color:#fff;padding:12px 20px;position:sticky;top:0;z-i
 .nav-tab:hover{background:rgba(255,255,255,.25)}
 .nav-tab.active:hover{background:#fff}
 .nav-tab .short{display:none}
-.right{display:flex;align-items:center;gap:10px}
-.pager{display:flex;gap:6px}
-.pbtn{width:34px;height:34px;border-radius:50%;border:2px solid rgba(255,255,255,.6);background:transparent;color:#fff;font-size:15px;font-weight:700;cursor:pointer;transition:.2s}
-.pbtn.active{background:#fff;color:#1a3a6c;border-color:#fff}
 .refresh-btn{background:#fff;color:#1a3a6c;border:none;padding:8px 18px;border-radius:6px;font-size:14px;cursor:pointer;font-weight:600}
 .refresh-btn:active{transform:scale(.96)}
 .refresh-btn:disabled{opacity:.5;cursor:wait}
@@ -30,15 +26,18 @@ header{background:#1a3a6c;color:#fff;padding:12px 20px;position:sticky;top:0;z-i
 #mapFrame,#mediaFrame,#chessFrame{width:100%;height:100%;border:0;display:block}
 .wrap{max-width:1240px;margin:0 auto;padding:14px 20px}
 .meta{font-size:12px;color:#666;margin-bottom:12px}
-.tops{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
-.top{background:#fff7ec;border-radius:14px;padding:18px 20px;cursor:pointer;border:1px solid #f5d9a8;border-left:6px solid #f39c12;transition:.2s}
-.top.b{background:#eef6fd;border-color:#c9e2f5;border-left-color:#3498db}
-.top:hover{box-shadow:0 4px 12px rgba(0,0,0,.08);transform:translateY(-2px)}
-.top .tag{display:inline-block;background:#f39c12;color:#fff;border-radius:4px;padding:2px 8px;font-size:12px;font-weight:700;margin-bottom:8px}
-.top.b .tag{background:#3498db}
-.top h2{font-size:19px;line-height:1.45;margin-bottom:6px;color:#1a1a1a}
-.top .sub{font-size:13px;color:#666;line-height:1.6;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.top .info{font-size:12px;color:#888;margin-top:8px}
+/* 头条横条：连成一片，左橙右蓝 */
+.hero{display:grid;grid-template-columns:1fr 1fr;border-radius:14px;overflow:hidden;margin-bottom:14px;
+  background:linear-gradient(90deg,#fff7ec 0%,#fff7ec 50%,#eef6fd 50%,#eef6fd 100%);
+  border:1px solid #e8e8e8;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.hero-item{padding:18px 22px;cursor:pointer;transition:.15s}
+.hero-item:hover{filter:brightness(.97)}
+.hero-item+.hero-item{border-left:1px solid rgba(0,0,0,.07)}
+.hero-item .htag{display:inline-block;background:#f39c12;color:#fff;border-radius:4px;padding:2px 9px;font-size:12px;font-weight:700;margin-bottom:9px}
+.hero-item.b .htag{background:#3498db}
+.hero-item h2{font-size:19px;line-height:1.45;margin-bottom:6px;color:#1a1a1a}
+.hero-item .sub{font-size:13px;color:#666;line-height:1.6;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.hero-item .info{font-size:12px;color:#888;margin-top:9px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .card{background:#fff;border-radius:10px;padding:14px 16px;cursor:pointer;border:1px solid #e3e7ec;display:flex;flex-direction:column;gap:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);transition:.2s}
 .card:hover{box-shadow:0 3px 12px rgba(0,0,0,.1);transform:translateY(-2px)}
@@ -65,6 +64,10 @@ header{background:#1a3a6c;color:#fff;padding:12px 20px;position:sticky;top:0;z-i
 .modal-meta{font-size:12px;color:#888;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid #eee}
 .section-label{font-size:13px;font-weight:700;color:#1a3a6c;margin:18px 0 8px}
 .modal p{margin-bottom:10px;font-size:15px}
+/* 回到顶部 */
+#topBtn{position:fixed;right:18px;bottom:90px;width:46px;height:46px;border-radius:50%;background:#1a3a6c;color:#fff;
+  font-size:18px;border:none;box-shadow:0 2px 10px rgba(0,0,0,.3);cursor:pointer;display:none;z-index:150;opacity:.92}
+#topBtn:active{transform:scale(.94)}
 @media(max-width:768px){
   header{padding:10px 12px}
   #mapPane.active,#mediaPane.active,#chessPane.active{height:calc(100vh - 50px);height:calc(100dvh - 50px)}
@@ -75,12 +78,14 @@ header{background:#1a3a6c;color:#fff;padding:12px 20px;position:sticky;top:0;z-i
   .nav-tab .short{display:inline}
   .nav-tabs-wrap::after{content:"";position:absolute;right:0;top:0;bottom:0;width:20px;background:linear-gradient(to left,rgba(26,58,108,.92),transparent);pointer-events:none;opacity:0;transition:opacity .2s}
   .nav-tabs-wrap.scrollable::after{opacity:1}
-  .pbtn{width:30px;height:30px;font-size:13px}
   .refresh-btn{padding:7px 14px;font-size:13px}
-  .tops,.grid{grid-template-columns:1fr}
-  .top h2{font-size:17px}
+  .hero{grid-template-columns:1fr}
+  .hero-item+.hero-item{border-left:none;border-top:1px solid rgba(0,0,0,.07)}
+  .hero-item h2{font-size:17px}
+  .grid{grid-template-columns:1fr}
   .wrap{padding:12px 14px}
   .modal-body{margin:12px auto;padding:20px 16px;border-radius:10px}
+  #topBtn{width:42px;height:42px;right:14px;bottom:80px}
 }
 </style>
 </head>
@@ -95,13 +100,7 @@ header{background:#1a3a6c;color:#fff;padding:12px 20px;position:sticky;top:0;z-i
         <a class="nav-tab" data-section="chess"><span class="full">游戏</span><span class="short">游戏</span></a>
       </nav>
     </div>
-    <div class="right">
-      <div class="pager">
-        <button class="pbtn active" id="pg1" onclick="goPage(1)">1</button>
-        <button class="pbtn" id="pg2" onclick="goPage(2)">2</button>
-      </div>
-      <button class="refresh-btn" id="refreshBtn" onclick="loadNews()">更新</button>
-    </div>
+    <button class="refresh-btn" id="refreshBtn" onclick="loadNews()">更新</button>
   </div>
 </header>
 <div id="homePane" class="pane active">
@@ -110,12 +109,13 @@ header{background:#1a3a6c;color:#fff;padding:12px 20px;position:sticky;top:0;z-i
     <div id="list"><div class="loading">加载中…</div></div>
   </div>
 </div>
-<div id="mapPane" class="pane"><iframe id="mapFrame" src="travel/" title="旅游地图"></iframe></div>
-<div id="mediaPane" class="pane"><iframe id="mediaFrame" src="media/?v=29" title="音乐视频"></iframe></div>
-<div id="chessPane" class="pane"><iframe id="chessFrame" src="chess/?v=4" title="游戏"></iframe></div>
+<div id="mapPane" class="pane"><iframe id="mapFrame" title="旅游地图"></iframe></div>
+<div id="mediaPane" class="pane"><iframe id="mediaFrame" title="音乐视频"></iframe></div>
+<div id="chessPane" class="pane"><iframe id="chessFrame" title="游戏"></iframe></div>
 <div class="modal" id="modal" onclick="if(event.target===this)closeModal()">
   <div class="modal-body" id="modalBody"></div>
 </div>
+<button id="topBtn" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
 <script>
 const GITEE_API="https://gitee.com/api/v5/repos/t7950288/news/contents/news.json?ref=master";
 const NEWS_SOURCES=[
@@ -125,9 +125,9 @@ const NEWS_SOURCES=[
 const CACHE_KEY="gh_news_cache_v2";
 const CATS=[["world","国际大事"],["op-ed","社论"],["finance","财经"],["tech","科技"],["general","综合"]];
 const CAT_CLS={world:"tag-world","op-ed":"tag-op-ed",finance:"tag-finance",tech:"tag-tech",general:"tag-general"};
-const PAGE_SIZE=50;
+const FRAME_SRC={map:"travel/",media:"media/?v=29",chess:"chess/?v=4"};
 const SENS=new RegExp(atob('eGkgamlucGluZ3xcYnhpXGJ8cGVuZyBsaXl1YW58dGFpd2FufHRpYmV0fHhpbmppYW5nfGhvbmcga29uZ3xkYWxhaXx1eWdodXJ8dGlhbmFubWVufFxiY2NwXGJ8Y29tbXVuaXN0IHBhcnR5fGRpY3RhdG9yfOS5oOi/keW5s3zlva3kuL3lqpt85Y+w5rm+fOilv+iXj3zmlrDnloZ86aaZ5rivfOi+vui1lnznu7TlkL7lsJR85aSp5a6J6ZeofOS4reWFsXzlhbHkuqflhZp854us6KOB6ICF'),'i');
-let ALL=[],page=1,lastUpdatedAt="",savedScrollY=0,savedHomeScroll=0;
+let ALL=[],lastUpdatedAt="",savedScrollY=0,savedHomeScroll=0,frameInited={map:false,media:false,chess:false};
 
 function esc(s){return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
 function fmtTime(iso){var d=new Date(iso),p=function(n){return n<10?"0"+n:n;};return (d.getMonth()+1)+"-"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes());}
@@ -182,10 +182,10 @@ async function loadNews(){
   finally{btn.disabled=false;btn.textContent="更新";}
 }
 
-function topHtml(a,cls){
+function heroHtml(a,cls){
   const summary=(a.content_orig||a.summary_zh||"").replace(/\s+/g," ").slice(0,160);
-  return '<div class="top '+cls+'" onclick="openDetail('+ALL.indexOf(a)+')">'+
-    '<span class="tag" style="background:'+(cls==='b'?'#3498db':'#f39c12')+';color:#fff;border-radius:4px;padding:2px 8px;font-size:12px;font-weight:700;margin-bottom:8px;display:inline-block">要闻</span>'+
+  return '<div class="hero-item '+cls+'" onclick="openDetail('+ALL.indexOf(a)+')">'+
+    '<span class="htag">头条</span>'+
     '<h2>'+esc(a.title_orig||a.title_zh||"")+'</h2>'+
     '<div class="sub">'+esc(summary)+'</div>'+
     '<div class="info">'+esc(srcName(a))+' · '+fmtTime(a.published_at)+'</div></div>';
@@ -203,27 +203,21 @@ function cardHtml(a){
 }
 function renderList(){
   const el=document.getElementById("list");
-  const rows=ALL.slice((page-1)*PAGE_SIZE,page*PAGE_SIZE);
+  const rows=ALL.slice();
   if(!rows.length){el.innerHTML='<div class="loading">暂无新闻</div>';return;}
-  let html="";
-  if(page===1){
-    const head=[],rest=[];
-    for(let i=0;i<rows.length;i++){
-      if(head.length<2&&!isSensitive(rows[i]))head.push(rows[i]);
-      else rest.push(rows[i]);
-    }
-    if(head.length){
-      html+='<div class="tops">';
-      for(let i=0;i<head.length;i++)html+=topHtml(head[i],i===1?"b":"");
-      html+='</div>';
-    }
-    html+='<div class="grid">'+rest.map(cardHtml).join("")+'</div>';
-  }else{
-    html='<div class="grid">'+rows.map(cardHtml).join("")+'</div>';
+  const head=[],rest=[];
+  for(let i=0;i<rows.length;i++){
+    if(head.length<2&&!isSensitive(rows[i]))head.push(rows[i]);
+    else rest.push(rows[i]);
   }
+  let html="";
+  if(head.length){
+    html+='<div class="hero">';
+    for(let i=0;i<head.length;i++)html+=heroHtml(head[i],i===1?"b":"");
+    html+='</div>';
+  }
+  html+='<div class="grid">'+rest.map(cardHtml).join("")+'</div>';
   el.innerHTML=html;
-  document.getElementById("pg1").className="pbtn"+(page===1?" active":"");
-  document.getElementById("pg2").className="pbtn"+(page===2?" active":"");
 }
 function openDetail(i){
   const a=ALL[i];
@@ -241,7 +235,6 @@ function openDetail(i){
 }
 function closeModal(){document.getElementById("modal").classList.remove("show");window.scrollTo(0,savedScrollY);}
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal();});
-function goPage(p){page=p;renderList();window.scrollTo(0,0);}
 
 async function autoCheck(){
   const m=document.getElementById("modal");
@@ -260,14 +253,14 @@ initNews();
 setInterval(autoCheck,30000);
 setInterval(autoRefresh5,300000);
 
-function checkNavScroll(){
-  const wrap=document.querySelector(".nav-tabs-wrap");
-  const tabs=wrap?wrap.querySelector(".nav-tabs"):null;
-  if(wrap&&tabs)wrap.classList.toggle("scrollable",tabs.scrollWidth>tabs.clientWidth);
+/* 回到顶部：滚动超600px显示 */
+function updateTopBtn(){
+  const btn=document.getElementById("topBtn");
+  if(btn)btn.style.display=window.scrollY>600?"block":"none";
 }
-checkNavScroll();
-window.addEventListener("resize",checkNavScroll);
+window.addEventListener("scroll",updateTopBtn,{passive:true});
 
+/* 版块导航：懒加载 iframe（点开才下载，首页不抢带宽） */
 const mapFrame=document.getElementById("mapFrame");
 const homePane=document.getElementById("homePane");
 const mapPane=document.getElementById("mapPane");
@@ -299,17 +292,30 @@ function switchSection(key){
     mapPane.classList.toggle("active",key==="map");
     mediaPane.classList.toggle("active",key==="media");
     chessPane.classList.toggle("active",key==="chess");
+    const fr={map:mapFrame,media:document.getElementById("mediaFrame"),chess:document.getElementById("chessFrame")}[key];
+    if(fr&&!frameInited[key]){fr.src=FRAME_SRC[key];frameInited[key]=true;}
     if(key==="map"){hideMapHeader();fixMapSize();}
     if(refreshBtn)refreshBtn.style.display="none";
     window.scrollTo(0,0);
+    updateTopBtn();
   }else{
     mapPane.classList.remove("active");mediaPane.classList.remove("active");chessPane.classList.remove("active");
     homePane.classList.add("active");
     if(refreshBtn)refreshBtn.style.display="";
     window.scrollTo(0,savedHomeScroll);
+    updateTopBtn();
   }
 }
 document.querySelectorAll(".nav-tab").forEach(t=>{t.addEventListener("click",e=>{e.preventDefault();switchSection(t.dataset.section);});});
+
+/* 导航可滚动提示 */
+function checkNavScroll(){
+  const wrap=document.querySelector(".nav-tabs-wrap");
+  const tabs=wrap?wrap.querySelector(".nav-tabs"):null;
+  if(wrap&&tabs)wrap.classList.toggle("scrollable",tabs.scrollWidth>tabs.clientWidth);
+}
+checkNavScroll();
+window.addEventListener("resize",checkNavScroll);
 </script>
 </body>
 </html>
