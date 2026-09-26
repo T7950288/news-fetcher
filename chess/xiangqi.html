@@ -290,11 +290,21 @@
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
     const availH = Math.max(140, canvas.height - barBottom());
-    cellW = canvas.width / 9;
-    cellH = availH / 10;
-    cell = Math.min(cellW, cellH);
-    ox = 0;
-    oy = barBottom();
+    const W = canvas.width, H = availH;
+    if (W >= 700) {
+      /* 电脑宽屏：等比例最大化，格子保持正方形，棋盘上下居中 */
+      cell = Math.min(W / 9, H / 10);
+      cellW = cell; cellH = cell;
+      ox = (W - cell * 9) / 2;
+      oy = barBottom() + (H - cell * 10) / 2;
+    } else {
+      /* 手机窄屏：满宽满高 */
+      cellW = W / 9;
+      cellH = H / 10;
+      cell = Math.min(cellW, cellH);
+      ox = 0;
+      oy = barBottom();
+    }
     render();
   }
   function X(c) { return ox + cellW * (c + 0.5); }
