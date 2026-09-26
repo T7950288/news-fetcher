@@ -128,6 +128,11 @@
     const msg = e.data;
     if (!msg) return;
     if (msg.type === "ready") { engineReady = true; setEng("引擎就绪"); }
+    else if (msg.type === "stdout") {
+      window._xqLines = window._xqLines || [];
+      window._xqLines.push(msg.line);
+      if (window._xqLines.length > 200) window._xqLines.shift();
+    }
     else if (msg.type === "move" && msg.id === moveId) {
       if (msg.uci) onAIMove(msg.uci);
     }
