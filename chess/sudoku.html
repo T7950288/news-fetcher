@@ -14,7 +14,7 @@
     user-select: none; -webkit-user-select: none; touch-action: manipulation; }
   #app { max-width: 560px; margin: 0 auto; padding: 6px 8px 8px;
     height: 100vh; display: flex; flex-direction: column; }
-  .bar { display: flex; align-items: center; gap: 5px; flex-wrap: nowrap; margin: 3px 0; flex: 0 0 auto; }
+  .bar { display: flex; position: relative; align-items: center; gap: 5px; flex-wrap: nowrap; margin: 3px 0; flex: 0 0 auto; }
   .title { font-size: 17px; font-weight: bold; color: #3f5a78; white-space: nowrap; }
   .lbl { font-size: 13px; color: #4a5160; white-space: nowrap; }
   input[type=number] { width: 50px; font-size: 17px; padding: 3px 4px; border: 1px solid #c3c9d2;
@@ -27,11 +27,13 @@
   #status { display: flex; align-items: center; font-size: 12px; color: #4a5160; margin: 1px 0; flex: 0 0 auto; }
   #statusText { flex: 1; text-align: center; }
   #boardWrap { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; margin: 8px 0; min-height: 0; position: relative; }
-  .board-back { display:inline-flex; align-items:center; white-space:nowrap;
+  .board-back { position:absolute; left:50%; transform:translateX(-50%); z-index:30;
+    display:inline-flex; align-items:center; white-space:nowrap;
     background:rgba(255,255,255,.95); color:#1a3a6c; text-decoration:none;
     border:1px solid rgba(0,0,0,.18); border-radius:8px;
     font-size:13px; font-weight:700; padding:7px 10px; line-height:1;
     box-shadow:0 1px 4px rgba(0,0,0,.12); }
+
 
   .board-back:active { background:#e8e8e8; }
 
