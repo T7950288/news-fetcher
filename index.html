@@ -20,8 +20,8 @@ header{background:#1a3a6c;color:#fff;padding:12px 20px;position:sticky;top:0;z-i
 .refresh-btn{background:#fff;color:#1a3a6c;border:none;padding:8px 18px;border-radius:6px;font-size:14px;cursor:pointer;font-weight:600}
 .refresh-btn:active{transform:scale(.96)}
 .refresh-btn:disabled{opacity:.5;cursor:wait}
-.pane{display:none}
-.pane.active{display:block}
+.pane{display:block;position:fixed;left:-10000px;top:0;width:1240px;height:800px;visibility:hidden;overflow:hidden;z-index:1}
+.pane.active{position:static;left:auto;top:auto;width:auto;height:auto;visibility:visible;z-index:auto}
 #mapPane.active,#mediaPane.active,#chessPane.active{display:block;height:calc(100vh - 54px);height:calc(100dvh - 54px)}
 #mapFrame,#mediaFrame,#chessFrame{width:100%;height:100%;border:0;display:block}
 .wrap{max-width:1240px;margin:0 auto;padding:14px 20px}
@@ -109,9 +109,9 @@ header{background:#1a3a6c;color:#fff;padding:12px 20px;position:sticky;top:0;z-i
     <div id="list"><div class="loading">加载中…</div></div>
   </div>
 </div>
-<div id="mapPane" class="pane"><iframe id="mapFrame" title="旅游地图"></iframe></div>
-<div id="mediaPane" class="pane"><iframe id="mediaFrame" title="音乐视频"></iframe></div>
-<div id="chessPane" class="pane"><iframe id="chessFrame" title="游戏"></iframe></div>
+<div id="mapPane" class="pane"><iframe id="mapFrame" src="travel/" title="旅游地图"></iframe></div>
+<div id="mediaPane" class="pane"><iframe id="mediaFrame" src="media/?v=29" title="音乐视频"></iframe></div>
+<div id="chessPane" class="pane"><iframe id="chessFrame" src="chess/?v=4" title="游戏"></iframe></div>
 <div class="modal" id="modal" onclick="if(event.target===this)closeModal()">
   <div class="modal-body" id="modalBody"></div>
 </div>
@@ -125,9 +125,8 @@ const NEWS_SOURCES=[
 const CACHE_KEY="gh_news_cache_v2";
 const CATS=[["world","国际大事"],["op-ed","社论"],["finance","财经"],["tech","科技"],["general","综合"]];
 const CAT_CLS={world:"tag-world","op-ed":"tag-op-ed",finance:"tag-finance",tech:"tag-tech",general:"tag-general"};
-const FRAME_SRC={map:"travel/",media:"media/?v=29",chess:"chess/?v=4"};
 const SENS=new RegExp(atob('eGkgamlucGluZ3xcYnhpXGJ8cGVuZyBsaXl1YW58dGFpd2FufHRpYmV0fHhpbmppYW5nfGhvbmcga29uZ3xkYWxhaXx1eWdodXJ8dGlhbmFubWVufFxiY2NwXGJ8Y29tbXVuaXN0IHBhcnR5fGRpY3RhdG9yfOS5oOi/keW5s3zlva3kuL3lqpt85Y+w5rm+fOilv+iXj3zmlrDnloZ86aaZ5rivfOi+vui1lnznu7TlkL7lsJR85aSp5a6J6ZeofOS4reWFsXzlhbHkuqflhZp854us6KOB6ICF'),'i');
-let ALL=[],lastUpdatedAt="",savedScrollY=0,savedHomeScroll=0,frameInited={map:false,media:false,chess:false};
+let ALL=[],lastUpdatedAt="",savedScrollY=0,savedHomeScroll=0;
 
 function esc(s){return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
 function fmtTime(iso){var d=new Date(iso),p=function(n){return n<10?"0"+n:n;};return (d.getMonth()+1)+"-"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes());}
@@ -283,7 +282,7 @@ function fixMapSize(){
     }catch(e){}
   },120);
 }
-mapFrame.addEventListener("load",()=>{hideMapHeader();if(mapPane.classList.contains("active"))fixMapSize();});
+mapFrame.addEventListener("load",()=>{hideMapHeader();fixMapSize();});
 function switchSection(key){
   document.querySelectorAll(".nav-tab").forEach(t=>t.classList.toggle("active",t.dataset.section===key));
   if(key==="map"||key==="media"||key==="chess"){
@@ -292,8 +291,6 @@ function switchSection(key){
     mapPane.classList.toggle("active",key==="map");
     mediaPane.classList.toggle("active",key==="media");
     chessPane.classList.toggle("active",key==="chess");
-    const fr={map:mapFrame,media:document.getElementById("mediaFrame"),chess:document.getElementById("chessFrame")}[key];
-    if(fr&&!frameInited[key]){fr.src=FRAME_SRC[key];frameInited[key]=true;}
     if(key==="map"){hideMapHeader();fixMapSize();}
     if(refreshBtn)refreshBtn.style.display="none";
     window.scrollTo(0,0);
