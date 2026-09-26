@@ -615,7 +615,7 @@ class GoAI {
     else if (whiteTotal > blackTotal) title = "白棋领先 " + (whiteTotal - blackTotal).toFixed(1) + " 目";
     else title = "形势持平";
     $("resultTitle").textContent = title;
-    $("resultText").textContent = "黑 " + blackTotal.toFixed(1) + " 目 ｜ 白 " + whiteTotal.toFixed(1) + " 目（含贴目 " + komi + "）";
+    $("resultText").textContent = "黑 " + blackTotal.toFixed(1) + " 目 ｜ 白 " + whiteTotal.toFixed(1) + " 目（含贴目 " + komi + "）" + (isLive ? "\n（对局未结束，数目仅作参考）" : "");
     if (isLive) {
       $("btnResultGo").style.display = "";
       $("btnResultNew").style.display = "none";
