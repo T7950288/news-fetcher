@@ -145,18 +145,11 @@
   function setEng(t) { document.getElementById("engInfo").textContent = t; }
 
   function boardToUci(r, c) {
-    /* 红方视角：row0=红底线(board r=9)，列从左到右；黑方由调用方传红方坐标，此处仅红方用 */
+    /* 统一红方视角（Pikafish UCI：row0=红底线、列 a=红方左侧，黑白双方均如此） */
     return String.fromCharCode(97 + c) + (9 - r);
   }
-  function boardToUciBlack(r, c) {
-    /* 黑方视角：row0=黑底线(board r=0)，列从黑方右起（红方视角镜像） */
-    return String.fromCharCode(97 + (8 - c)) + r;
-  }
-  function uciToBoard(u, side) {
-    const col = u.charCodeAt(0) - 97;
-    const row = parseInt(u.charAt(1), 10);
-    if (side === 1) return { r: 9 - row, c: col };   // 红方视角
-    return { r: row, c: 8 - col };                    // 黑方视角（镜像）
+  function uciToBoard(u) {
+    return { r: 9 - parseInt(u.charAt(1), 10), c: u.charCodeAt(0) - 97 };
   }
   function requestAIMove() {
     if (!playing) return;
@@ -175,18 +168,13 @@
   function onAIMove(uci) {
     aiThinking = false;
     if (!playing) { updateUI(); render(); return; }
-    const p = uciToBoard(uci, aiSide);
-    if (p.r < 0 || p.r > 9 || p.c < 0 || p.c > 8) { flashMsg("引擎返回异常走法"); return; }
+    const p = uciToBoard(uci);
+    const t = uciToBoard(uci.slice(2));
+    if (p.r < 0 || p.r > 9 || p.c < 0 || p.c > 8 || t.r < 0 || t.r > 9 || t.c < 0 || t.c > 8) { flashMsg("引擎返回异常走法"); return; }
     const legal = XQ.genLegalMoves(board, aiSide).filter(function (m) {
-      return m.fr === p.r && m.fc === p.c && m.tr === p.r && m.tc === p.c;
+      return m.fr === p.r && m.fc === p.c && m.tr === t.r && m.tc === t.c;
     });
-    let mv = legal[0];
-    if (!mv) {
-      const legal2 = XQ.genLegalMoves(board, aiSide).filter(function (m) {
-        return m.fr === p.r && m.fc === p.c;
-      });
-      if (legal2.length === 1) mv = legal2[0];
-    }
+    const mv = legal[0];
     if (!mv) {
       const legalAll = XQ.genLegalMoves(board, aiSide);
       if (legalAll.length === 0) { finishByNoMove(aiSide); return; }
@@ -222,8 +210,8 @@
     if (!board || !playing) return;
     const eaten = board[mv.tr][mv.tc];
     board = XQ.apply(board, mv);
-    const uciFrom = side === 1 ? boardToUci(mv.fr, mv.fc) : boardToUciBlack(mv.fr, mv.fc);
-    const uciTo = side === 1 ? boardToUci(mv.tr, mv.tc) : boardToUciBlack(mv.tr, mv.tc);
+    const uciFrom = boardToUci(mv.fr, mv.fc);
+    const uciTo = boardToUci(mv.tr, mv.tc);
     moveHistory.push({ mv: mv, side: side, eaten: eaten, uci: uciFrom + uciTo });
     moveCount++;
     selected = null;
