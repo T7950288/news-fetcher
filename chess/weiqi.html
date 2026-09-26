@@ -67,9 +67,9 @@
 <div class="topbar">
   <a class="back" href="index.html">← 棋类</a>
   <select class="sel" id="selDiff">
-    <option value="40">容易</option>
-    <option value="120" selected>中等</option>
-    <option value="300">困难</option>
+    <option value="15000">容易</option>
+    <option value="30000" selected>中等</option>
+    <option value="60000">困难</option>
   </select>
   <select class="sel" id="selColor">
     <option value="1" selected>执黑（先手）</option>
@@ -280,22 +280,32 @@ class GoAI {
     }
   }
 
-  /* ---------- MCTS 搜索 ---------- */
-  async search(board, komi, playouts, onProgress) {
+  /* ---------- MCTS 搜索 ----------
+   * targetMs: 目标思考时长（毫秒）。按实测单次前向耗时自适应 playouts，
+   * 慢机器控思考时间，快机器自动加搜索量变强。 */
+  async search(board, komi, targetMs, onProgress) {
     const side = (board.moveHistory.length % 2 === 0) ? 1 : 2; // 黑先，pass 也计一手
     const root = new GoNode(null, null, 0);
     const initBoard = board.copy();
 
-    // 根评估
+    // 根评估 + 测速
+    let t0 = performance.now();
     const rootEval = await this.predict(initBoard, side, komi);
+    const perPredict = Math.max(performance.now() - t0, 10);
     root.children = this._expand(initBoard, side, komi, rootEval.policy);
     root.isExpanded = true;
 
+    // 自适应 playouts：目标时间 / 单次前向耗时，上下限 8..400
+    let playouts = Math.floor(targetMs / perPredict);
+    if (playouts < 8) playouts = 8;
+    if (playouts > 400) playouts = 400;
+    const realPlayouts = playouts;
+
     let done = 0;
-    for (let i = 0; i < playouts; i++) {
+    for (let i = 0; i < realPlayouts; i++) {
       await this._simulate(root, initBoard.copy(), side, komi);
       done++;
-      if (onProgress && (i % 16 === 0)) onProgress(done, playouts);
+      if (onProgress && (i % 16 === 0)) onProgress(done, realPlayouts);
     }
 
     // 选子：子节点访问数最多
@@ -306,7 +316,7 @@ class GoAI {
     const move = best ? { r: best.move.r, c: best.move.c, pass: !!best.move.pass } : { pass: true };
     // 胜率（根视角）
     const wr = 1 / (1 + Math.exp(-root.Q * 3.0));
-    return { move, winrate: wr, playouts: done, rootQ: root.Q, scoreLead: rootEval.scoreLead };
+    return { move, winrate: wr, playouts: done, targetPlayouts: realPlayouts, rootQ: root.Q, scoreLead: rootEval.scoreLead };
   }
 
   _expand(board, side, komi, policy) {
@@ -378,7 +388,7 @@ class GoAI {
   let gameOver = false;
   let aiThinking = false;
   let engineReady = false;
-  let playouts = 120;
+  let targetMs = 30000;
   let cell = 30, ox = 0, oy = 0;
   const komi = 7.5;
 
@@ -488,7 +498,7 @@ class GoAI {
     badge.className = "badge ai";
     setBtns(false);
     try {
-      const result = await ai.search(board, komi, playouts);
+      const result = await ai.search(board, komi, targetMs);
       if (gameOver) return;
       if (result.move.pass) {
         board.passMove(aiColor);
@@ -498,7 +508,7 @@ class GoAI {
         if (board.passCount >= 2) board.passCount = 0;
       }
       const wr = Math.round(result.winrate * 100);
-      winrateInfo.textContent = "AI 胜率 " + wr + "%";
+      winrateInfo.textContent = "AI 胜率 " + wr + "%（思考 " + result.playouts + " 次）";
     } catch (e) {
       console.error(e);
       winrateInfo.textContent = "AI 出错，请重试";
@@ -557,7 +567,7 @@ class GoAI {
     $("resultBox").style.display = "none";
     playerColor = parseInt($("selColor").value);
     aiColor = 3 - playerColor;
-    playouts = parseInt($("selDiff").value);
+    targetMs = parseInt($("selDiff").value);
     updateUI();
     setBtns(true);
     if (auto) {
