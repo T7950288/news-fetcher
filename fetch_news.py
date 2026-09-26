@@ -1131,10 +1131,7 @@ def _gdelt_time(s):
 
 def fetch_gdelt_top():
     """GDELT DOC API: 全球时政热点, 自带 socialimage 缩略图; 返回带正文的条目列表"""
-    queries = [
-        "China OR Ukraine OR Russia OR Iran OR Israel OR Gaza OR election OR summit OR president OR parliament OR diplomacy OR NATO OR UN OR economy OR technology OR earthquake OR typhoon OR ceasefire OR sanctions OR treaty OR trade OR court OR vote OR minister OR talks OR attack OR strike",
-        "world OR government OR politics OR war OR crisis OR policy OR inflation OR climate OR defense OR security OR peace OR summit OR parliament OR diplomacy"
-    ]
+    queries = ["world", "China"]
     raw = []
     for q in queries:
         try:
@@ -1424,8 +1421,8 @@ def main():
     merged2 = merged2[:MAX_TOTAL]
     print("MERGED country", dict(_C(a["country"] for a in merged2)))
     print("MERGED ai", sum(1 for a in merged2 if a.get("translate_by") == "ai"))
-    if not merged2:
-        print("本轮抓取0条, 跳过上传(防止清空线上库)")
+    if not recent:
+        print("本轮0条新条目, 跳过上传(线上库保持原样)")
         sys.exit(0)
     new_data = {"version": "1.0", "updated_at": now.isoformat(), "articles": merged2}
     # v9.7: GitHub 是权威数据源(网页读 raw), 必须成功; Gitee 尽力写, 快失败不拖时间
