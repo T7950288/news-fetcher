@@ -292,7 +292,8 @@ body.fs #topbar, body.fs #panel{ display:none; }
 .spot-marker.mt{ background:#7a5230; border:2px solid #f5e6c8; border-radius:10px 10px 4px 4px; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(0,0,0,.4); }
 .spot-marker.mt.done{ background:#13a06f; border-color:#bff3dd; }
 .spot-marker.mt svg{ display:block; }
-.spot-marker.mt .mk-name{ color:#fff; }
+.spot-marker.mt .mk-name{ color:#333; }
+.spot-marker.mt .mk-name i{ display:block; font-style:normal; font-size:10px; font-weight:600; color:#7a5230; line-height:1.2; }
 .pop-card .badge.mtb{ background:#7a5230; color:#fff; }
 /* ===== 卫星/地图切换按钮 ===== */
 .top-actions #btnSat{ background:rgba(255,255,255,.16); color:#fff; }
