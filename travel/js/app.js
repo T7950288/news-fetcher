@@ -410,6 +410,20 @@
       else { m.bindPopup(cityPop(c, isLit, vis)); m.on('click', function () { linkToLeft('city', c.name); }); }
     }
 
+    // 山峰：任何缩放级别都渲染并置顶（不被景点/城市圆点覆盖）
+    AT.filter(sp => sp.cat === 11 && vb.contains([sp.lat, sp.lng])).forEach(sp => {
+      const done = Footprint.isSpotDone(state.footprint, sp);
+      const wantNm = done || z >= 6;
+      const nm = wantNm ? `<div class="mk-name ${done ? '' : 'w'}">${sp.name}</div>` : '';
+      const inner = `<div class="spot-marker mt${done ? ' done' : ''}" style="width:32px;height:32px">${MTN(20)}${nm}</div>`;
+      const m = L.marker([sp.lat, sp.lng], { icon: divIcon(hitWrap(inner), 34), zIndexOffset: 5000 });
+      if (footMode) m.on('click', function () {
+        doToggleSpot(sp);
+        linkToLeft('city', Footprint.normCity(sp.county || sp.city));
+      });
+      else { m.bindPopup(spotPop(sp)); m.on('click', function () { linkToLeft('spot', sp.id); }); }
+      spotLayer.addLayer(m);
+    });
     if (z <= 5) {
       PROVS.forEach(pr => {
         const litN = countProvLit(pr.name, lit);
@@ -487,8 +501,9 @@
         return ry - rx;
       });
       spots.forEach(sp => {
+        if (sp.cat === 11) return;   // 山峰已在独立块渲染，避免重复
         const done = Footprint.isSpotDone(state.footprint, sp);
-        const isMt = sp.cat === 11;
+        const isMt = false;
         const lv = sp.level;
         const is5 = lv === '5A', is4 = lv === '4A', is3 = lv === '3A';
         // 山峰 26px 山峰图标；景点 1.5 倍圆点级别数字：5A 27px / 4A 24px / 3A 21px / 普通 18px
