@@ -117,8 +117,8 @@
     if (b.cnt < 2 || (b.maxLat - b.minLat < .4 && b.maxLng - b.minLng < .4)) delete PROV_BOUNDS[nm];
   });
 
-  const CATS = { 1: '历史古迹', 2: '自然风光', 3: '宗教文化', 4: '园林公园', 5: '博物馆/科教', 6: '主题乐园', 7: '古城古镇', 8: '海滨/水域', 9: '都市地标', 10: '民俗文化' };
-  const CAT_COLORS = { 1: '#b07643', 2: '#3fa66d', 3: '#9b6dd7', 4: '#4caf8a', 5: '#4e9af1', 6: '#e05d6b', 7: '#d98a4b', 8: '#3fb8c4', 9: '#7a869a', 10: '#c9674a' };
+  const CATS = { 1: '历史古迹', 2: '自然风光', 3: '宗教文化', 4: '园林公园', 5: '博物馆/科教', 6: '主题乐园', 7: '古城古镇', 8: '海滨/水域', 9: '都市地标', 10: '民俗文化', 11: '名山' };
+  const CAT_COLORS = { 1: '#b07643', 2: '#3fa66d', 3: '#9b6dd7', 4: '#4caf8a', 5: '#4e9af1', 6: '#e05d6b', 7: '#d98a4b', 8: '#3fb8c4', 9: '#7a869a', 10: '#c9674a', 11: '#7a5230' };
   const DAY_COLORS = ['#1d6fe0', '#f59e0b', '#06b6d4', '#ec4899', '#a16207', '#0891b2', '#be185d', '#475569'];
 
   // 索引
@@ -182,8 +182,18 @@
     const c = CITIES.find(x => x.name === name) || COUNTIES.find(x => x.name === name);
     if (c) map.setView([c.center[1], c.center[0]], COUNTIES.some(x => x.name === name) ? 10 : 9, { animate: false });
   };
-  L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}',
+  const baseTile = L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}',
     { subdomains: ['1', '2', '3', '4'], maxZoom: 18, minZoom: 3 }).addTo(map);
+  const satTile = L.tileLayer('https://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}',
+    { subdomains: ['1', '2', '3', '4'], maxZoom: 18, minZoom: 3 });
+  var satOn = false;
+  function toggleSat() {
+    satOn = !satOn;
+    if (satOn) { map.removeLayer(baseTile); satTile.addTo(map); }
+    else { map.removeLayer(satTile); baseTile.addTo(map); }
+    var b = document.getElementById('btnSat');
+    if (b) { b.classList.toggle('on', satOn); b.innerHTML = satOn ? '🗺 地图' : '🛰 卫星'; }
+  }
   L.control.zoom({ position: 'bottomright' }).addTo(map);
 
   const provLayer = L.layerGroup().addTo(map);
@@ -290,6 +300,7 @@
       altShow('📡 海拔未获取（GPS 高度不可用，且地面海拔查询失败）', 'live');
     });
   }
+  document.getElementById('btnSat').addEventListener('click', toggleSat);
   document.getElementById('btnGps').addEventListener('click', function(){
     var btn = document.getElementById('btnGps');
     if(gpsRunning){   /* 再点一次 → 停止 */
@@ -393,6 +404,7 @@
     const HIT = 30;                              // 统一命中区，视觉再小也容易点中
     const hitWrap = inner => `<div style="width:${HIT}px;height:${HIT}px;display:flex;align-items:center;justify-content:center">${inner}</div>`;
     const PLANE = px => `<svg class="plane" width="${px}" height="${px}" viewBox="0 0 24 24"><path fill="#fff" d="M21 16v-2l-8-5V3.5C13 2.67 12.33 2 11.5 2S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5L21 16z"/></svg>`;
+    const MTN = px => `<svg class="mtn" width="${px}" height="${px}" viewBox="0 0 24 24"><path d="M12 1 L23 23 H1 Z" fill="#7a5230"/><path d="M12 1 L18.5 23 H5.5 Z" fill="#ffffff"/><path d="M12 7 L16 23 H8 Z" fill="#b9d3e8"/></svg>`;
     function bindCity(m, c, isLit, vis) {
       if (footMode) m.on('click', function () { doToggleCity(c.name); linkToLeft('city', c.name); });
       else { m.bindPopup(cityPop(c, isLit, vis)); m.on('click', function () { linkToLeft('city', c.name); }); }
@@ -470,18 +482,19 @@
       const usedNm = new Set();
       const spots = AT.filter(sp => vb.contains([sp.lat, sp.lng]));
       spots.sort((x, y) => {
-        const rx = (x.level === '5A' ? 4 : x.level === '4A' ? 3 : x.level === '3A' ? 2 : 1) * 10 + (Footprint.isSpotDone(state.footprint, x) ? 100 : 0);
-        const ry = (y.level === '5A' ? 4 : y.level === '4A' ? 3 : y.level === '3A' ? 2 : 1) * 10 + (Footprint.isSpotDone(state.footprint, y) ? 100 : 0);
+        const rx = ((x.cat === 11 ? 5 : x.level === '5A' ? 4 : x.level === '4A' ? 3 : x.level === '3A' ? 2 : 1)) * 10 + (Footprint.isSpotDone(state.footprint, x) ? 100 : 0);
+        const ry = ((y.cat === 11 ? 5 : y.level === '5A' ? 4 : y.level === '4A' ? 3 : y.level === '3A' ? 2 : 1)) * 10 + (Footprint.isSpotDone(state.footprint, y) ? 100 : 0);
         return ry - rx;
       });
       spots.forEach(sp => {
         const done = Footprint.isSpotDone(state.footprint, sp);
+        const isMt = sp.cat === 11;
         const lv = sp.level;
         const is5 = lv === '5A', is4 = lv === '4A', is3 = lv === '3A';
-        // 圆点 1.5 倍，级别数字清晰：5A 27px / 4A 24px / 3A 21px / 普通 18px
-        const sz = is5 ? 27 : is4 ? 24 : is3 ? 21 : 18;
-        const cls = (is5 ? 'a5' : is4 ? 'a4' : is3 ? 'a3' : (done ? 'lit' : 'normal')) + (done ? ' done' : '');
-        const rank = is5 ? 4 : sp.level === '4A' ? 3 : sp.level === '3A' ? 2 : 1;
+        // 山峰 26px 山峰图标；景点 1.5 倍圆点级别数字：5A 27px / 4A 24px / 3A 21px / 普通 18px
+        const sz = isMt ? 26 : is5 ? 27 : is4 ? 24 : is3 ? 21 : 18;
+        const cls = isMt ? ('mt' + (done ? ' done' : '')) : ((is5 ? 'a5' : is4 ? 'a4' : is3 ? 'a3' : (done ? 'lit' : 'normal')) + (done ? ' done' : ''));
+        const rank = isMt ? 5 : is5 ? 4 : sp.level === '4A' ? 3 : sp.level === '3A' ? 2 : 1;
         const wantNm = done || z >= 12 || (z >= 11 && rank >= 3) || (z >= 10 && rank >= 4);
         let showNm = false;
         if (wantNm) {
@@ -490,8 +503,8 @@
           if (!usedNm.has(k)) { usedNm.add(k); showNm = true; }
         }
         const nm = showNm ? `<div class="mk-name ${done ? '' : 'w'}">${sp.name}</div>` : '';
-        const lvNum = is5 ? '<b>5</b>' : is4 ? '<b>4</b>' : is3 ? '<b>3</b>' : '';
-        const inner = `<div class="spot-marker ${cls}" style="width:${sz}px;height:${sz}px">${done ? PLANE(is5 ? 17 : is4 ? 14 : 12) : lvNum}${nm}</div>`;
+        const lvNum = isMt ? MTN(17) : is5 ? '<b>5</b>' : is4 ? '<b>4</b>' : is3 ? '<b>3</b>' : '';
+        const inner = `<div class="spot-marker ${cls}" style="width:${sz}px;height:${sz}px">${done && !isMt ? PLANE(is5 ? 17 : is4 ? 14 : 12) : lvNum}${nm}</div>`;
         const m = L.marker([sp.lat, sp.lng], { icon: divIcon(hitWrap(inner), Math.max(HIT, sz + 2)) });
         if (footMode) m.on('click', function () {
           doToggleSpot(sp);
@@ -583,11 +596,11 @@
     const done = Footprint.isSpotDone(state.footprint, s);
     const active = state.footprint.members.find(m => m.id === state.footprint.active);
     return `<div class="pop-card">
-      <h4>${s.name}${s.level === '5A' ? '<span class="badge a5">5A</span>' : (s.level === '4A' ? '<span class="badge">4A</span>' : '')}</h4>
+      <h4>${s.name}${s.cat === 11 ? '<span class="badge mtb">名山</span>' : (s.level === '5A' ? '<span class="badge a5">5A</span>' : (s.level === '4A' ? '<span class="badge">4A</span>' : ''))}</h4>
       <div class="pinfo">📍 ${s.province} · ${Footprint.normCity(s.city)}<br>🎫 ${ticketTxt(s)}　🕘 ${s.open || ''}<br>⏱ 建议游玩 ${s.dur || 3} 小时　⭐ ${s.rating || 4.5}</div>
       <div class="pintro">${s.intro || ''}</div>
       <div class="ptags">${(s.tags || []).map(t => `<span>${t}</span>`).join('')}</div>
-      <div class="pal" data-lat="${s.lat}" data-lng="${s.lng}">🏔️ 海拔：查询中…</div>
+      ${s.alt ? `<div class="pal">🏔️ 海拔 ${s.alt} 米</div>` : `<div class="pal" data-lat="${s.lat}" data-lng="${s.lng}">🏔️ 海拔：查询中…</div>`}
       ${wxCardHTML(s.lat, s.lng)}
       <div class="pbtns">
         <button class="go" data-act="goplan" data-city="${Footprint.normCity(s.city)}">规划此城行程</button>
