@@ -1,5 +1,5 @@
 /* 引擎文件永久缓存（首次下载后秒开）——象棋 pikafish + 围棋页面/js */
-var CACHE = "chess-v2";
+var CACHE = "chess-v3";
 self.addEventListener("install", function (e) { self.skipWaiting(); });
 self.addEventListener("activate", function (e) { e.waitUntil(self.clients.claim()); });
 self.addEventListener("fetch", function (e) {
