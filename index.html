@@ -1,128 +1,315 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>国际新闻 · 谷歌热榜</title>
+<title>谷歌热榜</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Microsoft YaHei','PingFang SC',-apple-system,sans-serif;background:#eef1f5;color:#1f2d3d}
-.wrap{max-width:1240px;margin:0 auto;padding:14px}
-.topbar{display:flex;align-items:center;flex-wrap:wrap;gap:10px;background:#fff;border-radius:12px;padding:12px 16px;box-shadow:0 1px 4px rgba(0,0,0,.06);margin-bottom:12px}
-.brand{font-size:22px;font-weight:800;letter-spacing:1px;color:#1f2d3d}
-.brand small{font-size:13px;color:#8a97a5;font-weight:400;margin-left:8px}
-.meta{font-size:12px;color:#8a97a5}
-.spacer{flex:1}
-.btn{cursor:pointer;border:none;border-radius:20px;padding:8px 16px;font-size:14px;background:#2f9e6e;color:#fff;font-weight:600;transition:.2s}
-.btn:hover{opacity:.85}
+body{font-family:-apple-system,"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif;background:#f5f6f8;color:#1a1a1a;line-height:1.6}
+header{background:#1a3a6c;color:#fff;padding:12px 20px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.header-inner{max-width:1240px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.logo{font-size:20px;font-weight:700;letter-spacing:1px;white-space:nowrap}
+.nav-tabs-wrap{position:relative;min-width:0;flex:1}
+.nav-tabs{display:flex;gap:6px}
+.nav-tab{padding:6px 16px;border-radius:18px;font-size:14px;color:#fff;text-decoration:none;border:1px solid rgba(255,255,255,.5);font-weight:600;cursor:pointer}
+.nav-tab.active{background:#fff;color:#1a3a6c;border-color:#fff}
+.nav-tab:hover{background:rgba(255,255,255,.25)}
+.nav-tab.active:hover{background:#fff}
+.nav-tab .short{display:none}
+.right{display:flex;align-items:center;gap:10px}
 .pager{display:flex;gap:6px}
-.pbtn{width:34px;height:34px;border-radius:50%;border:2px solid #cfd6de;background:#fff;color:#3a4a5a;font-size:15px;font-weight:700;cursor:pointer;transition:.2s}
-.pbtn.active{background:#1f2d3d;color:#fff;border-color:#1f2d3d}
-.lead{background:linear-gradient(135deg,#16222f,#2c3e50);border-radius:14px;padding:22px 24px;color:#fff;margin-bottom:12px;cursor:pointer;transition:.2s}
-.lead:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.18)}
-.lead .tag{display:inline-block;background:#e74c3c;border-radius:4px;padding:2px 8px;font-size:12px;font-weight:700;margin-bottom:10px}
-.lead h2{font-size:26px;line-height:1.4;margin-bottom:8px}
-.lead .sub{font-size:14px;color:#c9d4df;line-height:1.6;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.lead .info{font-size:12px;color:#8fa3b8;margin-top:10px}
-.subs{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
-.sub{background:#fff;border-radius:12px;padding:16px 18px;cursor:pointer;border:1px solid #e3e7ec;transition:.2s}
-.sub:hover{box-shadow:0 4px 12px rgba(0,0,0,.08);transform:translateY(-2px)}
-.sub h3{font-size:17px;line-height:1.45;margin-bottom:8px}
-.sub .info{font-size:12px;color:#8a97a5}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.card{background:#fff;border-radius:12px;padding:14px 16px;cursor:pointer;border:1px solid #e3e7ec;display:flex;flex-direction:column;gap:8px;transition:.2s}
-.card:hover{box-shadow:0 4px 12px rgba(0,0,0,.08);transform:translateY(-2px)}
-.card h4{font-size:15px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pbtn{width:34px;height:34px;border-radius:50%;border:2px solid rgba(255,255,255,.6);background:transparent;color:#fff;font-size:15px;font-weight:700;cursor:pointer;transition:.2s}
+.pbtn.active{background:#fff;color:#1a3a6c;border-color:#fff}
+.refresh-btn{background:#fff;color:#1a3a6c;border:none;padding:8px 18px;border-radius:6px;font-size:14px;cursor:pointer;font-weight:600}
+.refresh-btn:active{transform:scale(.96)}
+.refresh-btn:disabled{opacity:.5;cursor:wait}
+.pane{display:none}
+.pane.active{display:block}
+#mapPane.active,#mediaPane.active,#chessPane.active{display:block;height:calc(100vh - 54px);height:calc(100dvh - 54px)}
+#mapFrame,#mediaFrame,#chessFrame{width:100%;height:100%;border:0;display:block}
+.wrap{max-width:1240px;margin:0 auto;padding:14px 20px}
+.meta{font-size:12px;color:#666;margin-bottom:12px}
+.tops{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.top{background:#fff7ec;border-radius:14px;padding:18px 20px;cursor:pointer;border:1px solid #f5d9a8;border-left:6px solid #f39c12;transition:.2s}
+.top.b{background:#eef6fd;border-color:#c9e2f5;border-left-color:#3498db}
+.top:hover{box-shadow:0 4px 12px rgba(0,0,0,.08);transform:translateY(-2px)}
+.top .tag{display:inline-block;background:#f39c12;color:#fff;border-radius:4px;padding:2px 8px;font-size:12px;font-weight:700;margin-bottom:8px}
+.top.b .tag{background:#3498db}
+.top h2{font-size:19px;line-height:1.45;margin-bottom:6px;color:#1a1a1a}
+.top .sub{font-size:13px;color:#666;line-height:1.6;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.top .info{font-size:12px;color:#888;margin-top:8px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.card{background:#fff;border-radius:10px;padding:14px 16px;cursor:pointer;border:1px solid #e3e7ec;display:flex;flex-direction:column;gap:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);transition:.2s}
+.card:hover{box-shadow:0 3px 12px rgba(0,0,0,.1);transform:translateY(-2px)}
+.card h4{font-size:15px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;color:#1a1a1a}
 .row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:auto}
-.cat{font-size:11px;padding:1px 7px;border-radius:10px;font-weight:600}
-.c-world{background:#fdecea;color:#c0392b}
-.c-op-ed{background:#fef5e7;color:#b9770e}
-.c-finance{background:#eaf2fb;color:#2c6cb0}
-.c-tech{background:#e9f7ef;color:#1e8449}
-.c-general{background:#f0f2f5;color:#5d6d7e}
-.cn{background:#fef9e7;color:#b7950b;border:1px solid #f4d03f}
-.src{font-size:12px;color:#8a97a5;font-weight:600}
-.time{font-size:12px;color:#aab4be}
-.status{text-align:center;color:#8a97a5;font-size:12px;padding:16px 0 6px}
-.err{text-align:center;color:#c0392b;font-size:14px;padding:30px}
-@media(max-width:720px){.subs,.grid{grid-template-columns:1fr}.lead h2{font-size:20px}.brand{font-size:18px}}
+.tag{display:inline-block;padding:1px 8px;border-radius:4px;font-size:11px}
+.tag-world{background:#e8f0fe;color:#1a3a6c}
+.tag-op-ed{background:#fce8e6;color:#a50e0e}
+.tag-finance{background:#e6f4ea;color:#137333}
+.tag-tech{background:#f3e8fd;color:#7627bb}
+.tag-general{background:#f1f3f4;color:#5f6368}
+.tag-cn{background:#fef9e7;color:#b7950b;border:1px solid #f4d03f}
+.tag-country{background:#f1f3f4;color:#5f6368}
+.src{font-size:12px;color:#888;font-weight:600}
+.time{font-size:12px;color:#aaa}
+.loading{text-align:center;padding:60px 20px;color:#999}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;overflow-y:auto}
+.modal.show{display:block}
+.modal-body{background:#fff;max-width:760px;margin:30px auto;border-radius:12px;padding:30px}
+.modal-close{float:right;background:none;border:none;font-size:22px;cursor:pointer;color:#999}
+.modal-close-bottom{display:inline-block;padding:10px 30px;font-size:15px;border:1px solid #ddd;border-radius:20px;background:#f7f7f7;color:#333;cursor:pointer}
+.modal-close-bottom:active{background:#eee}
+.modal h2{font-size:20px;margin-bottom:10px;line-height:1.4}
+.modal-meta{font-size:12px;color:#888;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid #eee}
+.section-label{font-size:13px;font-weight:700;color:#1a3a6c;margin:18px 0 8px}
+.modal p{margin-bottom:10px;font-size:15px}
+@media(max-width:768px){
+  header{padding:10px 12px}
+  #mapPane.active,#mediaPane.active,#chessPane.active{height:calc(100vh - 50px);height:calc(100dvh - 50px)}
+  .nav-tabs{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;white-space:nowrap;flex-wrap:nowrap}
+  .nav-tabs::-webkit-scrollbar{display:none}
+  .nav-tab{display:inline-flex;flex:none;padding:5px 11px;font-size:13px}
+  .nav-tab .full{display:none}
+  .nav-tab .short{display:inline}
+  .nav-tabs-wrap::after{content:"";position:absolute;right:0;top:0;bottom:0;width:20px;background:linear-gradient(to left,rgba(26,58,108,.92),transparent);pointer-events:none;opacity:0;transition:opacity .2s}
+  .nav-tabs-wrap.scrollable::after{opacity:1}
+  .pbtn{width:30px;height:30px;font-size:13px}
+  .refresh-btn{padding:7px 14px;font-size:13px}
+  .tops,.grid{grid-template-columns:1fr}
+  .top h2{font-size:17px}
+  .wrap{padding:12px 14px}
+  .modal-body{margin:12px auto;padding:20px 16px;border-radius:10px}
+}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="topbar">
-    <div class="brand">国际新闻<small>谷歌热榜 · 全球要闻</small></div>
-    <div class="meta" id="meta"></div>
-    <div class="spacer"></div>
-    <div class="pager">
-      <button class="pbtn active" id="pg1" onclick="goPage(1)">1</button>
-      <button class="pbtn" id="pg2" onclick="goPage(2)">2</button>
+<header>
+  <div class="header-inner">
+    <div class="nav-tabs-wrap">
+      <nav class="nav-tabs">
+        <a class="nav-tab active" data-section="home"><span class="full">谷歌热榜</span><span class="short">谷歌</span></a>
+        <a class="nav-tab" data-section="map"><span class="full">旅游地图</span><span class="short">地图</span></a>
+        <a class="nav-tab" data-section="media"><span class="full">音乐视频</span><span class="short">音乐</span></a>
+        <a class="nav-tab" data-section="chess"><span class="full">游戏</span><span class="short">游戏</span></a>
+      </nav>
     </div>
-    <button class="btn" onclick="refresh()">更新</button>
+    <div class="right">
+      <div class="pager">
+        <button class="pbtn active" id="pg1" onclick="goPage(1)">1</button>
+        <button class="pbtn" id="pg2" onclick="goPage(2)">2</button>
+      </div>
+      <button class="refresh-btn" id="refreshBtn" onclick="loadNews()">更新</button>
+    </div>
   </div>
-  <div id="content"></div>
-  <div class="status" id="status"></div>
+</header>
+<div id="homePane" class="pane active">
+  <div class="wrap">
+    <div class="meta" id="meta">正在加载新闻…</div>
+    <div id="list"><div class="loading">加载中…</div></div>
+  </div>
+</div>
+<div id="mapPane" class="pane"><iframe id="mapFrame" src="travel/" title="旅游地图"></iframe></div>
+<div id="mediaPane" class="pane"><iframe id="mediaFrame" src="media/?v=29" title="音乐视频"></iframe></div>
+<div id="chessPane" class="pane"><iframe id="chessFrame" src="chess/?v=4" title="游戏"></iframe></div>
+<div class="modal" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal-body" id="modalBody"></div>
 </div>
 <script>
-var articles=[],page=1,PAGE_SIZE=50;
-var CAT_ZH={world:'国际大事',op_ed:'社论',finance:'财经',tech:'科技',general:'综合'};
-function fmtTime(iso){
-  var d=new Date(iso),p=function(n){return n<10?'0'+n:n};
-  return (d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());
+const GITEE_API="https://gitee.com/api/v5/repos/t7950288/news/contents/news.json?ref=master";
+const NEWS_SOURCES=[
+  "https://t7950288.github.io/news-fetcher/news.json",
+  "https://raw.githubusercontent.com/T7950288/news-fetcher/main/news.json"
+];
+const CACHE_KEY="gh_news_cache_v2";
+const CATS=[["world","国际大事"],["op-ed","社论"],["finance","财经"],["tech","科技"],["general","综合"]];
+const CAT_CLS={world:"tag-world","op-ed":"tag-op-ed",finance:"tag-finance",tech:"tag-tech",general:"tag-general"};
+const PAGE_SIZE=50;
+const SENS=new RegExp(atob('eGkgamlucGluZ3xcYnhpXGJ8cGVuZyBsaXl1YW58dGFpd2FufHRpYmV0fHhpbmppYW5nfGhvbmcga29uZ3xkYWxhaXx1eWdodXJ8dGlhbmFubWVufFxiY2NwXGJ8Y29tbXVuaXN0IHBhcnR5fGRpY3RhdG9yfOS5oOi/keW5s3zlva3kuL3lqpt85Y+w5rm+fOilv+iXj3zmlrDnloZ86aaZ5rivfOi+vui1lnznu7TlkL7lsJR85aSp5a6J6ZeofOS4reWFsXzlhbHkuqflhZp854us6KOB6ICF'),'i');
+let ALL=[],page=1,lastUpdatedAt="",savedScrollY=0,savedHomeScroll=0;
+
+function esc(s){return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
+function fmtTime(iso){var d=new Date(iso),p=function(n){return n<10?"0"+n:n;};return (d.getMonth()+1)+"-"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes());}
+function srcName(a){return a._google?(a.source+" · Google热榜"):a.source;}
+function isSensitive(a){var t=(a.title_orig||"")+" "+(a.content_orig||"").slice(0,300);return SENS.test(t);}
+
+async function fetchJson(u,isGitee){
+  const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),6000);
+  try{
+    const r=await fetch(u+(isGitee?"":"?_t="+Date.now()),{cache:"no-store",signal:ctrl.signal});
+    clearTimeout(timer);
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    const j=await r.json();
+    if(isGitee){const raw=atob(j.content);return JSON.parse(raw);}
+    return j;
+  }catch(e){clearTimeout(timer);throw e;}
 }
-function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
-function render(){
-  var list=articles.slice((page-1)*PAGE_SIZE,page*PAGE_SIZE),html='';
-  if(!list.length){document.getElementById('content').innerHTML='<div class="err">暂无新闻</div>';return;}
-  var a=list[0];
-  var summary=(a.content_orig||a.summary_zh||'').replace(/\s+/g,' ').slice(0,160);
-  html+='<div class="lead" onclick="openUrl(\''+esc(a.url||'#')+'\')">'+
-    '<span class="tag">头条</span>'+
-    '<h2>'+esc(a.title_orig)+'</h2>'+
-    '<div class="sub">'+esc(summary)+'</div>'+
-    '<div class="info">'+esc(a.agency||a.source||'')+' · '+fmtTime(a.published_at)+'</div></div>';
-  var i;
-  if(list.length>1){
-    html+='<div class="subs">';
-    for(i=1;i<Math.min(3,list.length);i++){
-      html+='<div class="sub" onclick="openUrl(\''+esc(list[i].url||'#')+'\')">'+
-        '<h3>'+esc(list[i].title_orig)+'</h3>'+
-        '<div class="info">'+esc(list[i].agency||list[i].source||'')+' · '+fmtTime(list[i].published_at)+'</div></div>';
+async function fetchData(){return await Promise.any([fetchJson(GITEE_API,true)].concat(NEWS_SOURCES.map(u=>fetchJson(u,false))));}
+async function fetchDataQuiet(){return await fetchJson(NEWS_SOURCES[0],false);}
+
+function showData(data){
+  lastUpdatedAt=data.updated_at||"";
+  ALL=(data.articles||[]).slice().sort((a,b)=>(b.published_at||"").localeCompare(a.published_at||""));
+  document.getElementById("meta").textContent="共 "+ALL.length+" 条 · 更新于 "+(data.updated_at||"").replace("T"," ").replace(/\+.*/,"");
+  try{localStorage.setItem(CACHE_KEY,JSON.stringify({updated_at:lastUpdatedAt,items:ALL.slice()}));}catch(e){}
+  renderList();
+}
+async function initNews(){
+  let cached=null;
+  try{cached=JSON.parse(localStorage.getItem(CACHE_KEY)||"null");}catch(e){}
+  if(cached&&cached.updated_at&&Array.isArray(cached.items)&&cached.items.length){
+    lastUpdatedAt=cached.updated_at;ALL=cached.items;
+    document.getElementById("meta").textContent="共 "+ALL.length+" 条 · 更新于 "+cached.updated_at.replace("T"," ").replace(/\+.*/,"")+"（正在后台刷新…）";
+    renderList();
+  }else{
+    document.getElementById("meta").textContent="正在加载新闻…";
+  }
+  try{
+    const d=await fetchData();
+    showData(d);
+  }catch(e){
+    if(!(cached&&cached.updated_at&&Array.isArray(cached.items)&&cached.items.length)){
+      document.getElementById("meta").textContent="加载失败："+e.message;
     }
-    html+='</div>';
   }
-  html+='<div class="grid">';
-  for(i=3;i<list.length;i++){
-    var b=list[i],cat=b.category||'general';
-    var catKey=cat==='op-ed'?'op_ed':cat;
-    html+='<div class="card" onclick="openUrl(\''+esc(b.url||'#')+'\')">'+
-      '<h4>'+esc(b.title_orig)+'</h4>'+
-      '<div class="row">'+
-      '<span class="cat c-'+(cat==='op-ed'?'op-ed':cat)+'">'+(CAT_ZH[catKey]||'综合')+'</span>'+
-      (b._china?'<span class="cat cn">中国相关</span>':'')+
-      '<span class="src">'+esc(b.agency||b.source||'')+'</span>'+
-      '<span class="time">'+fmtTime(b.published_at)+'</span>'+
-      '</div></div>';
+}
+async function loadNews(){
+  const btn=document.getElementById("refreshBtn");
+  btn.disabled=true;btn.textContent="正在加载…";
+  try{const d=await fetchData();showData(d);document.getElementById("meta").textContent+=" · 已更新（云端每15分钟自动抓取）";}
+  catch(e){document.getElementById("meta").textContent="加载失败："+e.message;}
+  finally{btn.disabled=false;btn.textContent="更新";}
+}
+
+function topHtml(a,cls){
+  const summary=(a.content_orig||a.summary_zh||"").replace(/\s+/g," ").slice(0,160);
+  return '<div class="top '+cls+'" onclick="openDetail('+ALL.indexOf(a)+')">'+
+    '<span class="tag" style="background:'+(cls==='b'?'#3498db':'#f39c12')+';color:#fff;border-radius:4px;padding:2px 8px;font-size:12px;font-weight:700;margin-bottom:8px;display:inline-block">要闻</span>'+
+    '<h2>'+esc(a.title_orig||a.title_zh||"")+'</h2>'+
+    '<div class="sub">'+esc(summary)+'</div>'+
+    '<div class="info">'+esc(srcName(a))+' · '+fmtTime(a.published_at)+'</div></div>';
+}
+function cardHtml(a){
+  const cat=a.category||"general";
+  return '<div class="card" onclick="openDetail('+ALL.indexOf(a)+')">'+
+    '<h4>'+esc(a.title_orig||a.title_zh||"")+'</h4>'+
+    '<div class="row">'+
+    '<span class="tag '+CAT_CLS[cat]+'">'+(CATS.find(c=>c[0]===cat)||["","综合"])[1]+'</span>'+
+    (a._china?'<span class="tag tag-cn">中国相关</span>':'')+
+    '<span class="src">'+esc(srcName(a))+'</span>'+
+    '<span class="time">'+fmtTime(a.published_at)+'</span>'+
+    '</div></div>';
+}
+function renderList(){
+  const el=document.getElementById("list");
+  const rows=ALL.slice((page-1)*PAGE_SIZE,page*PAGE_SIZE);
+  if(!rows.length){el.innerHTML='<div class="loading">暂无新闻</div>';return;}
+  let html="";
+  if(page===1){
+    const head=[],rest=[];
+    for(let i=0;i<rows.length;i++){
+      if(head.length<2&&!isSensitive(rows[i]))head.push(rows[i]);
+      else rest.push(rows[i]);
+    }
+    if(head.length){
+      html+='<div class="tops">';
+      for(let i=0;i<head.length;i++)html+=topHtml(head[i],i===1?"b":"");
+      html+='</div>';
+    }
+    html+='<div class="grid">'+rest.map(cardHtml).join("")+'</div>';
+  }else{
+    html='<div class="grid">'+rows.map(cardHtml).join("")+'</div>';
   }
-  html+='</div>';
-  document.getElementById('content').innerHTML=html;
-  document.getElementById('pg1').className='pbtn'+(page===1?' active':'');
-  document.getElementById('pg2').className='pbtn'+(page===2?' active':'');
+  el.innerHTML=html;
+  document.getElementById("pg1").className="pbtn"+(page===1?" active":"");
+  document.getElementById("pg2").className="pbtn"+(page===2?" active":"");
 }
-function openUrl(u){if(u&&u!=='#')window.open(u,'_blank');}
-function goPage(p){page=p;render();}
-function refresh(){
-  var s=document.getElementById('status');s.textContent='正在加载…';
-  fetch('news.json?t='+Date.now()).then(function(r){return r.json();}).then(function(j){
-    articles=(j.articles||[]).slice().sort(function(x,y){return new Date(y.published_at)-new Date(x.published_at);});
-    document.getElementById('meta').textContent='共 '+articles.length+' 条 · 更新于 '+j.updated_at.replace('T',' ').slice(0,19);
-    render();
-    s.textContent='';
-    if(!articles.length)s.textContent='暂无新闻';
-  }).catch(function(e){s.textContent='加载失败：'+e.message;});
+function openDetail(i){
+  const a=ALL[i];
+  const time=(a.published_at||"").replace("T"," ").replace(/\+.*/,"");
+  const body=document.getElementById("modalBody");
+  body.innerHTML='<button class="modal-close" onclick="closeModal()">×</button>'+
+    '<h2>'+esc(a.title_orig||a.title_zh||"")+'</h2>'+
+    '<div class="modal-meta"><span class="tag tag-country">'+a.country+'</span> '+esc(srcName(a))+' · '+time+'</div>'+
+    '<div class="section-label">原文全文</div>'+
+    '<div>'+esc(a.content_orig||"（无正文）").split("\n").map(p=>'<p>'+p+'</p>').join("")+'</div>'+
+    '<div style="text-align:center;margin-top:26px;"><button class="modal-close-bottom" onclick="closeModal()">关闭</button></div>';
+  document.getElementById("modal").classList.add("show");
+  savedScrollY=window.scrollY;
+  document.getElementById("modal").scrollTop=0;
 }
-refresh();
-setInterval(refresh,300000);
+function closeModal(){document.getElementById("modal").classList.remove("show");window.scrollTo(0,savedScrollY);}
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal();});
+function goPage(p){page=p;renderList();window.scrollTo(0,0);}
+
+async function autoCheck(){
+  const m=document.getElementById("modal");
+  if(m&&m.classList.contains("show"))return;
+  try{const d=await fetchDataQuiet();if(d.updated_at&&d.updated_at!==lastUpdatedAt){const y=window.scrollY;showData(d);window.scrollTo(0,y);}}catch(e){}
+}
+async function autoRefresh5(){
+  const m=document.getElementById("modal");
+  if(m&&m.classList.contains("show"))return;
+  const btn=document.getElementById("refreshBtn");
+  if(btn&&btn.disabled)return;
+  try{const d=await fetchDataQuiet();if(d.updated_at&&d.updated_at!==lastUpdatedAt){const y=window.scrollY;showData(d);window.scrollTo(0,y);document.getElementById("meta").textContent+=" · 已自动刷新";}}catch(e){}
+}
+
+initNews();
+setInterval(autoCheck,30000);
+setInterval(autoRefresh5,300000);
+
+function checkNavScroll(){
+  const wrap=document.querySelector(".nav-tabs-wrap");
+  const tabs=wrap?wrap.querySelector(".nav-tabs"):null;
+  if(wrap&&tabs)wrap.classList.toggle("scrollable",tabs.scrollWidth>tabs.clientWidth);
+}
+checkNavScroll();
+window.addEventListener("resize",checkNavScroll);
+
+const mapFrame=document.getElementById("mapFrame");
+const homePane=document.getElementById("homePane");
+const mapPane=document.getElementById("mapPane");
+const mediaPane=document.getElementById("mediaPane");
+const chessPane=document.getElementById("chessPane");
+const refreshBtn=document.getElementById("refreshBtn");
+function hideMapHeader(){
+  try{
+    const doc=mapFrame.contentDocument;
+    if(doc&&doc.querySelector(".site-header"))doc.querySelector(".site-header").style.display="none";
+  }catch(e){}
+}
+function fixMapSize(){
+  setTimeout(()=>{
+    try{
+      const w=mapFrame.contentWindow;
+      if(!w)return;
+      if(w.map&&w.map.invalidateSize)w.map.invalidateSize();
+      w.dispatchEvent(new w.Event("resize"));
+    }catch(e){}
+  },120);
+}
+mapFrame.addEventListener("load",()=>{hideMapHeader();if(mapPane.classList.contains("active"))fixMapSize();});
+function switchSection(key){
+  document.querySelectorAll(".nav-tab").forEach(t=>t.classList.toggle("active",t.dataset.section===key));
+  if(key==="map"||key==="media"||key==="chess"){
+    savedHomeScroll=window.scrollY;
+    homePane.classList.remove("active");
+    mapPane.classList.toggle("active",key==="map");
+    mediaPane.classList.toggle("active",key==="media");
+    chessPane.classList.toggle("active",key==="chess");
+    if(key==="map"){hideMapHeader();fixMapSize();}
+    if(refreshBtn)refreshBtn.style.display="none";
+    window.scrollTo(0,0);
+  }else{
+    mapPane.classList.remove("active");mediaPane.classList.remove("active");chessPane.classList.remove("active");
+    homePane.classList.add("active");
+    if(refreshBtn)refreshBtn.style.display="";
+    window.scrollTo(0,savedHomeScroll);
+  }
+}
+document.querySelectorAll(".nav-tab").forEach(t=>{t.addEventListener("click",e=>{e.preventDefault();switchSection(t.dataset.section);});});
 </script>
 </body>
 </html>
