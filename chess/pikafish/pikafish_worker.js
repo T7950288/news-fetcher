@@ -9,21 +9,25 @@ let engine = null;
 let buffer = "";
 let currentId = 0;
 
-function handleChunk(chunk) {
-  buffer += chunk;
-  let idx;
-  while ((idx = buffer.indexOf("\n")) >= 0) {
-    const line = buffer.slice(0, idx).replace(/\r$/, "").trim();
-    buffer = buffer.slice(idx + 1);
-    if (!line) continue;
-    self.postMessage({ type: "stdout", line: line });
-    if (line.indexOf("bestmove") === 0) {
-      const parts = line.split(/\s+/);
-      if (parts.length >= 2 && parts[1] !== "(none)") {
-        self.postMessage({ type: "move", id: currentId, uci: parts[1], ponder: parts.length >= 4 ? parts[3] : null });
-      }
+function handleLine(line) {
+  if (!line) return;
+  self.postMessage({ type: "stdout", line: line });
+  if (line.indexOf("bestmove") === 0) {
+    const parts = line.split(/\s+/);
+    if (parts.length >= 2 && parts[1] !== "(none)") {
+      self.postMessage({ type: "move", id: currentId, uci: parts[1], ponder: parts.length >= 4 ? parts[3] : null });
     }
   }
+}
+
+function handleChunk(chunk) {
+  let s = buffer + chunk;
+  let idx;
+  while ((idx = s.indexOf("\n")) >= 0) {
+    handleLine(s.slice(0, idx).replace(/\r$/, "").trim());
+    s = s.slice(idx + 1);
+  }
+  buffer = s;
 }
 
 self.onmessage = function (e) {
@@ -42,7 +46,7 @@ self.onmessage = function (e) {
       _dbg: function (t) { self.postMessage({ type: "dbg", line: t }); }
     }).then(function (inst) {
       engine = inst;
-      engine.read_stdout = function (t) { handleChunk(t); };
+      engine.read_stdout = function (t) { handleLine(String(t).replace(/\r$/, "").trim()); };
       self.postMessage({ type: "ready" });
       engine.send_command("uci");
     }).catch(function (err) {
