@@ -109,7 +109,7 @@
   </div>
 </div>
 
-<script src="vendor/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/t7950288/news-fetcher@main/chess/vendor/tf.min.js"></script>
 <script src="go_engine.js"></script>
 <script>
 /* ============================================================
@@ -403,7 +403,7 @@ class GoAI {
   const capInfo = $("captureInfo"), winrateInfo = $("winrateInfo");
 
   const ai = new GoAI();
-  const MODEL_URL = "go_model/b10c128/model.json";
+  const MODEL_URL = "https://cdn.jsdelivr.net/gh/t7950288/news-fetcher@main/chess/go_model/b10c128/model.json";
 
   async function loadEngine() {
     engInfo.textContent = "引擎加载中…";
