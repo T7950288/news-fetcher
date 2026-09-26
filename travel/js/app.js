@@ -631,6 +631,14 @@
         }
       });
     });
+    /* 卡片 3 秒自动收起；鼠标/触摸停留在卡片上则暂停计时，避免来不及点按钮 */
+    var pTimer = setTimeout(function(){ map.closePopup(); }, 3000);
+    var pStop = function(){ clearTimeout(pTimer); };
+    var pGo = function(){ clearTimeout(pTimer); pTimer = setTimeout(function(){ map.closePopup(); }, 3000); };
+    el.addEventListener('mouseenter', pStop);
+    el.addEventListener('mouseleave', pGo);
+    el.addEventListener('touchstart', pStop);
+    el.addEventListener('touchend', pGo);
   });
   map.on('moveend', refreshMarkers);   // 缩放/拖动结束才重建（视野裁剪后开销小）
 
