@@ -128,6 +128,13 @@
     const msg = e.data;
     if (!msg) return;
     if (msg.type === "ready") { engineReady = true; setEng("引擎就绪"); }
+    else if (msg.type === "status") {
+      if (msg.status) setEng(msg.status);
+    }
+    else if (msg.type === "error") {
+      setEng("引擎异常");
+      console.error("引擎错误:", msg.error);
+    }
     else if (msg.type === "stdout") {
       window._xqLines = window._xqLines || [];
       window._xqLines.push(msg.line);
@@ -274,17 +281,24 @@
   }
 
   /* ---------- 绘制（满屏棋盘） ---------- */
-  let cell = 0, ox = 0, oy = 0;
+  let cell = 0, cellW = 0, cellH = 0, ox = 0, oy = 0;
+  function barBottom() {
+    const sb = document.querySelector(".statusbar");
+    return sb ? sb.getBoundingClientRect().bottom + 2 : (canvas.width < 520 ? 58 : 62);
+  }
   function resizeCanvas() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
-    cell = Math.min((canvas.width) / 9.6, (canvas.height) / 10.6);
-    ox = (canvas.width - cell * 9) / 2;
-    oy = (canvas.height - cell * 10) / 2;
+    const availH = Math.max(140, canvas.height - barBottom());
+    cellW = canvas.width / 9;
+    cellH = availH / 10;
+    cell = Math.min(cellW, cellH);
+    ox = 0;
+    oy = barBottom();
     render();
   }
-  function X(c) { return ox + cell * (c + 0.5); }
-  function Y(r) { return oy + cell * (r + 0.5); }
+  function X(c) { return ox + cellW * (c + 0.5); }
+  function Y(r) { return oy + cellH * (r + 0.5); }
 
   function render() {
     if (!board) return;
@@ -307,7 +321,7 @@
     /* 外边框 */
     ctx.strokeStyle = "#5a4632";
     ctx.lineWidth = 2;
-    ctx.strokeRect(X(0) - S * 0.5, Y(0) - S * 0.5, S * 9, S * 10);
+    ctx.strokeRect(X(0) - cellW * 0.5, Y(0) - cellH * 0.5, cellW * 9, cellH * 10);
     ctx.lineWidth = 1;
     /* 九宫斜线 */
     ctx.beginPath();
@@ -337,10 +351,10 @@
     for (let r = 0; r < 10; r++) for (let c = 0; c < 9; c++) {
       const p = board[r][c];
       if (p === 0) continue;
-      const x = X(c), y = Y(r), R = S * 0.42;
-      const grad = ctx.createRadialGradient(x - R * 0.25, y - R * 0.25, R * 0.15, x, y, R);
+      const x = X(c), y = Y(r), Rx = cellW * 0.42, Ry = cellH * 0.42;
+      const grad = ctx.createRadialGradient(x - Rx * 0.25, y - Ry * 0.25, Math.min(Rx, Ry) * 0.15, x, y, Math.max(Rx, Ry));
       grad.addColorStop(0, "#fff8e1"); grad.addColorStop(1, "#e2c98f");
-      ctx.beginPath(); ctx.arc(x, y, R, 0, Math.PI * 2);
+      ctx.beginPath(); ctx.ellipse(x, y, Rx, Ry, 0, 0, Math.PI * 2);
       ctx.fillStyle = grad; ctx.fill();
       ctx.strokeStyle = "#8a6d3b"; ctx.lineWidth = 1.5; ctx.stroke();
       ctx.fillStyle = p > 0 ? "#c62828" : "#212121";
@@ -352,14 +366,14 @@
     if (selected && playing && !aiThinking) {
       const x = X(selected.c), y = Y(selected.r);
       ctx.strokeStyle = "#1565C0"; ctx.lineWidth = 2.5;
-      ctx.beginPath(); ctx.arc(x, y, S * 0.46, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(x, y, cellW * 0.46, cellH * 0.46, 0, 0, Math.PI * 2); ctx.stroke();
       const moves = XQ.genLegalMoves(board, playerSide).filter(function (m) {
         return m.fr === selected.r && m.fc === selected.c;
       });
       for (let i = 0; i < moves.length; i++) {
         const m = moves[i];
         ctx.fillStyle = board[m.tr][m.tc] !== 0 ? "#e53935" : "#1565C0";
-        ctx.beginPath(); ctx.arc(X(m.tc), Y(m.tr), m.cap ? S * 0.2 : S * 0.1, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(X(m.tc), Y(m.tr), m.cap ? cellW * 0.2 : cellW * 0.1, m.cap ? cellH * 0.2 : cellH * 0.1, 0, 0, Math.PI * 2); ctx.fill();
       }
       ctx.lineWidth = 1;
     }
@@ -367,7 +381,7 @@
     if (moveHistory.length) {
       const last = moveHistory[moveHistory.length - 1].mv;
       ctx.fillStyle = "rgba(21,101,192,.55)";
-      ctx.beginPath(); ctx.arc(X(last.tc), Y(last.tr), Math.max(3, S * 0.08), 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(X(last.tc), Y(last.tr), Math.max(3, cellW * 0.08), Math.max(3, cellH * 0.08), 0, 0, Math.PI * 2); ctx.fill();
     }
   }
 
@@ -375,8 +389,8 @@
   canvas.addEventListener("click", function (e) {
     if (!playing) return;
     if (aiThinking) { flashMsg("AI 思考中…请稍候"); return; }
-    const c = Math.round((e.clientX - ox) / cell - 0.5);
-    const r = Math.round((e.clientY - oy) / cell - 0.5);
+    const c = Math.round((e.clientX - ox) / cellW - 0.5);
+    const r = Math.round((e.clientY - oy) / cellH - 0.5);
     if (r < 0 || r >= 10 || c < 0 || c >= 9) return;
     const p = board[r][c];
     if (p !== 0 && Math.sign(p) === playerSide) { selected = { r: r, c: c }; render(); return; }
@@ -450,7 +464,7 @@
       try {
         const rect = canvas.getBoundingClientRect();
         function clickAt(r, c) {
-          const x = ox + (c + 0.5) * cell, y = oy + (r + 0.5) * cell;
+          const x = ox + (c + 0.5) * cellW, y = oy + (r + 0.5) * cellH;
           canvas.dispatchEvent(new MouseEvent("click", { clientX: x, clientY: y, bubbles: true }));
         }
         clickAt(9, 1);
