@@ -2,8 +2,10 @@
 /*
  * 皮卡鱼（Pikafish）WASM 引擎 Worker
  * UCI 协议：position / go / bestmove
+ * 引擎文件走 jsDelivr CDN（国内节点快）；改引擎文件后需清理 CDN 缓存
  */
-importScripts("pikafish.js");
+const CDN = "https://cdn.jsdelivr.net/gh/t7950288/news-fetcher@main/chess/pikafish/";
+importScripts(CDN + "pikafish.js");
 
 let engine = null;
 let buffer = "";
@@ -37,8 +39,8 @@ self.onmessage = function (e) {
     if (engine) { self.postMessage({ type: "ready" }); return; }
     self.Pikafish({
       locateFile: function (f) {
-        if (f === "pikafish.data") return "data/pikafish.data";
-        return f;
+        if (f === "pikafish.data") return CDN + "data/pikafish.data";
+        return CDN + f;
       },
       setStatus: function (s) { self.postMessage({ type: "status", status: s }); },
       print: function (t) { handleChunk(t + "\n"); },
