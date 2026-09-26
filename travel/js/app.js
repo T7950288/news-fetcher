@@ -414,7 +414,7 @@
     AT.filter(sp => sp.cat === 11 && z >= 8 && vb.contains([sp.lat, sp.lng])).forEach(sp => {
       const done = Footprint.isSpotDone(state.footprint, sp);
       const wantNm = done || z >= 6;
-      const nm = wantNm ? `<div class="mk-name ${done ? '' : 'w'}">${sp.name}</div>` : '';
+      const nm = wantNm ? `<div class="mk-name ${done ? '' : 'w'}">${sp.name}<i>${Math.round(sp.alt)}米</i></div>` : '';
       const inner = `<div class="spot-marker mt${done ? ' done' : ''}" style="width:32px;height:32px">${MTN(20)}${nm}</div>`;
       const m = L.marker([sp.lat, sp.lng], { icon: divIcon(hitWrap(inner), 34), zIndexOffset: 5000 });
       if (footMode) m.on('click', function () {
