@@ -65,10 +65,18 @@ var Pikafish = (() => {
           var REMOTE_PACKAGE_SIZE = metadata['remote_package_size'];
 
           function fetchRemotePackage(packageName, packageSize, callback, errback) {
+            if (Module['_dbg']) Module['_dbg']('DBG fetch-start ' + packageName);
             fetch(packageName, { credentials: 'same-origin' }).then(function (response) {
+              if (Module['_dbg']) Module['_dbg']('DBG fetch-ok ' + response['ok']);
               if (!response['ok']) throw 'failed to load data file at ' + packageName;
               return response['arrayBuffer']();
-            }).then(callback, errback);
+            }).then(function (data) {
+              if (Module['_dbg']) Module['_dbg']('DBG fetch-data ' + data.byteLength);
+              callback(data);
+            }, function (e) {
+              if (Module['_dbg']) Module['_dbg']('DBG fetch-err ' + e);
+              errback(e);
+            });
           }
 
           function handleError(error) {
@@ -129,8 +137,7 @@ var Pikafish = (() => {
             }
 
             function processPackageData(arrayBuffer) {
-              // assert(arrayBuffer, 'Loading data file failed.');
-              // assert(arrayBuffer instanceof ArrayBuffer, 'bad input to processPackageData');
+              if (Module['_dbg']) Module['_dbg']('DBG processPackageData ' + (arrayBuffer ? arrayBuffer.byteLength : 'null'));
               var byteArray = new Uint8Array(arrayBuffer);
               var curr;
               // Reuse the bytearray from the XHR as the source for file reads.
@@ -191,6 +198,7 @@ var Pikafish = (() => {
           str: "",
           flush: function () {
             Module.read_stdout(this.str);
+            if (Module['_dbg']) Module['_dbg']('DBG flush: ' + this.str);
             this.str = "";
           },
         };
@@ -212,6 +220,7 @@ var Pikafish = (() => {
         FS.init(stdin, stdout, stdout);
         let wasm_uci_execute = Module.cwrap("wasm_uci_execute", "void", []);
         Module.send_command = function (data) {
+          if (Module['_dbg']) Module['_dbg']('DBG send_command: ' + data);
           input.set(data);
           wasm_uci_execute();
         };
@@ -5195,6 +5204,7 @@ var Pikafish = (() => {
           readyPromiseResolve(Module);
           if (Module['onRuntimeInitialized']) Module['onRuntimeInitialized']();
 
+          if (Module['_dbg']) Module['_dbg']('DBG doRun before callMain, shouldRunNow=' + shouldRunNow);
           if (shouldRunNow) callMain(args);
 
           postRun();
