@@ -236,7 +236,7 @@
   function wxToday(w){
     if(!w || !w.current) return '🌤️ 天气：查询失败';
     var c = w.current;
-    return '🌤️ 天气：<b>' + wxName(c.weather_code) + ' ' + Math.round(c.temperature_2m) + '°C</b> · 体感' + Math.round(c.apparent_temperature) + '° · 湿度' + (c.relative_humidity_2m||0) + '% · 风' + Math.round(c.wind_speed_10m||0) + 'km/h';
+    return '🌤️ 天气：<b>' + wxName(c.weather_code) + ' ' + Math.round(c.temperature_2m) + '°C</b>';
   }
   function wxWeek(w){
     if(!w || !w.daily || !w.daily.time) return '';
