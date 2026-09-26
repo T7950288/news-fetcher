@@ -37,7 +37,8 @@ self.onmessage = function (e) {
       },
       setStatus: function (s) { self.postMessage({ type: "status", status: s }); },
       print: function (t) { handleChunk(t + "\n"); },
-      printErr: function (t) { /* 引擎错误流，忽略 */ }
+      printErr: function (t) { /* 引擎错误流，忽略 */ },
+      _dbg: function (t) { self.postMessage({ type: "dbg", line: t }); }
     }).then(function (inst) {
       engine = inst;
       engine.read_stdout = function (t) { handleChunk(t); };
