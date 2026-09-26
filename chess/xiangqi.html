@@ -17,6 +17,12 @@
     padding-top:calc(7px + env(safe-area-inset-top)); }
   .topbar a { color:#fff; text-decoration:none; font-size:15px; font-weight:700;
     padding:8px 12px; border-radius:6px; background:rgba(255,255,255,.18); }
+  .board-back { position:fixed; top:calc(64px + env(safe-area-inset-top)); right:8px; z-index:30;
+    background:rgba(255,255,255,.92); color:#333; text-decoration:none;
+    border:1px solid rgba(0,0,0,.18); border-radius:10px;
+    font-size:14px; font-weight:700; padding:8px 12px; line-height:1;
+    box-shadow:0 2px 8px rgba(0,0,0,.18); }
+  .board-back:active { background:#e8e8e8; }
   .topbar .t { font-weight:700; white-space:nowrap; }
   .topbar .sp { flex:1; }
   .topbar select { font-size:12px; padding:3px 2px; border:none; border-radius:5px; background:#fff; color:#1a1a1a; max-width:74px; }
@@ -45,7 +51,6 @@
     font-size:15px; font-weight:700; display:none; max-width:86%; text-align:center; }
   @media (max-width:520px){
     .topbar { font-size:12px; gap:4px; padding:6px 6px; padding-top:calc(6px + env(safe-area-inset-top)); }
-    .topbar a { font-size:14px; padding:7px 10px; }
     .topbar select { font-size:11px; max-width:62px; }
     .topbar button { font-size:11px; padding:4px 6px; }
     .statusbar { top:calc(36px + env(safe-area-inset-top)); font-size:11px; gap:6px; }
@@ -54,8 +59,8 @@
 </head>
 <body>
 <canvas id="board"></canvas>
+<a class="board-back" href="index.html">← 棋类</a>
 <div class="topbar">
-  <a href="index.html">← 棋类</a>
   <span class="t">象棋</span>
   <span class="sp"></span>
   <select id="selDiff">
