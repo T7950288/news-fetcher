@@ -457,6 +457,9 @@
 
   resizeCanvas();
   newGame();
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("sw.js").catch(function () {});
+  }
 
   /* 自动走子自测（仅 ?autotest=1） */
   if (/(\?|&)autotest(=|&|$)/.test(location.search)) {
@@ -475,6 +478,20 @@
         setTimeout(function () {
           document.title = "AUTOTEST:AI步数=" + moveCount + "|引擎=" +
             (engineReady ? "就绪" : "未就绪") + "|标题=" + document.title;
+          setTimeout(function () {
+            var iv = setInterval(function () {
+              if (engineReady && moveCount >= 2 && !aiThinking && playing &&
+                  document.getElementById("turnBadge").textContent.indexOf("（你）") >= 0) {
+                clearInterval(iv);
+                clickAt(7, 7); clickAt(7, 4);
+                document.title = "AUTOTEST2:走炮后=" + moveCount;
+                setTimeout(function () {
+                  document.title = "AUTOTEST2:AI步数=" + moveCount + "|引擎=" +
+                    (engineReady ? "就绪" : "未就绪") + "|标题=" + document.title;
+                }, 15000);
+              }
+            }, 2000);
+          }, 5000);
         }, 12000);
       } catch (e) {
         document.title = "AUTOTEST_ERR:" + e.message;
