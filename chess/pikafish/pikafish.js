@@ -1,7 +1,7 @@
-const fs = require('fs');
+const fs = (typeof require === 'function') ? require('fs') : null;
 
 var Pikafish = (() => {
-  var _scriptDir = __dirname;
+  var _scriptDir = (typeof __dirname !== 'undefined' && __dirname) ? __dirname : (typeof location !== 'undefined' && location.href ? location.href.substring(0, location.href.lastIndexOf('/') + 1) : './');
 
   return (
     function (Pikafish) {
@@ -5250,4 +5250,4 @@ var Pikafish = (() => {
     }
   );
 })();
-module.exports = Pikafish;
+if (typeof module !== 'undefined' && module.exports) module.exports = Pikafish;
