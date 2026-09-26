@@ -411,7 +411,7 @@
     }
 
     // 山峰：任何缩放级别都渲染并置顶（不被景点/城市圆点覆盖）
-    AT.filter(sp => sp.cat === 11 && z >= 8 && vb.contains([sp.lat, sp.lng])).forEach(sp => {
+    AT.filter(sp => sp.cat === 11 && z >= 7 && vb.contains([sp.lat, sp.lng])).forEach(sp => {
       const done = Footprint.isSpotDone(state.footprint, sp);
       const wantNm = done || z >= 6;
       const nm = wantNm ? `<div class="mk-name ${done ? '' : 'w'}">${sp.name}<i>${Math.round(sp.alt)}米</i></div>` : '';
