@@ -618,7 +618,7 @@ def gitee_get():
     raise RuntimeError("no gitee file available")
 
 
-def github_put(data, path="news.json"):
+def github_put(data):
     """v9.6: 同步写 news.json 到 GitHub 仓库根。网页版(Pages)从 GitHub raw 读数据,
        绕开 Gitee 匿名 API 401 风控(2026-09-23 起 Gitee 匿名读开始返回401)。"""
     tok = os.environ.get("GITHUB_TOKEN")
@@ -629,7 +629,7 @@ def github_put(data, path="news.json"):
          "User-Agent": "x", "Content-Type": "application/json"}
     body_text = json.dumps(data, ensure_ascii=False)
     b64 = base64.b64encode(body_text.encode("utf-8")).decode()
-    base = f"https://api.github.com/repos/T7950288/news-fetcher/contents/{path}"
+    base = "https://api.github.com/repos/T7950288/news-fetcher/contents/news.json"
     sha = None
     try:
         req = urllib.request.Request(base, headers=h)
@@ -1120,113 +1120,6 @@ def agency_full_text(a):
     return a
 
 
-# ================= GDELT 模式 (试验: 自带缩略图 socialimage) =================
-GDELT_MODE = True
-
-def _gdelt_time(s):
-    try:
-        return (s[:4] + "-" + s[4:6] + "-" + s[6:8] + "T" + s[9:11] + ":" + s[11:13] + ":" + s[13:15] + "+00:00")
-    except Exception:
-        return datetime.now(timezone.utc).isoformat()
-
-def fetch_gdelt_top():
-    """GDELT DOC API: 全球时政热点, 自带 socialimage 缩略图; 返回带正文的条目列表"""
-    global GDELT_DEBUG
-    queries = ["world", "China"]
-    raw = []
-    GDELT_DEBUG = {"t": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "queries": queries, "resp": [], "filters": {}}
-    for q in queries:
-        try:
-            u = ("https://api.gdeltproject.org/api/v2/doc/doc?query=" +
-                 urllib.parse.quote(q) +
-                 "&mode=artlist&format=json&maxrecords=250&sort=datedesc&timespan=24h")
-            for attempt in range(3):
-                r = requests.get(u, timeout=30, headers={"User-Agent": UA})
-                if r.status_code == 200:
-                    try:
-                        js = r.json()
-                        n = len(js.get("articles", []) or [])
-                        raw.extend(js.get("articles", []) or [])
-                        smp = ""
-                        if n:
-                            smp = (js.get("articles")[0].get("title") or "")[:80]
-                        GDELT_DEBUG["resp"].append({"q": q, "status": 200, "n": n, "sample": smp})
-                        break
-                    except Exception as e:
-                        GDELT_DEBUG["resp"].append({"q": q, "status": 200, "parse_err": str(e)[:80], "body": r.text[:100]})
-                        break
-                elif r.status_code == 429:
-                    print("GDELT 429, 等待30s重试", attempt+1)
-                    GDELT_DEBUG["resp"].append({"q": q, "status": 429, "attempt": attempt+1})
-                    time.sleep(30)
-                else:
-                    print("GDELT HTTP", r.status_code)
-                    GDELT_DEBUG["resp"].append({"q": q, "status": r.status_code, "body": r.text[:100]})
-                    break
-        except Exception as e:
-            print("GDELT ERR", e)
-            GDELT_DEBUG["resp"].append({"q": q, "err": str(e)[:80]})
-            time.sleep(10)
-        time.sleep(6)
-    arts = []
-    seen = set()
-    for a in raw:
-        t = (a.get("title") or "").strip()
-        if not t or len(t) < 20:
-            GDELT_DEBUG["filters"]["title_short"] = GDELT_DEBUG["filters"].get("title_short", 0) + 1
-            continue
-        if (a.get("language") or "en") != "en":
-            GDELT_DEBUG["filters"]["lang_skip"] = GDELT_DEBUG["filters"].get("lang_skip", 0) + 1
-            continue
-        if skip_news(t, "", "en", a.get("url") or ""):
-            GDELT_DEBUG["filters"]["skip_news"] = GDELT_DEBUG["filters"].get("skip_news", 0) + 1
-            continue
-        key = re.sub(r"\W+", "", t.lower())[:60]
-        if key in seen:
-            GDELT_DEBUG["filters"]["dup"] = GDELT_DEBUG["filters"].get("dup", 0) + 1
-            continue
-        seen.add(key)
-        cat, w = classify(t, "", "en", "world")
-        if cat is None:
-            GDELT_DEBUG["filters"]["cat_none"] = GDELT_DEBUG["filters"].get("cat_none", 0) + 1
-            continue
-        arts.append({
-            "id": "g" + hashlib.md5((a.get("url") or t).encode()).hexdigest()[:8],
-            "title_orig": t,
-            "title_zh": t,
-            "summary_zh": "",
-            "content_orig": "",
-            "content_zh": "",
-            "translate_by": "none",
-            "source": (a.get("domain") or "GDELT"),
-            "country": (a.get("sourcecountry") or "US").upper(),
-            "category": cat,
-            "published_at": _gdelt_time(a.get("seendate") or ""),
-            "url": a.get("url") or "",
-            "image": a.get("socialimage") or "",
-            "_google": False,
-            "_full": False,
-            "_w": w,
-        })
-    # 分类权重 + 时间排序, 取前60并发抓正文(真实媒体链接)
-    arts.sort(key=lambda x: (x["_w"], x.get("published_at", "")), reverse=False)
-    arts = arts[:60]
-    with ThreadPoolExecutor(max_workers=10) as ex:
-        def grab(a):
-            if not a["url"]:
-                return a
-            try:
-                ft = fetch_full_text(a["url"], "en")
-                if ft and len(ft) >= 300:
-                    a["content_orig"] = ft[:MAX_BODY]
-                    a["_full"] = True
-            except Exception:
-                pass
-            return a
-        arts = list(ex.map(grab, arts))
-    arts.sort(key=lambda x: (x.get("_full", False), x.get("published_at", "")), reverse=True)
-    return arts[:50]
-
 def main():
     import signal
     def _wd(signum, frame):
@@ -1235,13 +1128,9 @@ def main():
     signal.signal(signal.SIGALRM, _wd)
     signal.alarm(540)  # 9 分钟强制结束, 防止卡死拖垮定时队列
     t0 = time.time()
-    G_TARGET = 50 if GDELT_MODE else TARGET
     _log("fetching sources...")
-    if GDELT_MODE:
-        results = fetch_gdelt_top()
-    else:
-        with ThreadPoolExecutor(max_workers=8) as ex:
-            results = list(ex.map(lambda f: fetch_one(*f), FEEDS))
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        results = list(ex.map(lambda f: fetch_one(*f), FEEDS))
     all_arts = []
     for r in results:
         all_arts.extend(r)
@@ -1363,7 +1252,7 @@ def main():
                     a["url"] = u2
                     DIAG["fetch_ok"] += 1
             return a
-        pool = fetch_rss_pool() if any(a.get("_google") for a in uniq) else {}  # GDELT模式无需RSS池
+        pool = fetch_rss_pool()  # v7.9: 全量RSS池并行抓一次
         DIAG["rss_domains"] = len(pool)
         uniq = list(ex.map(enrich, uniq))
     full_n = sum(1 for a in uniq if a.get("_full"))
@@ -1383,7 +1272,7 @@ def main():
     main_list = [a for a in uniq if not a.get("_china")]
     recent_main = [a for a in main_list
                    if 0 <= (now - datetime.fromisoformat(a["published_at"])).total_seconds() < 86400]
-    recent_main = pick_news(recent_main, G_TARGET)
+    recent_main = pick_news(recent_main, TARGET)
     recent_china = [a for a in china_list
                     if 0 <= (now - datetime.fromisoformat(a["published_at"])).total_seconds() < 86400]
     # 中国相关: 保持Google搜索排序取前6; 与主榜重复标题跳过
@@ -1424,7 +1313,7 @@ def main():
             a["summary_zh"] = ""
             a["translate_by"] = "none"
     MAX_TOTAL = 100  # v8: 网页第1页最新50条 + 第2页被覆盖旧闻50条
-    merged2 = recent[:G_TARGET + len(recent_china)]  # 本轮 42+8 = 50 条
+    merged2 = recent[:TARGET + len(recent_china)]  # 本轮 42+8 = 50 条
     # 24h内被覆盖的旧条目(有正文即可), 按时间倒序补位到最多100条 —— 翻译取消后不再限已翻译
     have = {a["id"] for a in merged2}
     for a in sorted(old_by_id.values(), key=lambda x: x.get("published_at", ""), reverse=True):
@@ -1440,13 +1329,6 @@ def main():
     merged2 = merged2[:MAX_TOTAL]
     print("MERGED country", dict(_C(a["country"] for a in merged2)))
     print("MERGED ai", sum(1 for a in merged2 if a.get("translate_by") == "ai"))
-    if not recent:
-        print("本轮0条新条目, 跳过上传(线上库保持原样)")
-        try:
-            github_put({"version": "1.0", "updated_at": now.isoformat(), "articles": [], "debug": GDELT_DEBUG}, path="debug_gdelt.json")
-        except Exception as e:
-            print("debug写失败", e)
-        sys.exit(0)
     new_data = {"version": "1.0", "updated_at": now.isoformat(), "articles": merged2}
     # v9.7: GitHub 是权威数据源(网页读 raw), 必须成功; Gitee 尽力写, 快失败不拖时间
     gh_ok = False
@@ -1468,6 +1350,5 @@ def main():
         sys.exit(0)
 
 
-GDELT_DEBUG = {}
 if __name__ == "__main__":
     main()
