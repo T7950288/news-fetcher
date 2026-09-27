@@ -132,6 +132,7 @@
     .time { min-width:80px; margin-left:5px; }
     .list-panel { display:none; }
     .hint { display:none; }
+    #pipBtn { display:none; }
     /* 控制条整体缩小：播放/暂停56、上下曲/音量40、滑块变窄 */
     .controls { margin-top:6px; padding:7px; margin-bottom:16px; min-width:0; max-width:100%; overflow:hidden; }
     .ctrl-row { min-width:0; }   /* 允许收缩，防止进度条固有宽度撑开容器 */
@@ -232,6 +233,9 @@
       <span style="flex:1"></span>
       <button class="txt-btn" id="loopBtn">顺序播放</button>
       <button class="txt-btn" id="listBtn">文件列表</button>
+      <button class="ctrl-btn small" id="pipBtn" title="画中画小窗">
+        <svg viewBox="0 0 24 24"><path d="M19 7h-8v6h10V7zM2 5v14h14v-3h-3v1H5V7h11v2h3V5H2z"/></svg>
+      </button>
       <button class="ctrl-btn small" id="fullBtn" title="全屏">
         <svg viewBox="0 0 24 24"><path d="M4 9V4h5m6 0h5v5M20 15v5h-5m-6 0H4v-5"/></svg>
       </button>
@@ -413,6 +417,20 @@
     player.volume = this.value/100;
     player.muted = this.value<=0;
   });
+  var pipBtn = document.getElementById("pipBtn");
+  if(pipBtn){
+    pipBtn.addEventListener("click", function(){
+      if(document.pictureInPictureElement){
+        document.exitPictureInPicture().catch(function(){});
+      } else if(player.requestPictureInPicture){
+        player.requestPictureInPicture().catch(function(){ showHint("当前视频无法开启画中画"); });
+      } else {
+        showHint("当前浏览器不支持画中画");
+      }
+    });
+    player.addEventListener("enterpictureinpicture", function(){ showHint("已开启画中画小窗，可拖动窗口位置"); });
+    player.addEventListener("leavepictureinpicture", function(){ showHint("已退出画中画"); });
+  }
   document.getElementById("fullBtn").addEventListener("click", function(){
     var vbox = document.querySelector(".vbox");
     if(document.fullscreenElement) document.exitFullscreen();
