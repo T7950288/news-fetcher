@@ -158,7 +158,7 @@
     .media-top { display:flex; flex-direction:row; align-items:stretch; gap:12px; }
     .net-view { flex:none; height:80vh; }
     .media-top .vbox { flex:1; margin-top:0; aspect-ratio:16/9; align-self:flex-start; }
-    .media-top .vbox video { width:100%; height:100%; object-fit:contain; }
+    .media-top .vbox video { width:100%; height:100%; object-fit:cover; }
     .media-top .btn-row { flex-direction:column; margin-top:0; width:auto; flex:none; gap:10px; }
     .media-top .btn-row .big-btn { flex:1; min-height:64px; writing-mode:vertical-rl; text-orientation:sideways; font-size:16px; padding:12px 6px; }
     .media-top .btn-row .big-btn svg { display:none; }
@@ -396,42 +396,7 @@
   });
   player.addEventListener("loadedmetadata", function(){
     document.getElementById("timeTxt").textContent = "00:00 / "+fmtT(player.duration);
-    fitVbox();
   });
-  /* 电脑端：竖屏视频放大——底部拉到视频区域最下端(控制条上方)，宽度按视频比例同步放大；横屏保持16:9；手机端不执行 */
-  function fitVbox(){
-    if(!window.matchMedia("(min-width:769px)").matches) return;
-    var vbox = document.querySelector(".vbox");
-    var vw = player.videoWidth, vh = player.videoHeight;
-    if(!(vw>0 && vh>0)) return;
-    if(vh > vw){
-      var ctl = document.querySelector(".controls");
-      var Hmax = (ctl ? ctl.offsetTop : 0) - vbox.offsetTop - 12;
-      if(Hmax < 120) Hmax = 420;
-      var wrap = document.querySelector(".wrap");
-      var Wmax = wrap ? wrap.clientWidth - 24 : 900;
-      var wUse = Hmax * vw/vh;
-      if(wUse > Wmax){ wUse = Wmax; Hmax = Wmax * vh/vw; }
-      vbox.style.flex = "none";
-      vbox.style.width = Math.round(wUse)+"px";
-      vbox.style.height = Math.round(Hmax)+"px";
-      vbox.style.aspectRatio = "auto";
-      /* 视频居中：左边缘 = (容器宽-视频宽)/2；选择按钮贴最右 */
-      var mt = document.querySelector(".media-top");
-      if(mt){ vbox.style.marginLeft = Math.round((mt.clientWidth - wUse)/2) + "px"; }
-      var br = document.querySelector(".btn-row");
-      if(br){ br.style.marginLeft = "auto"; }
-    } else {
-      vbox.style.flex = "";
-      vbox.style.width = "";
-      vbox.style.height = "";
-      vbox.style.aspectRatio = "";
-      vbox.style.marginLeft = "";
-      var br2 = document.querySelector(".btn-row");
-      if(br2){ br2.style.marginLeft = ""; }
-    }
-  }
-  window.fitVbox = fitVbox;
   player.addEventListener("ended", function(){ next(true); });
   player.addEventListener("error", function(){
     if(player.src){
