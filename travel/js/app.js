@@ -472,12 +472,12 @@
         const done = Footprint.isSpotDone(state.footprint, sp);
         const isMt = false;
         const lv = sp.level;
-        const is5 = lv === '5A', is4 = lv === '4A', is3 = lv === '3A';
+        const is5 = lv === '5A', is4 = lv === '4A', is3 = lv === '3A', isHot = lv === 'hot';
         // 山峰 26px 山峰图标；景点 1.5 倍圆点级别数字：5A 27px / 4A 24px / 3A 21px / 普通 18px
-        const sz = isMt ? 32 : is5 ? 27 : is4 ? 24 : is3 ? 21 : 18;
-        const cls = isMt ? ('mt' + (done ? ' done' : '')) : ((is5 ? 'a5' : is4 ? 'a4' : is3 ? 'a3' : (done ? 'lit' : 'normal')) + (done ? ' done' : ''));
+        const sz = isMt ? 32 : is5 ? 27 : isHot ? 22 : is4 ? 24 : is3 ? 21 : 18;
+        const cls = isMt ? ('mt' + (done ? ' done' : '')) : ((is5 ? 'a5' : isHot ? 'hot' : is4 ? 'a4' : is3 ? 'a3' : (done ? 'lit' : 'normal')) + (done ? ' done' : ''));
         const rank = isMt ? 5 : is5 ? 4 : sp.level === '4A' ? 3 : sp.level === '3A' ? 2 : 1;
-        const wantNm = done || (isMt && z >= 6) || (z >= 10 && z <= 15 && rank >= 4);
+        const wantNm = done || (isMt && z >= 6) || (z >= 10 && z <= 15 && (is5 || isHot));
         let showNm = false;
         if (wantNm) {
           const pp = map.latLngToContainerPoint(disp(sp.lat, sp.lng));
@@ -485,7 +485,7 @@
           if (!usedNm.has(k)) { usedNm.add(k); showNm = true; }
         }
         const nm = showNm ? `<div class="mk-name ${done ? '' : 'w'}">${sp.name}</div>` : '';
-        const lvNum = isMt ? MTN(20) : is5 ? '<b>5</b>' : is4 ? '<b>4</b>' : is3 ? '<b>3</b>' : '';
+        const lvNum = isMt ? MTN(20) : is5 ? '<b>5</b>' : isHot ? '<b style="font-size:11px">景</b>' : is4 ? '<b>4</b>' : is3 ? '<b>3</b>' : '';
         const inner = `<div class="spot-marker ${cls}" style="width:${sz}px;height:${sz}px">${done && !isMt ? PLANE(is5 ? 17 : is4 ? 14 : 12) : lvNum}${nm}</div>`;
         const m = L.marker(disp(sp.lat, sp.lng), { icon: divIcon(hitWrap(inner), Math.max(HIT, sz + 2)), zIndexOffset: isMt ? 5000 : 0 });
         if (footMode) m.on('click', function () {
