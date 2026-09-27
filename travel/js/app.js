@@ -466,10 +466,19 @@
         provLayer.addLayer(m);
       });
     } else if (z <= 7) {
+      // 统计每个城市的5A数量（含下属县）
+      const city5ACount = {};
+      CITIES.forEach(c => {
+        let n = 0;
+        const pool = (byCity[c.name] || []).concat(...(countyOfCity[c.name] || []).map(sn => byCity[sn] || []));
+        pool.forEach(s => { if (s.level === '5A') n++; });
+        city5ACount[c.name] = n;
+      });
       CITIES.forEach(c => {
         if (!vb.contains(disp(c.center[1], c.center[0]))) return;
         const fullLit = !!lit[c.name];
         const subN = (countyOfCity[c.name] || []).filter(n => lit[n]).length;
+        const n5 = city5ACount[c.name] || 0;
         let isLit = false, inner = '', vis = '';
         if (fullLit) {
           isLit = true; vis = memberName(lit[c.name][0]);
@@ -477,6 +486,9 @@
         } else if (subN > 0) {
           vis = `下属 ${subN} 个县/市有足迹`;
           inner = `<div class="city-marker partial" style="width:30px;height:30px;position:relative">${PLANE(17)}<div class="mk-name w" style="display:none">${c.name}</div></div>`;
+        } else if (n5 > 0) {
+          // 有5A的城市：橙色数字球
+          inner = `<div class="city-marker a5" style="width:28px;height:28px;position:relative;font-weight:bold;color:#fff;font-size:13px;display:flex;align-items:center;justify-content:center;background:#e8722a;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3)">${n5}<div class="mk-name">${c.name}</div></div>`;
         } else {
           inner = `<div class="city-marker normal" style="width:13px;height:13px"><div class="mk-name w" style="display:none">${c.name}</div></div>`;
         }
