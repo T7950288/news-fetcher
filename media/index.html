@@ -125,14 +125,18 @@
     /* 手机端：选择按钮行整体隐藏（选择文件已移入控制条）；顺序播放/文件列表无用隐藏；底部留白 */
     .btn-row { display:none; }
     .ctrl-row.mid .txt-btn { display:none; }
-    #pickFileBtn { width:auto; flex:none; min-height:52px; font-size:16px; padding:9px 12px; }
+    .ctrl-row.mid > span:not(.time) { display:none; }   /* 只隐藏弹性空位，保留时间显示 */
+    #pickFileBtn { display:block; width:auto; flex:none; min-height:44px; font-size:14px; padding:5px 12px; border:1.5px solid #1a3a6c; border-radius:10px; }
     #pickFileBtn svg { display:none; }
-    #seekBar { flex:none; width:calc(100% - 206px); min-width:0; }
+    #seekBar { flex:1 1 0; width:auto; min-width:0; }   /* 进度条只吃剩余空间，保证时间/选择文件不被挤出 */
     .time { min-width:80px; margin-left:5px; }
     .list-panel { display:none; }
     .hint { display:none; }
     /* 控制条整体缩小：播放/暂停56、上下曲/音量40、滑块变窄 */
-    .controls { margin-top:6px; padding:7px; }
+    .controls { margin-top:6px; padding:7px; margin-bottom:16px; min-width:0; max-width:100%; overflow:hidden; }
+    .ctrl-row { min-width:0; }   /* 允许收缩，防止进度条固有宽度撑开容器 */
+    .ctrl-row.mid { display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:6px; width:100%; max-width:100%; }
+    #seekBar { width:100%; min-width:0; }
     .ctrl-row { gap:6px; }
     .ctrl-btn { width:40px; height:40px; }
     .ctrl-btn.small { width:36px; height:36px; }
@@ -337,109 +341,6 @@
       if(player.src) URL.revokeObjectURL(player.src);
       player.src = URL.createObjectURL(f);
       player.play().catch(function(){});
-      /* 本地/网络切换 */
-  function switchSrc(mode){
-    var net = document.getElementById('netView');
-    var srcLocal = document.getElementById('srcLocal');
-    var srcNet = document.getElementById('srcNet');
-    if(mode === 'net'){ try{ player.pause(); }catch(e){} }
-    var sels = ['.media-top','.now','.controls','.list-panel','.hint'];
-    for(var i=0;i<sels.length;i++){
-      var el = document.querySelector(sels[i]);
-      if(el) el.style.display = (mode === 'local') ? '' : 'none';
-    }
-    if(net) net.style.display = (mode === 'net') ? 'flex' : 'none';
-    if(srcLocal) srcLocal.classList.toggle('active', mode === 'local');
-    if(srcNet) srcNet.classList.toggle('active', mode === 'net');
-  }
-  var srcLocalEl = document.getElementById('srcLocal');
-  var srcNetEl = document.getElementById('srcNet');
-  if(srcLocalEl) srcLocalEl.addEventListener('click', function(){ switchSrc('local'); });
-  if(srcNetEl) srcNetEl.addEventListener('click', function(){ switchSrc('net'); });
-
-  /* 网络歌单管理（本地存储） */
-  var NET_KEY = 'net_playlists_v1';
-  var netList = [];
-  try{ netList = JSON.parse(localStorage.getItem(NET_KEY) || '[]'); }catch(e){}
-  if(!netList || !netList.length){ netList = [{id:'18165874802', name:'林栖Official'}]; }
-  if(netList.length === 1 && netList[0].id === '13698350957'){ netList = [{id:'18165874802', name:'林栖Official'}]; try{ localStorage.setItem(NET_KEY, JSON.stringify(netList)); }catch(e){} }
-  var curNetId = netList[0].id;
-  var ifr0 = document.getElementById('netPlayer');
-  if(ifr0) ifr0.src = netPlayerUrl(curNetId);
-  function netPlayerUrl(id){ return 'https://music.163.com/outchain/player?type=0&id=' + id + '&auto=0&height=580'; }
-  function saveNet(){ try{ localStorage.setItem(NET_KEY, JSON.stringify(netList)); }catch(e){} }
-  function renderChips(){
-    var c = document.getElementById('netChips');
-    if(!c) return;
-    c.innerHTML = '';
-    netList.forEach(function(p){
-      var chip = document.createElement('button');
-      chip.type = 'button';
-      chip.className = 'net-chip' + (p.id === curNetId ? ' active' : '');
-      chip.innerHTML = '<span>' + (p.name || '歌单') + '</span><span class="edit" title="改歌单名">✎</span><span class="x">×</span>';
-      chip.addEventListener('click', function(ev){
-        if(ev.target.classList.contains('x')){ delPlaylist(p.id); }
-        else if(ev.target.classList.contains('edit')){ editName(p); }
-        else { netPlay(p.id); }
-      });
-      chip.addEventListener('dblclick', function(ev){
-        if(ev.target.classList.contains('x') || ev.target.classList.contains('edit')) return;
-        editName(p);
-      });
-      c.appendChild(chip);
-    });
-  }
-  function netPlay(id){
-    curNetId = id;
-    var ifr = document.getElementById('netPlayer');
-    if(ifr) ifr.src = netPlayerUrl(id);
-    renderChips();
-  }
-  function delPlaylist(id){
-    netList = netList.filter(function(p){ return p.id !== id; });
-    if(!netList.length){ netList = [{id:'18165874802', name:'林栖Official'}]; }
-    saveNet();
-    if(curNetId === id) curNetId = netList[0].id;
-    var ifr = document.getElementById('netPlayer');
-    if(ifr) ifr.src = netPlayerUrl(curNetId);
-    renderChips();
-  }
-  function editName(p){
-    var nm = prompt('修改歌单名称：', p.name || '');
-    if(nm === null) return;
-    var name = (nm && nm.trim()) ? nm.trim() : (p.name || '歌单');
-    p.name = name;
-    saveNet();
-    renderChips();
-  }
-  function addPlaylist(){
-    var link = prompt('粘贴网易云歌单链接或 ID：', '');
-    if(!link || !link.trim()) return;
-    var t = link.trim();
-    var m = t.match(/(?:playlist\/?\??id=)(\d+)/) || t.match(/id=(\d+)/) || t.match(/^(\d{6,})$/);
-    var id = m ? m[1] : null;
-    if(!id){ alert('没认出歌单 ID，请粘贴完整的网易云歌单链接'); return; }
-    if(netList.some(function(p){ return p.id === id; })){ alert('这个歌单已经在列表里了'); return; }
-    var defName = '歌单' + id.slice(-6);
-    var nm = prompt('歌单名称（可改成网易云上的名字）：', defName);
-    if(nm === null) return;
-    var name = (nm && nm.trim()) ? nm.trim() : defName;
-    netList.push({ id: id, name: name });
-    saveNet();
-    netPlay(id);
-  }
-  function refreshNet(){
-    var ifr = document.getElementById('netPlayer');
-    if(ifr) ifr.src = netPlayerUrl(curNetId) + '&t=' + Date.now();
-  }
-  var netAddEl = document.getElementById('netAdd');
-  var netRefEl = document.getElementById('netRefresh');
-  if(netAddEl) netAddEl.addEventListener('click', function(){ switchSrc('net'); addPlaylist(); });
-  if(netRefEl) netRefEl.addEventListener('click', function(){ switchSrc('net'); refreshNet(); });
-  renderChips();
-
-  updateNow();
-      renderList();
     };
     if(it.handle){
       it.handle.getFile().then(done).catch(function(){ setErr("无法读取文件：「"+it.name+"」"); });
@@ -682,7 +583,11 @@
     }
   }
   /* 手机端重排：音量↔进度条互换、时间跟随进度条、选择文件移入第二行、顺序/文件按钮隐藏；桌面端还原 */
+  var lastLayoutMode = null;
   function arrangeMobile(){
+    var mobile = window.innerWidth < 769;
+    if(mobile === lastLayoutMode) return;   // 同端不重复移动，避免 DOM 异常
+    lastLayoutMode = mobile;
     var row1 = document.querySelector('.ctrl-row:not(.mid)');
     var row2 = document.querySelector('.ctrl-row.mid');
     var seek = document.getElementById('seekBar');
@@ -693,7 +598,7 @@
     var pickFile = document.getElementById('pickFileBtn');
     var btnRow = document.querySelector('.btn-row');
     if(!row1 || !row2 || !seek || !volBtn || !volBar || !time || !full || !pickFile || !btnRow) return;
-    if(window.innerWidth < 769){
+    if(mobile){
       // 手机：行1 = ◀ ▶ 音量 全屏；行2 = 进度条 时间 选择文件
       row2.insertBefore(seek, row2.firstChild);
       row1.insertBefore(volBtn, time);
