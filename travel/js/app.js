@@ -11,60 +11,7 @@
     s.rail = !cy || /(区|市)$/.test(cy);
   });
 
-  /* 全量景点去重：同一地点的多种称呼（如"华清宫景区"/"陕西华清宫文化旅游景区"）合并为一个，
-     保留名称最简洁、评分最高者。 */
-  (function dedupAttractions() {
-    const CITY_PREFIX = /^(北京|上海|天津|重庆|陕西|四川|云南|贵州|甘肃|青海|宁夏|新疆|西藏|山西|山东|河南|河北|湖北|湖南|江苏|浙江|安徽|福建|江西|广东|广西|海南|辽宁|吉林|黑龙江|内蒙古|西安|成都|广州|杭州|南京|武汉|长沙|昆明|丽江|大理|贵阳|兰州|乌鲁木齐|哈尔滨|沈阳|长春|石家庄|太原|郑州|合肥|福州|厦门|南昌|济南|青岛|南宁|海口|三亚|拉萨|银川|西宁|呼和浩特|秦皇岛|苏州|无锡|宁波|温州|桂林|泉州|洛阳|开封|延安|宝鸡|汉中|渭南|华阴|临潼|曲江)/g;
-    function normName(n) {
-      let s = String(n)
-        .replace(/[（(][^)）]*[)）]/g, '')
-        .replace(/[-·—–\s]/g, '')
-        .replace(CITY_PREFIX, '');
-      const SUF = /(国家遗址|遗址|文化旅游|旅游区|旅游景区|景区|风景名胜区|风景名胜|度假区|风景区|公园)$/g;
-      let prev = '';
-      while (prev !== s) { prev = s; s = s.replace(SUF, ''); }
-      return s.trim();
-    }
-    function sameSpot(a, b) {
-      if (!a || !b) return false;
-      if (a === b) return true;
-      if (a.length >= 3 && b.length >= 3) {
-        if (b.startsWith(a) || a.startsWith(b)) return true;
-      }
-      return false;
-    }
-    const byProv = {};
-    AT.forEach(s => { (byProv[s.province] = byProv[s.province] || []).push(s); });
-    const keepIds = new Set();
-    Object.keys(byProv).forEach(p => {
-      const list = byProv[p];
-      list.sort((a, b) => (b.rating * 10 + (b.level === '5A' ? 8 : b.level === '4A' ? 3 : 0)) -
-                          (a.rating * 10 + (a.level === '5A' ? 8 : a.level === '4A' ? 3 : 0)));
-      const seen = [];
-      list.forEach(s => {
-        const k = normName(s.name);
-        const dup = seen.find(x => {
-          const d = x.sp;
-          return sameSpot(k, x.k) ||
-            (Math.abs(d.lat - s.lat) < 0.01 && Math.abs(d.lng - s.lng) < 0.01);
-        });
-        if (dup) {
-          if (s.name.length < dup.sp.name.length) {
-            keepIds.delete(dup.sp.id);
-            keepIds.add(s.id);
-            dup.k = k; dup.sp = s;
-          }
-        } else {
-          seen.push({ k: k, sp: s });
-          keepIds.add(s.id);
-        }
-      });
-    });
-    for (let i = AT.length - 1; i >= 0; i--) {
-      if (!keepIds.has(AT[i].id)) AT.splice(i, 1);
-    }
-    console.log('[dedup] 景点去重后剩余', AT.length, '个');
-  })();
+  /* 全量景点去重已移除：data_bundle已是去重后的358个官方5A，运行时不再去重避免误删 */
 
   /* 补全5A已移除：data_bundle已含全部358个官方5A，无需运行时补录 */
 
