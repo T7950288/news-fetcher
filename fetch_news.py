@@ -1354,6 +1354,24 @@ def main():
     merged2 = [a for a in merged2
                if 0 <= (now - datetime.fromisoformat(a["published_at"])).total_seconds() < 86400]
     merged2 = merged2[:MAX_TOTAL]
+    # v9.12: 事件级去重——同一事件(标题核心词重叠≥3词且占较短者≥50%)只留最新一条
+    _STOP = set("a an the of to in on for with and or at from by about as is are was were be has have had this that it its over into amid after before amid said says say will would could should can may might".split())
+    def _evk(t):
+        return set(x for x in re.sub(r"[^a-z0-9\s]", " ", (t or "").lower()).split() if x not in _STOP and len(x) > 2)
+    merged2.sort(key=lambda x: x.get("published_at", ""), reverse=True)
+    _dedup, _gseen = [], []
+    for a in merged2:
+        k = _evk(a.get("title_orig") or a.get("title_zh"))
+        dup = False
+        for g in _gseen:
+            inter = len(k & g)
+            if inter >= 3 and inter / min(len(k), len(g)) >= 0.5:
+                dup = True
+                break
+        if not dup:
+            _gseen.append(k)
+            _dedup.append(a)
+    merged2 = _dedup
     # v9.11: 中国相关一句话式一律不入库(宁缺毋滥), 非中国相关一句话式全库≤5条
     merged2 = [a for a in merged2 if not (a.get("_china") and len((a.get("content_orig") or "").strip()) < 200)]
     short = [a for a in merged2 if len((a.get("content_orig") or "").strip()) < 200]
