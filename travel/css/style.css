@@ -299,3 +299,5 @@ body.fs #topbar, body.fs #panel{ display:none; }
 /* ===== 卫星/地图切换按钮 ===== */
 .top-actions #btnSat{ background:rgba(255,255,255,.16); color:#fff; }
 .top-actions #btnSat.on{ background:#2f9e6e; color:#fff; }
+
+.prov-toggle{white-space:nowrap;font-size:14px !important;}
