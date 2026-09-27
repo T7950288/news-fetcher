@@ -158,7 +158,7 @@
     .media-top { display:flex; flex-direction:row; align-items:stretch; gap:12px; }
     .net-view { flex:none; height:80vh; }
     .media-top .vbox { flex:1; margin-top:0; aspect-ratio:16/9; align-self:flex-start; }
-    .media-top .vbox video { width:100%; height:100%; object-fit:contain; }
+    .media-top .vbox video { width:100%; height:100%; object-fit:cover; }   /* 电脑端：画面撑满视频窗口，不留黑边（不变形，边缘裁剪） */
     .media-top .btn-row { flex-direction:column; margin-top:0; width:auto; flex:none; gap:10px; }
     .media-top .btn-row .big-btn { flex:1; min-height:64px; writing-mode:vertical-rl; text-orientation:sideways; font-size:16px; padding:12px 6px; }
     .media-top .btn-row .big-btn svg { display:none; }
