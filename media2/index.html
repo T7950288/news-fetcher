@@ -396,7 +396,40 @@
   });
   player.addEventListener("loadedmetadata", function(){
     document.getElementById("timeTxt").textContent = "00:00 / "+fmtT(player.duration);
+    fitVbox();
   });
+  /* 电脑端：竖屏视频竖着放大——底部拉到视频区域最下端(控制条上方黄线)，宽度按视频比例；整体居中，按钮贴右 */
+  function fitVbox(){
+    if(!window.matchMedia("(min-width:769px)").matches) return;
+    var vbox = document.querySelector(".vbox");
+    var vw = player.videoWidth, vh = player.videoHeight;
+    if(!(vw>0 && vh>0)) return;
+    var br = document.querySelector(".btn-row");
+    if(vh > vw){
+      var ctl = document.querySelector(".controls");
+      var Hmax = (ctl ? ctl.offsetTop : 0) - vbox.offsetTop - 12;
+      if(Hmax < 120) Hmax = 420;
+      var wrap = document.querySelector(".wrap");
+      var Wmax = wrap ? wrap.clientWidth - 24 : 900;
+      var wUse = Hmax * vw/vh;
+      if(wUse > Wmax){ wUse = Wmax; Hmax = Wmax * vh/vw; }
+      vbox.style.flex = "none";
+      vbox.style.width = Math.round(wUse)+"px";
+      vbox.style.height = Math.round(Hmax)+"px";
+      vbox.style.aspectRatio = "auto";
+      var mt = document.querySelector(".media-top");
+      if(mt){ vbox.style.marginLeft = Math.round((mt.clientWidth - wUse)/2) + "px"; }
+      if(br){ br.style.marginLeft = "auto"; }
+    } else {
+      vbox.style.flex = "";
+      vbox.style.width = "";
+      vbox.style.height = "";
+      vbox.style.aspectRatio = "";
+      vbox.style.marginLeft = "";
+      if(br){ br.style.marginLeft = ""; }
+    }
+  }
+  window.fitVbox = fitVbox;
   player.addEventListener("ended", function(){ next(true); });
   player.addEventListener("error", function(){
     if(player.src){
