@@ -1166,14 +1166,23 @@
   });
 
   /* ---------- 面板 / 复位 ---------- */
-  // 收起/展开左侧面板
+  // 收起/展开左侧面板（手机端用滑动 .open，电脑端用 display 切换）
   document.getElementById('panelHide').addEventListener('click', () => {
-    document.getElementById('panel').style.display = 'none';
+    var p = document.getElementById('panel');
+    if (window.innerWidth <= 768) {
+      p.classList.remove('open');
+    } else {
+      p.style.display = 'none';
+    }
     document.getElementById('panelToggle').classList.add('show');
     map.invalidateSize();
   });
   document.getElementById('panelToggle').addEventListener('click', () => {
-    document.getElementById('panel').style.display = 'flex';
+    var p = document.getElementById('panel');
+    p.style.display = 'flex';
+    if (window.innerWidth <= 768) {
+      p.classList.add('open');
+    }
     document.getElementById('panelToggle').classList.remove('show');
     map.invalidateSize();
   });
