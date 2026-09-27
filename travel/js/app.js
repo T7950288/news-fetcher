@@ -778,9 +778,15 @@
     box.querySelectorAll('.prov-toggle').forEach(t => t.addEventListener('click', () => {
       const items = t.nextElementSibling;
       const open = items.style.display !== 'none';
-      items.style.display = open ? 'none' : 'block';
-      var arrow = t.querySelector('.prov-arrow');
-      if (arrow) arrow.textContent = open ? '▸ ' : '▾ ';
+      // Close all
+      box.querySelectorAll('.prov-items').forEach(i => i.style.display = 'none');
+      box.querySelectorAll('.prov-arrow').forEach(a => a.textContent = '▸ ');
+      // Open this one
+      if (!open) {
+        items.style.display = 'block';
+        var arrow = t.querySelector('.prov-arrow');
+        if (arrow) arrow.textContent = '▾ ';
+      }
     }));
     box.querySelectorAll('.card').forEach(c => c.addEventListener('click', () => {
       const s = byId[c.dataset.id];
