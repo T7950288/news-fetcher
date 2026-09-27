@@ -114,7 +114,7 @@ header{background:#1a3a6c;color:#fff;padding:12px 20px;position:sticky;top:0;z-i
     <div id="list"><div class="loading">加载中…</div></div>
   </div>
 </div>
-<div id="mapPane" class="pane"><iframe id="mapFrame" src="travel/?v=12" title="旅游地图"></iframe></div>
+<div id="mapPane" class="pane"><iframe id="mapFrame" src="travel/?v=13" title="旅游地图"></iframe></div>
 <div id="mediaPane" class="pane"><iframe id="mediaFrame" src="media2/?v=1" title="音乐视频"></iframe></div>
 <div id="chessPane" class="pane"><iframe id="chessFrame" src="chess/?v=5" title="游戏"></iframe></div>
 <div class="modal" id="modal" onclick="if(event.target===this)closeModal()">
@@ -210,16 +210,10 @@ function renderList(){
   const el=document.getElementById("list");
   const rows=ALL.slice();
   if(!rows.length){el.innerHTML='<div class="loading">暂无新闻</div>';return;}
-  const seen=new Set(),uniq=[];
-  for(const a of rows){
-    const key=((a.title_orig||a.title_zh||"").replace(/\s+/g,"")||"").toLowerCase().slice(0,80);
-    if(seen.has(key))continue;
-    seen.add(key);uniq.push(a);
-  }
   const head=[],rest=[];
-  for(let i=0;i<uniq.length;i++){
-    if(head.length<2&&!isSensitive(uniq[i]))head.push(uniq[i]);
-    else rest.push(uniq[i]);
+  for(let i=0;i<rows.length;i++){
+    if(head.length<2&&!isSensitive(rows[i]))head.push(rows[i]);
+    else rest.push(rows[i]);
   }
   let html="";
   if(head.length){
