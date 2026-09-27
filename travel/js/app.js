@@ -466,19 +466,10 @@
         provLayer.addLayer(m);
       });
     } else if (z <= 7) {
-      // 统计每个城市的5A数量（含下属县）
-      const city5ACount = {};
-      AT.forEach(s => {
-        if (s.level !== '5A') return;
-        const cn = Footprint.normCity(s.city);
-        city5ACount[cn] = (city5ACount[cn] || 0) + 1;
-      });
       CITIES.forEach(c => {
         if (!vb.contains(disp(c.center[1], c.center[0]))) return;
         const fullLit = !!lit[c.name];
         const subN = (countyOfCity[c.name] || []).filter(n => lit[n]).length;
-        const cn = Footprint.normCity(c.name);
-        const n5 = city5ACount[cn] || 0;
         let isLit = false, inner = '', vis = '';
         if (fullLit) {
           isLit = true; vis = memberName(lit[c.name][0]);
@@ -486,15 +477,29 @@
         } else if (subN > 0) {
           vis = `下属 ${subN} 个县/市有足迹`;
           inner = `<div class="city-marker partial" style="width:30px;height:30px;position:relative">${PLANE(17)}<div class="mk-name w" style="display:none">${c.name}</div></div>`;
-        } else if (n5 > 0) {
-          // 有5A的城市：橙色数字球
-          inner = `<div class="city-marker a5" style="width:28px;height:28px;position:relative;font-weight:bold;color:#fff;font-size:13px;display:flex;align-items:center;justify-content:center;background:#e8722a;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3)">${n5}<div class="mk-name">${c.name}</div></div>`;
         } else {
           inner = `<div class="city-marker normal" style="width:13px;height:13px"><div class="mk-name w" style="display:none">${c.name}</div></div>`;
         }
         const m = L.marker(disp(c.center[1], c.center[0]), { icon: divIcon(hitWrap(inner), HIT), zIndexOffset: 1000 });
         bindCity(m, c, isLit, vis);
         cityLayer.addLayer(m);
+      });
+    } else if (z === 8) {
+      // zoom=8：只显示5A景点标注
+      const NAME_GRID = 150;
+      const usedNm = new Set();
+      AT.filter(sp => sp.level === '5A' && sp.cat !== 11 && vb.contains(disp(sp.lat, sp.lng))).forEach(sp => {
+        const done = Footprint.isSpotDone(state.footprint, sp);
+        const pp = map.latLngToContainerPoint(disp(sp.lat, sp.lng));
+        const k = Math.floor(pp.x / NAME_GRID) + ',' + Math.floor(pp.y / NAME_GRID);
+        let showNm = false;
+        if (!usedNm.has(k)) { usedNm.add(k); showNm = true; }
+        const nm = showNm ? `<div class="mk-name ${done ? '' : 'w'}">${sp.name}</div>` : '';
+        const inner = `<div class="spot-marker a5${done ? ' done' : ''}" style="width:27px;height:27px"><b>5</b>${nm}</div>`;
+        const m = L.marker(disp(sp.lat, sp.lng), { icon: divIcon(hitWrap(inner), Math.max(HIT, 29)), zIndexOffset: 0 });
+        if (footMode) m.on('click', function () { doToggleSpot(sp); linkToLeft('city', Footprint.normCity(sp.county || sp.city)); });
+        else { m.bindPopup(spotPop(sp)); m.on('click', function () { linkToLeft('spot', sp.id); }); }
+        spotLayer.addLayer(m);
       });
     } else if (z <= 9) {
       CITIES.forEach(c => {
