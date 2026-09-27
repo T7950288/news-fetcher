@@ -126,7 +126,7 @@
     .btn-row { display:none; }
     .ctrl-row.mid .txt-btn { display:none; }
     .ctrl-row.mid > span:not(.time) { display:none; }   /* 只隐藏弹性空位，保留时间显示 */
-    #pickFileBtn { display:block; width:auto; flex:none; min-height:44px; font-size:14px; padding:5px 12px; border:1.5px solid #1a3a6c; border-radius:10px; }
+    #pickFileBtn { display:block; width:auto; flex:none; min-height:0; height:auto; font-size:13px; padding:3px 10px; border:1.5px solid #1a3a6c; border-radius:10px; line-height:1.5; }   /* 手机端：框只包住文字，不要大按钮 */
     #pickFileBtn svg { display:none; }
     #seekBar { flex:1 1 0; width:auto; min-width:0; }   /* 进度条只吃剩余空间，保证时间/选择文件不被挤出 */
     .time { min-width:80px; margin-left:5px; }
