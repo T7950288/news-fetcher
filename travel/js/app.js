@@ -66,26 +66,7 @@
     console.log('[dedup] 景点去重后剩余', AT.length, '个');
   })();
 
-  /* 补全缺失的5A景区（在去重后追加，避免被去重逻辑误删） */
-  (function addMissing5A() {
-    const list = [
-      {id:92000,name:'天津古文化街旅游区',province:'天津市',city:'天津市',county:'南开区',lat:39.14,lng:117.19,level:'5A',rating:4.8,dur:2,cat:'文化古迹',ticket:0},
-      {id:92001,name:'衡水湖旅游景区',province:'河北省',city:'衡水市',county:'衡水市',lat:37.54,lng:115.66,level:'5A',rating:4.6,dur:3,cat:'自然景观',ticket:60},
-      {id:92002,name:'唐山南湖开滦旅游景区',province:'河北省',city:'唐山市',county:'唐山市',lat:39.63,lng:118.18,level:'5A',rating:4.6,dur:3,cat:'自然景观',ticket:0},
-      {id:92003,name:'中共一大二大四大纪念馆景区',province:'上海市',city:'上海市',county:'黄浦区',lat:31.23,lng:121.47,level:'5A',rating:4.8,dur:2,cat:'文化古迹',ticket:0},
-      {id:92004,name:'福州三坊七巷景区',province:'福建省',city:'福州市',county:'福州市',lat:26.08,lng:119.30,level:'5A',rating:4.7,dur:3,cat:'文化古迹',ticket:0},
-      {id:92005,name:'泰宁风景旅游区',province:'福建省',city:'三明市',county:'泰宁县',lat:26.91,lng:117.18,level:'5A',rating:4.6,dur:3,cat:'自然景观',ticket:100},
-    ];
-    list.forEach(s => { if (!AT.find(x => x.id === s.id)) AT.push(s); });
-    /* 升级已有景点为5A（data_bundle里可能是4A，但官方是5A） */
-    var upgradeNames = ['万绿湖','惠州西湖','罗浮山','丹霞山','涠洲岛','乾陵','互助土族故土园','厦门园林植物园','东方明珠','塔尔寺','青海湖','沙坡头','镇北堡','水洞沟','青铜峡','沙湖','六盘山国家森林公园'];
-    upgradeNames.forEach(function(nm){
-      AT.forEach(function(s){
-        if (s.name.indexOf(nm) >= 0 && s.level !== '5A') { s.level = '5A'; }
-      });
-    });
-    console.log('[add5A] 补全5A后总计', AT.length, '个景点, 其中5A', AT.filter(x=>x.level==='5A').length, '个');
-  })();
+  /* 补全5A已移除：data_bundle已含全部358个官方5A，无需运行时补录 */
 
   const PROVS = A.cities.provinces;
 
