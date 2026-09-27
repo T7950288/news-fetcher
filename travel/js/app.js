@@ -770,7 +770,7 @@
     let html = head;
     provKeys.forEach(pk => {
       const list = byProv[pk];
-      html += '<div class="prov-group" data-prov="'+pk+'"><div class="prov-toggle" style="padding:8px 12px;font-weight:700;background:#f0f0f0;cursor:pointer;margin-top:4px;">▸ '+pk+' <small>('+list.length+')</small></div><div class="prov-items" style="display:none;">' +
+      html += '<div class="prov-group" data-prov="'+pk+'"><div class="prov-toggle" style="padding:8px 12px;font-weight:700;background:#f0f0f0;cursor:pointer;margin-top:4px;white-space:nowrap;"><span class="prov-arrow">▸ </span>'+pk+' <small>('+list.length+')</small></div><div class="prov-items" style="display:none;">' +
         list.map(s => '<div class="card" data-id="'+s.id+'"><div class="t"><span class="sp-name">'+levelBadge(s)+s.name+'</span>'+(s.ticket?'<span class="sp-ticket">'+ticketTxt(s)+'</span>':'')+'</div><div class="d">'+Footprint.normCity(s.city)+' · '+(CATS[s.cat]||'')+'</div></div>').join('') +
         '</div></div>';
     });
@@ -779,7 +779,8 @@
       const items = t.nextElementSibling;
       const open = items.style.display !== 'none';
       items.style.display = open ? 'none' : 'block';
-      t.firstChild.textContent = open ? '▸ ' : '▾ ';
+      var arrow = t.querySelector('.prov-arrow');
+      if (arrow) arrow.textContent = open ? '▸ ' : '▾ ';
     }));
     box.querySelectorAll('.card').forEach(c => c.addEventListener('click', () => {
       const s = byId[c.dataset.id];
