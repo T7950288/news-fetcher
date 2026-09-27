@@ -180,7 +180,7 @@
   window.__map = map;
   window.__fly = function (name) {
     const c = CITIES.find(x => x.name === name) || COUNTIES.find(x => x.name === name);
-    if (c) map.setView([c.center[1], c.center[0]], COUNTIES.some(x => x.name === name) ? 10 : 9, { animate: false });
+    if (c) map.setView(disp(c.center[1], c.center[0]), COUNTIES.some(x => x.name === name) ? 10 : 9, { animate: false });
   };
   const baseTile = L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}',
     { subdomains: ['1', '2', '3', '4'], maxZoom: 18, minZoom: 3, keepBuffer: 4 }).addTo(map);
@@ -189,10 +189,19 @@
   var satOn = false;
   function toggleSat() {
     satOn = !satOn;
-    if (satOn) { map.removeLayer(baseTile); satTile.addTo(map); }
-    else { map.removeLayer(satTile); baseTile.addTo(map); }
+    const c = map.getCenter(), z = map.getZoom();
+    if (satOn) {
+      map.removeLayer(baseTile); satTile.addTo(map);
+      const w = gcj2wgs(c.lat, c.lng);
+      map.setView([w[0], w[1]], z, { animate: false });
+    } else {
+      map.removeLayer(satTile); baseTile.addTo(map);
+      const g = wgs2gcj(c.lat, c.lng);
+      map.setView([g[0], g[1]], z, { animate: false });
+    }
     var b = document.getElementById('btnSat');
     if (b) { b.classList.toggle('on', satOn); b.innerHTML = satOn ? '🗺 地图' : '🛰 卫星'; }
+    refreshMarkers();
   }
   L.control.zoom({ position: 'bottomright' }).addTo(map);
 
@@ -273,14 +282,15 @@
   map.on('click', function(e){
     var lat=e.latlng.lat, lng=e.latlng.lng;
     altPin.setLatLng([lat,lng]).setOpacity(1);
+    var geo = satOn ? [lat,lng] : gcj2wgs(lat,lng);   // 海拔/天气 API 用标准坐标
     altShow('🗺️ 该点海拔查询中…', false);
     var altTxt = '📍 海拔查询失败', wxTxt = '';
     function showAltCard(){ altShow(altTxt + (wxTxt ? '<br>' + wxTxt : ''), 3000); }
-    altFetch(lat,lng).then(function(res){
-      altTxt = '📍 该点地表海拔 <b>'+Math.round(res.elevation)+' 米</b><br><small>来源 '+res.source+' · '+lat.toFixed(4)+', '+lng.toFixed(4)+'</small>';
+    altFetch(geo[0],geo[1]).then(function(res){
+      altTxt = '📍 该点地表海拔 <b>'+Math.round(res.elevation)+' 米</b><br><small>来源 '+res.source+' · '+geo[0].toFixed(4)+', '+geo[1].toFixed(4)+'</small>';
       showAltCard();
     }).catch(function(){ altTxt = '📍 海拔查询失败（网络或数据源不可达）'; showAltCard(); });
-    wxFetch(lat,lng).then(function(w){ wxTxt = wxToday(w); showAltCard(); }).catch(function(){ /* 天气失败不影响海拔 */ });
+    wxFetch(geo[0],geo[1]).then(function(w){ wxTxt = wxToday(w); showAltCard(); }).catch(function(){ /* 天气失败不影响海拔 */ });
   });
   /* GPS 实测当前海拔 + 移动速度（持续跟踪：点一下开始、再点停止） */
   var gpsWatch = null, spdSamples = [], gpsRunning = false;
@@ -318,7 +328,7 @@
       var lat = pos.coords.latitude, lng = pos.coords.longitude;
       var alt = pos.coords.altitude, spd = pos.coords.speed;
       var acc = pos.coords.accuracy, altAcc = pos.coords.altitudeAccuracy;
-      gpsPin.setLatLng([lat,lng]).setOpacity(1);
+      gpsPin.setLatLng(satOn ? [lat,lng] : wgs2gcj(lat,lng)).setOpacity(1);
       if(spd != null && !isNaN(spd)){ spdSamples.push(spd); if(spdSamples.length > 200) spdSamples.shift(); }
       var avg = spdSamples.length ? spdSamples.reduce(function(a,b){return a+b;},0)/spdSamples.length : null;
       var max = spdSamples.length ? Math.max.apply(null, spdSamples) : null;
@@ -411,12 +421,12 @@
     }
 
     // 山峰：任何缩放级别都渲染并置顶（不被景点/城市圆点覆盖）
-    AT.filter(sp => sp.cat === 11 && z >= 6 && vb.contains([sp.lat, sp.lng])).forEach(sp => {
+    AT.filter(sp => sp.cat === 11 && z >= 6 && vb.contains(disp(sp.lat, sp.lng))).forEach(sp => {
       const done = Footprint.isSpotDone(state.footprint, sp);
       const wantNm = done || z >= 6;
       const nm = wantNm ? `<div class="mk-name ${done ? '' : 'w'}">${sp.name}<i>${Math.round(sp.alt)}米</i></div>` : '';
       const inner = `<div class="spot-marker mt${done ? ' done' : ''}" style="width:32px;height:32px">${MTN(20)}${nm}</div>`;
-      const m = L.marker([sp.lat, sp.lng], { icon: divIcon(hitWrap(inner), 34), zIndexOffset: 5000 });
+      const m = L.marker(disp(sp.lat, sp.lng), { icon: divIcon(hitWrap(inner), 34), zIndexOffset: 5000 });
       if (footMode) m.on('click', function () {
         doToggleSpot(sp);
         linkToLeft('city', Footprint.normCity(sp.county || sp.city));
@@ -427,7 +437,7 @@
     if (z <= 5) {
       PROVS.forEach(pr => {
         const litN = countProvLit(pr.name, lit);
-        const m = L.marker([pr.center[1], pr.center[0]], {
+        const m = L.marker(disp(pr.center[1], pr.center[0]), {
           icon: divIcon(`<div class="city-marker prov-marker ${litN ? 'lit' : 'normal'}" style="width:46px;height:46px;font-size:13px">${shortProv(pr.name)}${litN ? `<br><small style="font-size:9px;opacity:.95">${litN}城</small>` : ''}</div>`, 50)
         });
         m.bindPopup(provPop(pr, litN));
@@ -436,7 +446,7 @@
       });
     } else if (z <= 7) {
       CITIES.forEach(c => {
-        if (!vb.contains([c.center[1], c.center[0]])) return;
+        if (!vb.contains(disp(c.center[1], c.center[0]))) return;
         const fullLit = !!lit[c.name];
         const subN = (countyOfCity[c.name] || []).filter(n => lit[n]).length;
         let isLit = false, inner = '', vis = '';
@@ -449,13 +459,13 @@
         } else {
           inner = `<div class="city-marker normal" style="width:13px;height:13px"><div class="mk-name w" style="display:none">${c.name}</div></div>`;
         }
-        const m = L.marker([c.center[1], c.center[0]], { icon: divIcon(hitWrap(inner), HIT), zIndexOffset: 1000 });
+        const m = L.marker(disp(c.center[1], c.center[0]), { icon: divIcon(hitWrap(inner), HIT), zIndexOffset: 1000 });
         bindCity(m, c, isLit, vis);
         cityLayer.addLayer(m);
       });
     } else if (z <= 9) {
       CITIES.forEach(c => {
-        if (!vb.contains([c.center[1], c.center[0]])) return;
+        if (!vb.contains(disp(c.center[1], c.center[0]))) return;
         const fullLit = !!lit[c.name];
         const subN = (countyOfCity[c.name] || []).filter(n => lit[n]).length;
         const isLit = fullLit;
@@ -465,7 +475,7 @@
           : (subN > 0
             ? `<div class="city-marker partial" style="width:30px;height:30px;position:relative">${PLANE(17)}<div class="mk-name w" style="display:none">${c.name}</div></div>`
             : `<div class="city-marker normal" style="width:15px;height:15px"><div class="mk-name w" style="display:none">${c.name}</div></div>`);
-        const m = L.marker([c.center[1], c.center[0]], { icon: divIcon(hitWrap(inner), HIT), zIndexOffset: 1000 });
+        const m = L.marker(disp(c.center[1], c.center[0]), { icon: divIcon(hitWrap(inner), HIT), zIndexOffset: 1000 });
         bindCity(m, c, isLit, vis);
         cityLayer.addLayer(m);
       });
@@ -473,20 +483,20 @@
       const usedNm2 = new Set();
       COUNTIES.forEach(c => {
         if (isDistrictName(c.name)) return;
-        if (!vb.contains([c.center[1], c.center[0]])) return;
+        if (!vb.contains(disp(c.center[1], c.center[0]))) return;
         const isLit = !!lit[c.name];
         const n = (byCity[c.name] || []).length;
         const base = isLit ? 28 : (n ? 12 : 9);
         let litNm = false;
         if (isLit) {
-          const pp = map.latLngToContainerPoint([c.center[1], c.center[0]]);
+          const pp = map.latLngToContainerPoint(disp(c.center[1], c.center[0]));
           const k = Math.floor(pp.x / NAME_GRID2) + ',' + Math.floor(pp.y / NAME_GRID2);
           if (!usedNm2.has(k)) { usedNm2.add(k); litNm = true; }
         }
         const inner = isLit
           ? `<div class="city-marker lit" style="width:28px;height:28px;position:relative">${PLANE(16)}<div class="mk-name" ${litNm ? '' : 'style="display:none"'}>${c.name}</div></div>`
           : `<div class="city-marker normal" style="width:${base}px;height:${base}px">${n ? '·' : ''}<div class="mk-name w" style="display:none">${c.name}</div></div>`;
-        const m = L.marker([c.center[1], c.center[0]], { icon: divIcon(hitWrap(inner), HIT) });
+        const m = L.marker(disp(c.center[1], c.center[0]), { icon: divIcon(hitWrap(inner), HIT) });
         bindCity(m, c, isLit, isLit ? lit[c.name].map(id => memberName(id)).join('、') : '');
         cityLayer.addLayer(m);
       });
@@ -494,7 +504,7 @@
       // 名称防重叠：高分/点亮优先占网格，每个网格只显示一个名称；缩放越大显示越多
       const NAME_GRID = z >= 12 ? 120 : z >= 11 ? 150 : 190;
       const usedNm = new Set();
-      const spots = AT.filter(sp => vb.contains([sp.lat, sp.lng]));
+      const spots = AT.filter(sp => vb.contains(disp(sp.lat, sp.lng)));
       spots.sort((x, y) => {
         const rx = ((x.cat === 11 ? 5 : x.level === '5A' ? 4 : x.level === '4A' ? 3 : x.level === '3A' ? 2 : 1)) * 10 + (Footprint.isSpotDone(state.footprint, x) ? 100 : 0);
         const ry = ((y.cat === 11 ? 5 : y.level === '5A' ? 4 : y.level === '4A' ? 3 : y.level === '3A' ? 2 : 1)) * 10 + (Footprint.isSpotDone(state.footprint, y) ? 100 : 0);
@@ -513,14 +523,14 @@
         const wantNm = done || (isMt && z >= 6) || z >= 12 || (z >= 11 && rank >= 3) || (z >= 10 && rank >= 4);
         let showNm = false;
         if (wantNm) {
-          const pp = map.latLngToContainerPoint([sp.lat, sp.lng]);
+          const pp = map.latLngToContainerPoint(disp(sp.lat, sp.lng));
           const k = Math.floor(pp.x / NAME_GRID) + ',' + Math.floor(pp.y / NAME_GRID);
           if (!usedNm.has(k)) { usedNm.add(k); showNm = true; }
         }
         const nm = showNm ? `<div class="mk-name ${done ? '' : 'w'}">${sp.name}</div>` : '';
         const lvNum = isMt ? MTN(20) : is5 ? '<b>5</b>' : is4 ? '<b>4</b>' : is3 ? '<b>3</b>' : '';
         const inner = `<div class="spot-marker ${cls}" style="width:${sz}px;height:${sz}px">${done && !isMt ? PLANE(is5 ? 17 : is4 ? 14 : 12) : lvNum}${nm}</div>`;
-        const m = L.marker([sp.lat, sp.lng], { icon: divIcon(hitWrap(inner), Math.max(HIT, sz + 2)), zIndexOffset: isMt ? 5000 : 0 });
+        const m = L.marker(disp(sp.lat, sp.lng), { icon: divIcon(hitWrap(inner), Math.max(HIT, sz + 2)), zIndexOffset: isMt ? 5000 : 0 });
         if (footMode) m.on('click', function () {
           doToggleSpot(sp);
           linkToLeft('city', Footprint.normCity(sp.county || sp.city));
@@ -537,10 +547,10 @@
       if (rec) rec.cities.forEach(cn => {
         const ctr = cityCenter[cn];
         if (!ctr) return;
-        if (!vb.contains([ctr[1], ctr[0]])) return;
+        if (!vb.contains(disp(ctr[1], ctr[0]))) return;
         if ((byCity[cn] || []).length) return;   // 有景点的已由景点 marker 显示，避免重叠
         const inner = `<div class="city-marker lit" style="width:28px;height:28px;position:relative">${PLANE(16)}<div class="mk-name">${cn}</div></div>`;
-        const m = L.marker([ctr[1], ctr[0]], { icon: divIcon(hitWrap(inner), HIT) });
+        const m = L.marker(disp(ctr[1], ctr[0]), { icon: divIcon(hitWrap(inner), HIT) });
         if (footMode) m.on('click', function () { doToggleCity(cn); linkToLeft('city', cn); });
         else { m.bindPopup(cityPop({ name: cn }, true, memberName(fp.active))); m.on('click', function () { linkToLeft('city', cn); }); }
         litLayer.addLayer(m);
@@ -583,7 +593,7 @@
   }
   function flyProv(name) {
     const pr = PROVS.find(x => x.name === name);
-    if (pr) map.flyTo([pr.center[1], pr.center[0]], 6, { duration: .7 });
+    if (pr) map.flyTo(disp(pr.center[1], pr.center[0]), 6, { duration: .7 });
   }
   function memberName(id) { const m = state.footprint.members.find(x => x.id === id); return m ? m.name : ''; }
   function countProvLit(provName, lit) {
@@ -655,7 +665,7 @@
           map.closePopup();
           if (window.innerWidth <= 768) document.getElementById('panel').classList.add('open');
         } else if (act === 'zoomin') {
-          map.flyTo([+b.dataset.lat, +b.dataset.lng], 7, { duration: .6 });
+          map.flyTo(disp(+b.dataset.lat, +b.dataset.lng), 7, { duration: .6 });
         }
       });
     });
@@ -695,10 +705,10 @@
       setTimeout(openPop, 1700);
     } else if (map.getZoom() < 10) {
       map.once('zoomend', () => setTimeout(tryOpen, 80));
-      map.flyTo([s.lat, s.lng], 10, { duration: .6 });
+      map.flyTo(disp(s.lat, s.lng), 10, { duration: .6 });
       setTimeout(tryOpen, 800);
     } else {
-      map.flyTo([s.lat, s.lng], map.getZoom(), { duration: .5 });
+      map.flyTo(disp(s.lat, s.lng), map.getZoom(), { duration: .5 });
       setTimeout(tryOpen, 550);
     }
   }
@@ -706,7 +716,7 @@
     let c = CITIES.find(x => x.name === name);
     let z = 9;
     if (!c) { c = COUNTIES.find(x => x.name === name); z = 10; }
-    if (c) map.flyTo([c.center[1], c.center[0]], z, { duration: .6 });
+    if (c) map.flyTo(disp(c.center[1], c.center[0]), z, { duration: .6 });
   }
 
   /* ---------- Tab ---------- */
@@ -806,7 +816,7 @@
       const s = byId[c.dataset.id];
       if (c.dataset.selected === '1') {
         // 第二次点击同一张：地图放大到该景点 + 圆点闪烁
-        map.setView([s.lat, s.lng], 13, { animate: true });
+        map.setView(disp(s.lat, s.lng), 13, { animate: true });
         spotLayer.eachLayer(m => {
           const ll = m.getLatLng && m.getLatLng();
           if (ll && Math.abs(ll.lat - s.lat) < 0.001 && Math.abs(ll.lng - s.lng) < 0.001) {
@@ -877,7 +887,7 @@
     if (provHit) {
       state.provMode = [provHit.name]; state.curQ = ''; state.curCat = 0;
       switchTab('spots'); renderSpotList();
-      map.flyTo([provHit.center[1], provHit.center[0]], 6, { duration: .6 });
+      map.flyTo(disp(provHit.center[1], provHit.center[0]), 6, { duration: .6 });
       topInput.value = ''; topSuggest.classList.remove('show');
       if (window.innerWidth <= 768) document.getElementById('panel').classList.remove('open');
       return;
@@ -1016,7 +1026,7 @@
     const zoomOK = map.getZoom() >= 8;
     const shownRects = [];
     const nmShow = (lat, lng, text) => {
-      const p = map.latLngToContainerPoint([lat, lng]);
+      const p = map.latLngToContainerPoint(disp(lat, lng));
       const w = Math.max(34, text.length * 13 + 14);
       const h = 20, x = p.x - w / 2, y = p.y + 24;
       for (const r of shownRects) {
@@ -1027,12 +1037,12 @@
     };
     res.days.forEach((d, di) => {
       const color = DAY_COLORS[di % DAY_COLORS.length];
-      const latlngs = d.route.map(s => [s.lat, s.lng]);
+      const latlngs = d.route.map(s => disp(s.lat, s.lng));
       all.push(...latlngs);
       routeLayer.addLayer(L.polyline(latlngs, { color: color, weight: 4, opacity: .95, dashArray: '6 5' }));
       d.route.forEach(s => {
         const showNm = zoomOK && nmShow(s.lat, s.lng, s.name);
-        const mk = L.marker([s.lat, s.lng], {
+        const mk = L.marker(disp(s.lat, s.lng), {
           icon: L.divIcon({ className: '', html: `<div class="route-pin" style="--pc:${color}"><span style="background:${color}"><b>${d.day}</b></span>${showNm ? `<div class="mk-name">${s.name}</div>` : ''}</div>`, iconSize: [48, 62], iconAnchor: [24, 54], popupAnchor: [0, -50] })
         });
         routeLayer.addLayer(mk);
