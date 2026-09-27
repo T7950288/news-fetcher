@@ -187,6 +187,27 @@
   const satTile = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
     { maxZoom: 18, minZoom: 3, keepBuffer: 4 });
   var satOn = false;
+  // 火星坐标(GCJ-02)与标准坐标(WGS-84)互转：普通图=高德(火星)，卫星图=ArcGIS(标准)
+  function wgs2gcj(wlat, wlng) {
+    function outOfChina(lat, lng) { return (lng < 72.004 || lng > 137.8347 || lat < 0.8293 || lat > 55.8271); }
+    function tLat(x, y) { var r = -100 + 2*x + 3*y + 0.2*y*y + 0.1*x*y + 0.2*Math.sqrt(Math.abs(x)); r += (20*Math.sin(6*x*Math.PI) + 20*Math.sin(2*x*Math.PI)) * 2/3; r += (20*Math.sin(y*Math.PI) + 40*Math.sin(y/3*Math.PI)) * 2/3; r += (160*Math.sin(y/12*Math.PI) + 320*Math.sin(y*Math.PI/30)) * 2/3; return r; }
+    function tLng(x, y) { var r = 300 + x + 2*y + 0.1*x*x + 0.1*x*y + 0.1*Math.sqrt(Math.abs(x)); r += (20*Math.sin(6*x*Math.PI) + 20*Math.sin(2*x*Math.PI)) * 2/3; r += (20*Math.sin(x*Math.PI) + 40*Math.sin(x/3*Math.PI)) * 2/3; r += (150*Math.sin(x/12*Math.PI) + 300*Math.sin(x/30*Math.PI)) * 2/3; return r; }
+    if (outOfChina(wlat, wlng)) return [wlat, wlng];
+    var a = 6378245.0, ee = 0.00669342162296594323;
+    var dLat = tLat(wlng - 105.0, wlat - 35.0), dLng = tLng(wlng - 105.0, wlat - 35.0);
+    var radLat = wlat / 180.0 * Math.PI;
+    var magic = Math.sin(radLat); magic = 1 - ee * magic * magic;
+    var sqrtMagic = Math.sqrt(magic);
+    dLat = (dLat * 180.0) / ((a * (1 - ee)) / (magic * sqrtMagic) * Math.PI);
+    dLng = (dLng * 180.0) / (a / sqrtMagic * Math.cos(radLat) * Math.PI);
+    return [wlat + dLat, wlng + dLng];
+  }
+  function gcj2wgs(glat, glng) {
+    var g = wgs2gcj(glat, glng);
+    return [2*glat - g[0], 2*glng - g[1]];
+  }
+  // 显示坐标：普通图用数据原值(火星)，卫星图转标准坐标
+  const disp = (la, lo) => satOn ? gcj2wgs(la, lo) : [la, lo];
   function toggleSat() {
     satOn = !satOn;
     const c = map.getCenter(), z = map.getZoom();
