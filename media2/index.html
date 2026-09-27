@@ -158,7 +158,7 @@
     .media-top { display:flex; flex-direction:row; align-items:stretch; gap:12px; }
     .net-view { flex:none; height:80vh; }
     .media-top .vbox { flex:1; margin-top:0; aspect-ratio:16/9; align-self:flex-start; }
-    .media-top .vbox video { width:100%; height:100%; object-fit:contain; }   /* 电脑端：完整显示；竖屏视频由 JS 放大容器 */
+    .media-top .vbox video { width:100%; height:100%; object-fit:contain; }
     .media-top .btn-row { flex-direction:column; margin-top:0; width:auto; flex:none; gap:10px; }
     .media-top .btn-row .big-btn { flex:1; min-height:64px; writing-mode:vertical-rl; text-orientation:sideways; font-size:16px; padding:12px 6px; }
     .media-top .btn-row .big-btn svg { display:none; }
@@ -396,33 +396,7 @@
   });
   player.addEventListener("loadedmetadata", function(){
     document.getElementById("timeTxt").textContent = "00:00 / "+fmtT(player.duration);
-    fitVbox();
   });
-  /* 电脑端：竖屏(手机)视频放大到「宽=原16:9窗口高」，完整显示不裁剪不变形；横屏保持16:9；手机端不执行 */
-  function fitVbox(){
-    if(!window.matchMedia("(min-width:769px)").matches) return;
-    var vbox = document.querySelector(".vbox");
-    var vw = player.videoWidth, vh = player.videoHeight;
-    if(!(vw>0 && vh>0)) return;
-    if(vh > vw){
-      var W0 = vbox.offsetWidth || 640;
-      var H0 = W0 * 9/16;
-      var hNeed = H0 * vh/vw;
-      var availH = window.innerHeight - 240;
-      var wUse = H0, hUse = hNeed;
-      if(hUse > availH){ hUse = availH; wUse = availH * vw/vh; }
-      vbox.style.flex = "none";
-      vbox.style.width = Math.round(wUse)+"px";
-      vbox.style.height = Math.round(hUse)+"px";
-      vbox.style.aspectRatio = "auto";
-    } else {
-      vbox.style.flex = "";
-      vbox.style.width = "";
-      vbox.style.height = "";
-      vbox.style.aspectRatio = "";
-    }
-  }
-  window.fitVbox = fitVbox;   /* 挂到全局，便于验证与调试 */
   player.addEventListener("ended", function(){ next(true); });
   player.addEventListener("error", function(){
     if(player.src){
