@@ -468,17 +468,17 @@
     } else if (z <= 7) {
       // 统计每个城市的5A数量（含下属县）
       const city5ACount = {};
-      CITIES.forEach(c => {
-        let n = 0;
-        const pool = (byCity[c.name] || []).concat(...(countyOfCity[c.name] || []).map(sn => byCity[sn] || []));
-        pool.forEach(s => { if (s.level === '5A') n++; });
-        city5ACount[c.name] = n;
+      AT.forEach(s => {
+        if (s.level !== '5A') return;
+        const cn = Footprint.normCity(s.city);
+        city5ACount[cn] = (city5ACount[cn] || 0) + 1;
       });
       CITIES.forEach(c => {
         if (!vb.contains(disp(c.center[1], c.center[0]))) return;
         const fullLit = !!lit[c.name];
         const subN = (countyOfCity[c.name] || []).filter(n => lit[n]).length;
-        const n5 = city5ACount[c.name] || 0;
+        const cn = Footprint.normCity(c.name);
+        const n5 = city5ACount[cn] || 0;
         let isLit = false, inner = '', vis = '';
         if (fullLit) {
           isLit = true; vis = memberName(lit[c.name][0]);
