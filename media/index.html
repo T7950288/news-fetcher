@@ -179,8 +179,8 @@
     <button class="src-tab active" id="srcLocal" type="button">本地</button>
     <button class="src-tab" id="srcNet" type="button">网络</button>
     <span style="flex:1"></span>
-    <button class="net-btn" id="netAdd" type="button">添加歌单</button>
-    <button class="net-btn" id="netRefresh" type="button">刷新</button>
+    <button class="net-btn" id="netAdd" type="button" style="display:none">添加歌单</button>
+    <button class="net-btn" id="netRefresh" type="button" style="display:none">刷新</button>
   </div>
   <div class="media-top">
     <div class="vbox">
@@ -638,6 +638,10 @@
       if(el) el.style.display = (mode === 'local') ? '' : 'none';
     }
     if(net) net.style.display = (mode === 'net') ? 'flex' : 'none';
+    var netAdd = document.getElementById('netAdd');
+    var netRefresh = document.getElementById('netRefresh');
+    if(netAdd) netAdd.style.display = (mode === 'net') ? '' : 'none';
+    if(netRefresh) netRefresh.style.display = (mode === 'net') ? '' : 'none';
     if(srcLocal) srcLocal.classList.toggle('active', mode === 'local');
     if(srcNet) srcNet.classList.toggle('active', mode === 'net');
   }
