@@ -1172,6 +1172,15 @@
   // 收起/展开左侧面板
   document.getElementById('panelHide').addEventListener('click', () => {
     document.getElementById('panel').style.display = 'none';
+    document.getElementById('panelToggle').classList.add('show');
+    map.invalidateSize();
+  });
+  document.getElementById('panelToggle').addEventListener('click', () => {
+    document.getElementById('panel').style.display = 'flex';
+    document.getElementById('panelToggle').classList.remove('show');
+    map.invalidateSize();
+  });
+    document.getElementById('panel').style.display = 'none';
     var b = document.getElementById('panelShow');
     if (!b) {
       b = document.createElement('button');
