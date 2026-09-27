@@ -242,6 +242,20 @@ SOFT_KEYS = [
     "人工智能", "芯片", "半导体", "科技", "苹果", "谷歌", "微软", "英伟达", "火箭", "机器人",
     "人工知能", "半導体", "チップ", "テクノロジー", "アップル", "グーグル", "マイクロソフト", "ロボット",
 ]
+FIN_KEYS = [
+    "economy", "economic", "inflation", "interest rate", "central bank", "fed", "ecb",
+    "gdp", "stock", "market", "oil", "gold", "tariff", "trade", "export", "import",
+    "company", "corporate", "earnings", "profit", "bank", "finance", "recession", "wall street",
+    "经济", "通胀", "央行", "股市", "市场", "油价", "关税", "贸易", "公司", "财报", "降息", "加息", "华尔街",
+    "経済", "インフレ", "金利", "中央銀行", "株価", "市場", "原油", "関税", "貿易", "決算", "企業",
+]
+TECH_KEYS = [
+    "ai", "artificial intelligence", "chip", "semiconductor", "technology", "tech",
+    "apple", "google", "microsoft", "nvidia", "openai", "tesla", "samsung", "spacex", "robot",
+    "iphone", "software", "startup", "cyber", "quantum", "satellite", "ai ",
+    "人工智能", "芯片", "半导体", "科技", "苹果", "谷歌", "微软", "英伟达", "火箭", "机器人", "软件", "量子",
+    "人工知能", "半導体", "チップ", "テクノロジー", "アップル", "グーグル", "マイクロソフト", "ロボット",
+]
 
 # 重大灾难关键词: 命中即使带天气/事故字样也放行
 DISASTER_KEYS = [
@@ -319,6 +333,11 @@ def classify(title, desc, lang, hint):
     for m in HARD_WORLD:
         if m in t:
             return "world", 1
+    # v9.11: 财经/科技关键词直接识别(谷歌热榜无栏目hint, 之前全落world)
+    if any(m in t for m in FIN_KEYS):
+        return "finance", 2
+    if any(m in t for m in TECH_KEYS):
+        return "tech", 2
     if hint in ("finance", "tech"):
         for m in SOFT_KEYS:
             if m in t:
@@ -1335,7 +1354,8 @@ def main():
     merged2 = [a for a in merged2
                if 0 <= (now - datetime.fromisoformat(a["published_at"])).total_seconds() < 86400]
     merged2 = merged2[:MAX_TOTAL]
-    # v9.10: 一句话式(正文<200字)全库最多5条, 优先保留本轮新抓(最新)
+    # v9.11: 中国相关一句话式一律不入库(宁缺毋滥), 非中国相关一句话式全库≤5条
+    merged2 = [a for a in merged2 if not (a.get("_china") and len((a.get("content_orig") or "").strip()) < 200)]
     short = [a for a in merged2 if len((a.get("content_orig") or "").strip()) < 200]
     if len(short) > 5:
         keep_ids = {a["id"] for a in sorted(short, key=lambda x: x.get("published_at", ""), reverse=True)[:5]}
