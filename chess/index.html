@@ -34,6 +34,10 @@
     .card { padding:18px 16px; }
   }
   @media (max-width:520px){
+    .header-inner { position:relative; }
+    .back-top { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+                color:#fff; font-size:13px; text-decoration:none;
+                padding:5px 14px; background:rgba(255,255,255,.2); border-radius:14px; }
     header { padding:10px 14px; }
     .logo { font-size:17px; }
     .header-inner a { font-size:12px; }
@@ -44,7 +48,7 @@
     .card-icon { font-size:22px; margin-bottom:6px; }
     .card-name { font-size:13px; margin-bottom:0; }
     .card-desc, .card-tag { display:none; }
-    .back { margin-top:12px; font-size:12px; }
+    .back { display:none; }   /* 手机端只保留顶部中间返回键，隐藏卡片区下方小字 */
   }
 </style>
 </head>
@@ -52,7 +56,7 @@
 <header>
   <div class="header-inner">
     <div class="logo">棋类</div>
-    <a href="../" style="color:#fff;font-size:13px;text-decoration:none;">返回主页</a>
+    <a class="back-top" href="../">返回主页</a>
   </div>
 </header>
 <div class="container">
