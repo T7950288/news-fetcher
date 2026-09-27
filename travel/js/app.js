@@ -760,8 +760,6 @@
       if (state.curQ) arr = arr.filter(s => s.name.includes(state.curQ) || Footprint.normCity(s.city).includes(state.curQ) || s.province.includes(state.curQ) || (s.county || '').includes(state.curQ));
     }
     arr = [...arr].sort(spotOrder);
-    if (!provMode && !state.curQ) arr = arr.slice(0, 80);
-    if (!provMode) arr = arr.slice(0, 200);
     const box = document.getElementById('spotList');
     const head = provMode ? `<div class="prov-head">🗺 ${state.provMode.join(' · ')} 全部景点 ${arr.length} 个</div>` : '';
     box.scrollTop = 0;
