@@ -1335,6 +1335,12 @@ def main():
     merged2 = [a for a in merged2
                if 0 <= (now - datetime.fromisoformat(a["published_at"])).total_seconds() < 86400]
     merged2 = merged2[:MAX_TOTAL]
+    # v9.10: 一句话式(正文<200字)全库最多5条, 优先保留本轮新抓(最新)
+    short = [a for a in merged2 if len((a.get("content_orig") or "").strip()) < 200]
+    if len(short) > 5:
+        keep_ids = {a["id"] for a in sorted(short, key=lambda x: x.get("published_at", ""), reverse=True)[:5]}
+        merged2 = [a for a in merged2 if a["id"] not in {b["id"] for b in short} or a["id"] in keep_ids]
+        print(f"一句话式裁剪: {len(short)} -> 5 条")
     print("MERGED country", dict(_C(a["country"] for a in merged2)))
     print("MERGED ai", sum(1 for a in merged2 if a.get("translate_by") == "ai"))
     new_data = {"version": "1.0", "updated_at": now.isoformat(), "articles": merged2}
