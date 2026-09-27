@@ -1315,14 +1315,22 @@ def main():
     MAX_TOTAL = 100  # v8: 网页第1页最新50条 + 第2页被覆盖旧闻50条
     merged2 = recent[:TARGET + len(recent_china)]  # 本轮 42+8 = 50 条
     # 24h内被覆盖的旧条目(有正文即可), 按时间倒序补位到最多100条 —— 翻译取消后不再限已翻译
+    # v9.9: 补位同标题只留一条(杜绝"大熊猫"式重复堆积) + 正文<200字的一句话式丢弃
     have = {a["id"] for a in merged2}
+    seen_t = set()
+    for a in merged2:
+        seen_t.add(re.sub(r"\W+", "", (a.get("title_orig") or a.get("title_zh") or "").lower())[:60])
     for a in sorted(old_by_id.values(), key=lambda x: x.get("published_at", ""), reverse=True):
         if len(merged2) >= MAX_TOTAL:
             break
         if a["id"] in have:
             continue
-        if not (a.get("content_orig") or "").strip():
-            continue
+        k = re.sub(r"\W+", "", (a.get("title_orig") or a.get("title_zh") or "").lower())[:60]
+        if k in seen_t:
+            continue  # 同标题只留一条
+        if len((a.get("content_orig") or "").strip()) < 200:
+            continue  # 一句话式/无正文的丢弃
+        seen_t.add(k)
         merged2.append(a)
     merged2 = [a for a in merged2
                if 0 <= (now - datetime.fromisoformat(a["published_at"])).total_seconds() < 86400]
