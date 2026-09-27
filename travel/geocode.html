@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>景点坐标批量修正工具</title>
+<style>
+body{font-family:"Microsoft YaHei",sans-serif;max-width:900px;margin:20px auto;padding:0 15px;background:#f5f5f5}
+h1{font-size:20px}
+#status{background:#fff;padding:15px;border-radius:8px;margin:10px 0;white-space:pre-wrap;font-family:monospace;font-size:13px;max-height:400px;overflow-y:auto}
+#progress{width:100%;height:20px;background:#ddd;border-radius:10px;overflow:hidden;margin:10px 0}
+#bar{height:100%;background:#4CAF50;width:0%;transition:width .3s}
+button{background:#1a73e8;color:#fff;border:none;padding:10px 24px;border-radius:6px;cursor:pointer;font-size:15px;margin:5px}
+button:disabled{background:#aaa}
+</style>
+</head>
+<body>
+<h1>景点坐标批量修正工具（高德JS API）</h1>
+<p>点击开始后，将自动搜索所有占位坐标的景点，获取真实坐标。处理约需10-20分钟。</p>
+<button id="startBtn" onclick="start()">开始批量修正</button>
+<button id="downloadBtn" onclick="download()" disabled>下载修正后 data_bundle.js</button>
+<div id="progress"><div id="bar"></div></div>
+<div id="status">就绪。</div>
+
+<script src="https://webapi.amap.com/maps?v=2.0&key=ab403a9b356e63c917ff05b037cd3e7d&plugin=AMap.PlaceSearch"></script>
+<script>
+let APP_DATA = null, results = {};
+let total = 0, done = 0, fixed = 0, failed = 0;
+
+async function loadData() {
+  log('加载数据...');
+  const resp = await fetch('https://t7950288.github.io/news-fetcher/travel/data_bundle.js');
+  const text = await resp.text();
+  // eval to get window.APP_DATA
+  window.eval(text);
+  APP_DATA = window.APP_DATA;
+  const todos = APP_DATA.attractions.filter(s => s.coord_src === 'county');
+  total = todos.length;
+  log(`共 ${total} 个待修正景点`);
+  return todos;
+}
+
+function geocode(name, city) {
+  return new Promise((resolve) => {
+    const ps = new AMap.PlaceSearch({ pageSize: 1, pageIndex: 1 });
+    ps.search(name + ' ' + city, (status, result) => {
+      if (status === 'complete' && result.poiList && result.poiList.pois.length > 0) {
+        const poi = result.poiList.pois[0];
+        resolve({ lng: poi.location.lng, lat: poi.location.lat, name: poi.name });
+      } else {
+        resolve(null);
+      }
+    });
+  });
+}
+
+async function start() {
+  document.getElementById('startBtn').disabled = true;
+  const todos = await loadData();
+  for (let i = 0; i < todos.length; i++) {
+    const spot = todos[i];
+    const r = await geocode(spot.name, spot.city);
+    if (r) {
+      spot.lng = Math.round(r.lng * 10000) / 10000;
+      spot.lat = Math.round(r.lat * 10000) / 10000;
+      delete spot.coord_src;
+      fixed++;
+    } else {
+      failed++;
+    }
+    done++;
+    const pct = Math.round(done / total * 100);
+    document.getElementById('bar').style.width = pct + '%';
+    if (done % 20 === 0 || done === total) {
+      log(`进度: ${done}/${total} (${pct}%) 成功:${fixed} 失败:${failed}`);
+    }
+    await new Promise(r => setTimeout(r, 300));
+  }
+  log(`\n完成！成功修正 ${fixed}，未找到 ${failed}。点击"下载"保存文件。`);
+  document.getElementById('downloadBtn').disabled = false;
+}
+
+function download() {
+  const header = '// 自动生成，请勿手改。景点 ' + APP_DATA.attractions.length + ' 个。\n';
+  const blob = new Blob([header + 'window.APP_DATA = ' + JSON.stringify(APP_DATA) + ';\n'], {type: 'text/javascript'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'data_bundle.js';
+  a.click();
+}
+
+function log(msg) {
+  document.getElementById('status').textContent += '\n' + msg;
+  document.getElementById('status').scrollTop = 99999;
+}
+</script>
+</body>
+</html>
