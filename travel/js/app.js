@@ -420,7 +420,7 @@
         else { m.bindPopup(spotPop(sp)); m.on('click', function () { linkToLeft('spot', sp.id); }); }
         spotLayer.addLayer(m);
       });
-    } else if (z <= 9) {
+    } else if (z <= 8) {
       CITIES.forEach(c => {
         if (!vb.contains(disp(c.center[1], c.center[0]))) return;
         const fullLit = !!lit[c.name];
