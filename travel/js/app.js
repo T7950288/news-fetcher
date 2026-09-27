@@ -1169,6 +1169,24 @@
   });
 
   /* ---------- 面板 / 复位 ---------- */
+  // 收起/展开左侧面板
+  document.getElementById('panelHide').addEventListener('click', () => {
+    document.getElementById('panel').style.display = 'none';
+    var b = document.getElementById('panelShow');
+    if (!b) {
+      b = document.createElement('button');
+      b.id = 'panelShow';
+      b.textContent = '☰';
+      b.style.cssText = 'position:absolute;left:12px;top:12px;z-index:1001;width:42px;height:42px;border-radius:10px;background:#fff;border:1px solid #ddd;cursor:pointer;font-size:18px;box-shadow:0 2px 8px rgba(0,0,0,.15);';
+      document.body.appendChild(b);
+      b.addEventListener('click', () => {
+        document.getElementById('panel').style.display = 'flex';
+        b.remove();
+        map.invalidateSize();
+      });
+    }
+    map.invalidateSize();
+  });
   document.getElementById('panelToggle').addEventListener('click', () => {
     document.getElementById('panel').classList.toggle('open');
   });
