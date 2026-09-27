@@ -403,7 +403,7 @@
         bindCity(m, c, isLit, vis);
         cityLayer.addLayer(m);
       });
-    } else if (z === 8) {
+    } else if (z === -1) {
       // zoom=8：只显示5A景点标注
       const NAME_GRID = 150;
       const usedNm = new Set();
@@ -467,7 +467,7 @@
         const ry = ((y.cat === 11 ? 5 : y.level === '5A' ? 4 : y.level === '4A' ? 3 : y.level === '3A' ? 2 : 1)) * 10 + (Footprint.isSpotDone(state.footprint, y) ? 100 : 0);
         return ry - rx;
       });
-      spots.forEach(sp => {
+      spots.forEach(sp => { if (sp.level === '5A' && z > 15) return;
         if (sp.cat === 11) return;   // 山峰已在独立块渲染，避免重复
         const done = Footprint.isSpotDone(state.footprint, sp);
         const isMt = false;
@@ -477,7 +477,7 @@
         const sz = isMt ? 32 : is5 ? 27 : is4 ? 24 : is3 ? 21 : 18;
         const cls = isMt ? ('mt' + (done ? ' done' : '')) : ((is5 ? 'a5' : is4 ? 'a4' : is3 ? 'a3' : (done ? 'lit' : 'normal')) + (done ? ' done' : ''));
         const rank = isMt ? 5 : is5 ? 4 : sp.level === '4A' ? 3 : sp.level === '3A' ? 2 : 1;
-        const wantNm = done || (isMt && z >= 6) || z >= 10 || (z >= 11 && rank >= 3);
+        const wantNm = done || (isMt && z >= 6) || (z >= 10 && z <= 15 && rank >= 4);
         let showNm = false;
         if (wantNm) {
           const pp = map.latLngToContainerPoint(disp(sp.lat, sp.lng));
