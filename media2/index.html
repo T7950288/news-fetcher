@@ -416,11 +416,19 @@
       vbox.style.width = Math.round(wUse)+"px";
       vbox.style.height = Math.round(Hmax)+"px";
       vbox.style.aspectRatio = "auto";
+      /* 视频居中：左边缘 = (容器宽-视频宽)/2；选择按钮贴最右 */
+      var mt = document.querySelector(".media-top");
+      if(mt){ vbox.style.marginLeft = Math.round((mt.clientWidth - wUse)/2) + "px"; }
+      var br = document.querySelector(".btn-row");
+      if(br){ br.style.marginLeft = "auto"; }
     } else {
       vbox.style.flex = "";
       vbox.style.width = "";
       vbox.style.height = "";
       vbox.style.aspectRatio = "";
+      vbox.style.marginLeft = "";
+      var br2 = document.querySelector(".btn-row");
+      if(br2){ br2.style.marginLeft = ""; }
     }
   }
   window.fitVbox = fitVbox;
