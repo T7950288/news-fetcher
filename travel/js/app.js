@@ -909,6 +909,7 @@
   document.getElementById('modeDrive').addEventListener('click', () => setPlanMode('drive'));
 
   function renderPrefs() {
+    if(true) return;
     document.getElementById('prefs').innerHTML = Object.keys(CATS).map(k =>
       `<button class="chip ${state.prefs.includes(+k) ? 'on' : ''}" data-cat="${k}">${CATS[k]}</button>`).join('');
     document.getElementById('prefs').querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => {
