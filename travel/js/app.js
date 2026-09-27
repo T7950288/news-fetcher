@@ -75,15 +75,6 @@
       {id:92003,name:'中共一大二大四大纪念馆景区',province:'上海市',city:'上海市',county:'黄浦区',lat:31.23,lng:121.47,level:'5A',rating:4.8,dur:2,cat:'文化古迹',ticket:0},
       {id:92004,name:'福州三坊七巷景区',province:'福建省',city:'福州市',county:'福州市',lat:26.08,lng:119.30,level:'5A',rating:4.7,dur:3,cat:'文化古迹',ticket:0},
       {id:92005,name:'泰宁风景旅游区',province:'福建省',city:'三明市',county:'泰宁县',lat:26.91,lng:117.18,level:'5A',rating:4.6,dur:3,cat:'自然景观',ticket:100},
-      {id:92006,name:'武夷山风景名胜区',province:'福建省',city:'南平市',county:'武夷山市',lat:27.73,lng:117.99,level:'5A',rating:4.8,dur:4,cat:'自然景观',ticket:140},
-      {id:92007,name:'连州地下河旅游景区',province:'广东省',city:'清远市',county:'连州市',lat:24.78,lng:112.37,level:'5A',rating:4.6,dur:2,cat:'自然景观',ticket:120},
-      {id:92008,name:'百色起义纪念园景区',province:'广西壮族自治区',city:'百色市',county:'百色市',lat:23.90,lng:106.62,level:'5A',rating:4.6,dur:2,cat:'文化古迹',ticket:0},
-      {id:92009,name:'两江四湖象山景区',province:'广西壮族自治区',city:'桂林市',county:'桂林市',lat:25.26,lng:110.29,level:'5A',rating:4.7,dur:3,cat:'自然景观',ticket:115},
-      {id:92010,name:'独秀峰靖江王城景区',province:'广西壮族自治区',city:'桂林市',county:'桂林市',lat:25.27,lng:110.29,level:'5A',rating:4.6,dur:2,cat:'文化古迹',ticket:100},
-      {id:92011,name:'延安革命纪念地景区',province:'陕西省',city:'延安市',county:'延安市',lat:36.59,lng:109.49,level:'5A',rating:4.7,dur:3,cat:'文化古迹',ticket:0},
-      {id:92012,name:'城墙碑林历史文化景区',province:'陕西省',city:'西安市',county:'西安市',lat:34.26,lng:108.94,level:'5A',rating:4.7,dur:3,cat:'文化古迹',ticket:54},
-      {id:92013,name:'六盘山红军长征旅游区',province:'宁夏回族自治区',city:'固原市',county:'泾源县',lat:35.45,lng:106.30,level:'5A',rating:4.6,dur:2,cat:'文化古迹',ticket:0},
-      {id:92014,name:'东方明珠广播电视塔',province:'上海市',city:'上海市',county:'浦东新区',lat:31.24,lng:121.50,level:'5A',rating:4.7,dur:2,cat:'现代人文',ticket:220},
     ];
     list.forEach(s => { if (!AT.find(x => x.id === s.id)) AT.push(s); });
     /* 升级已有景点为5A（data_bundle里可能是4A，但官方是5A） */
