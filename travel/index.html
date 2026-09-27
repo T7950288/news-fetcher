@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>豆包旅游地图</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@661ff242d5f95d291ba5d40150c5b678bb58734b/travel/js/lib/leaflet.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@661ff242d5f95d291ba5d40150c5b678bb58734b/travel/css/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@9a741a9c9d64324c618a7b1fbba6bbea9fc872a9/travel/js/lib/leaflet.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@9a741a9c9d64324c618a7b1fbba6bbea9fc872a9/travel/css/style.css">
 <style>
   /* 顶栏海拔按键：替换原「地球/全屏」，改为文字胶囊 */
   .top-actions button{ width:auto; min-width:58px; height:34px; padding:0 11px; border-radius:17px;
@@ -57,8 +57,7 @@
 
   <div id="main">
     <aside id="panel">
-      <button id="panelHide" title="收起侧栏" style="position:absolute;right:8px;top:8px;z-index:1001;background:#f0f0f0;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;font-size:16px;">✕</button>
-      <nav id="tabs">
+      <nav id="tabs" style="display:flex;">
         <button class="tab active" data-tab="spots">🗺️ 景点</button>
         <button class="tab" data-tab="plan">🧳 行程</button>
         <button class="tab" data-tab="foot">👣 足迹</button>
@@ -67,7 +66,6 @@
 
       <!-- 景点 -->
       <section class="pane active" id="pane-spots">
-        <div class="filter-cats" id="catFilter"></div>
         <div class="list" id="spotList"></div>
       </section>
 
@@ -87,7 +85,6 @@
             <button class="chip" id="modeDrive">🚗 自驾</button>
           </div>
           <label>我的偏好（可多选）</label>
-          <div class="filter-cats" id="prefs"></div>
           <button id="btnPlan" class="primary">✨ 自动安排行程</button>
           <div class="saved-trips">
             <select id="savedTripSel"><option value="">载入已保存行程…</option></select>
@@ -121,13 +118,13 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@661ff242d5f95d291ba5d40150c5b678bb58734b/travel/js/lib/leaflet.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@661ff242d5f95d291ba5d40150c5b678bb58734b/travel/data_bundle.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@661ff242d5f95d291ba5d40150c5b678bb58734b/travel/js/bridge.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@661ff242d5f95d291ba5d40150c5b678bb58734b/travel/js/trip_templates.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@661ff242d5f95d291ba5d40150c5b678bb58734b/travel/js/planner.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@661ff242d5f95d291ba5d40150c5b678bb58734b/travel/js/footprint.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@661ff242d5f95d291ba5d40150c5b678bb58734b/travel/js/app.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@9a741a9c9d64324c618a7b1fbba6bbea9fc872a9/travel/js/lib/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@9a741a9c9d64324c618a7b1fbba6bbea9fc872a9/travel/data_bundle.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@9a741a9c9d64324c618a7b1fbba6bbea9fc872a9/travel/js/bridge.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@9a741a9c9d64324c618a7b1fbba6bbea9fc872a9/travel/js/trip_templates.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@9a741a9c9d64324c618a7b1fbba6bbea9fc872a9/travel/js/planner.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@9a741a9c9d64324c618a7b1fbba6bbea9fc872a9/travel/js/footprint.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@9a741a9c9d64324c618a7b1fbba6bbea9fc872a9/travel/js/app.js"></script>
 <script>
 /* 版块导航：检测是否可滚动，显示右侧渐隐提示 */
 (function(){ function c(){ var w=document.querySelector('.nav-tabs-wrap'),t=w&&w.querySelector('.nav-tabs');
