@@ -210,10 +210,16 @@ function renderList(){
   const el=document.getElementById("list");
   const rows=ALL.slice();
   if(!rows.length){el.innerHTML='<div class="loading">暂无新闻</div>';return;}
+  const seen=new Set(),uniq=[];
+  for(const a of rows){
+    const key=((a.title_orig||a.title_zh||"").replace(/\s+/g,"")||"").toLowerCase().slice(0,80);
+    if(seen.has(key))continue;
+    seen.add(key);uniq.push(a);
+  }
   const head=[],rest=[];
-  for(let i=0;i<rows.length;i++){
-    if(head.length<2&&!isSensitive(rows[i]))head.push(rows[i]);
-    else rest.push(rows[i]);
+  for(let i=0;i<uniq.length;i++){
+    if(head.length<2&&!isSensitive(uniq[i]))head.push(uniq[i]);
+    else rest.push(uniq[i]);
   }
   let html="";
   if(head.length){
