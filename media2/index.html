@@ -126,7 +126,7 @@
     .btn-row { display:none; }
     .ctrl-row.mid .txt-btn { display:none; }
     .ctrl-row.mid > span:not(.time) { display:none; }   /* 只隐藏弹性空位，保留时间显示 */
-    #pickFileBtn { display:inline-flex; align-items:center; justify-content:center; align-self:center; width:auto; flex:none; min-height:0 !important; height:26px !important; max-height:26px !important; font-size:13px; padding:0 10px !important; border:1px solid #1a3a6c; border-radius:6px; line-height:1; box-sizing:border-box; }   /* 手机端：!important 强制20px高、行内垂直居中不被拉伸 */
+    #pickFileBtn { border:1px solid #ddd; background:#fff; color:#333; border-radius:18px; padding:6px 18px; font-size:14px; cursor:pointer; flex:none; align-self:center; min-height:0 !important; height:auto; max-height:none; line-height:1.2; box-sizing:border-box; }   /* 手机端：与「本地/网络」标签同款胶囊样式，四个字故框更宽 */
     #pickFileBtn svg { display:none; }
     #seekBar { flex:1 1 0; width:auto; min-width:0; }   /* 进度条只吃剩余空间，保证时间/选择文件不被挤出 */
     .time { min-width:80px; margin-left:5px; }
@@ -136,14 +136,14 @@
     .controls { margin-top:6px; padding:7px; margin-bottom:16px; min-width:0; max-width:100%; overflow:hidden; }
     .ctrl-row { min-width:0; }   /* 允许收缩，防止进度条固有宽度撑开容器 */
     .ctrl-row.mid { display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:6px; width:100%; max-width:100%; align-items:center; }   /* 行内元素垂直居中，不被拉伸撑高 */
-    #seekBar { width:100%; min-width:0; height:18px !important; min-height:0 !important; }   /* 进度条压矮，防止撑高整行 */
+    #seekBar { width:100%; min-width:0; height:14px !important; min-height:0 !important; }   /* 进度条压矮，防止撑高整行 */
     .ctrl-row { gap:6px; }
     .ctrl-btn { width:40px; height:40px; }
     .ctrl-btn.small { width:36px; height:36px; }
     .ctrl-btn.play { width:50px; height:50px; }
     .ctrl-btn svg { width:18px; height:18px; }
     .ctrl-btn.play svg { width:24px; height:24px; }
-    .time { min-width:84px; font-size:11px; }
+    .time { min-width:68px; font-size:11px; }   /* 时间缩窄，给选择文件让位 */
     #volBar { width:48px; }
     .ctrl-row.mid { margin-top:6px; }
     /* 顺序播放/文件列表：横排、字体小、不被拉伸 */
