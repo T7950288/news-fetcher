@@ -788,6 +788,20 @@
         if (arrow) arrow.textContent = '▾ ';
       }
     }));
+    // Auto-collapse when scrolled out of view
+    box.addEventListener('scroll', function() {
+      box.querySelectorAll('.prov-items').forEach(items => {
+        if (items.style.display === 'none') return;
+        var rect = items.getBoundingClientRect();
+        var boxRect = box.getBoundingClientRect();
+        // If the open list is completely above or below the visible panel, collapse it
+        if (rect.bottom < boxRect.top || rect.top > boxRect.bottom) {
+          items.style.display = 'none';
+          var t = items.parentElement.querySelector('.prov-arrow');
+          if (t) t.textContent = '▸ ';
+        }
+      });
+    });
     box.querySelectorAll('.card').forEach(c => c.addEventListener('click', () => {
       const s = byId[c.dataset.id];
       if (c.dataset.selected === '1') {
