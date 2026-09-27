@@ -763,10 +763,24 @@
     const box = document.getElementById('spotList');
     const head = provMode ? `<div class="prov-head">🗺 ${state.provMode.join(' · ')} 全部景点 ${arr.length} 个</div>` : '';
     box.scrollTop = 0;
-    box.innerHTML = head + (arr.length ? arr.map(s => `<div class="card" data-id="${s.id}">
-      <div class="t"><span class="sp-name">${levelBadge(s)}${s.name}</span>${s.ticket ? `<span class="sp-ticket">${ticketTxt(s)}</span>` : ''}</div>
-      <div class="d">${provMode ? s.province + ' · ' : ''}${Footprint.normCity(s.city)} · ${CATS[s.cat]}<br>${(s.intro || '').slice(0, 46)}…</div></div>`).join('')
-      : '<div class="empty">没有找到相关景点，换个关键词试试。</div>');
+    // 按省份分组
+    const byProv = {};
+    arr.forEach(s => { (byProv[s.province] = byProv[s.province] || []).push(s); });
+    const provKeys = Object.keys(byProv).sort();
+    let html = head;
+    provKeys.forEach(pk => {
+      const list = byProv[pk];
+      html += '<div class="prov-group" data-prov="'+pk+'"><div class="prov-toggle" style="padding:8px 12px;font-weight:700;background:#f0f0f0;cursor:pointer;margin-top:4px;">▸ '+pk+' <small>('+list.length+')</small></div><div class="prov-items" style="display:none;">' +
+        list.map(s => '<div class="card" data-id="'+s.id+'"><div class="t"><span class="sp-name">'+levelBadge(s)+s.name+'</span>'+(s.ticket?'<span class="sp-ticket">'+ticketTxt(s)+'</span>':'')+'</div><div class="d">'+Footprint.normCity(s.city)+' · '+(CATS[s.cat]||'')+'</div></div>').join('') +
+        '</div></div>';
+    });
+    box.innerHTML = html || '<div class="empty">没有找到相关景点，换个关键词试试。</div>';
+    box.querySelectorAll('.prov-toggle').forEach(t => t.addEventListener('click', () => {
+      const items = t.nextElementSibling;
+      const open = items.style.display !== 'none';
+      items.style.display = open ? 'none' : 'block';
+      t.firstChild.textContent = open ? '▸ ' : '▾ ';
+    }));
     box.querySelectorAll('.card').forEach(c => c.addEventListener('click', () => {
       const s = byId[c.dataset.id];
       if (c.dataset.selected === '1') {
