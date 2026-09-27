@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>豆包旅游地图</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@caab887748127fa9950bbf3e2725aa9a0a9f25fb/travel/js/lib/leaflet.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@caab887748127fa9950bbf3e2725aa9a0a9f25fb/travel/css/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@661ff242d5f95d291ba5d40150c5b678bb58734b/travel/js/lib/leaflet.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@661ff242d5f95d291ba5d40150c5b678bb58734b/travel/css/style.css">
 <style>
   /* 顶栏海拔按键：替换原「地球/全屏」，改为文字胶囊 */
   .top-actions button{ width:auto; min-width:58px; height:34px; padding:0 11px; border-radius:17px;
@@ -62,6 +62,7 @@
         <button class="tab active" data-tab="spots">🗺️ 景点</button>
         <button class="tab" data-tab="plan">🧳 行程</button>
         <button class="tab" data-tab="foot">👣 足迹</button>
+        <button class="tab" id="panelHide">✕ 关闭</button>
       </nav>
 
       <!-- 景点 -->
@@ -120,13 +121,13 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@caab887748127fa9950bbf3e2725aa9a0a9f25fb/travel/js/lib/leaflet.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@caab887748127fa9950bbf3e2725aa9a0a9f25fb/travel/data_bundle.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@caab887748127fa9950bbf3e2725aa9a0a9f25fb/travel/js/bridge.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@caab887748127fa9950bbf3e2725aa9a0a9f25fb/travel/js/trip_templates.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@caab887748127fa9950bbf3e2725aa9a0a9f25fb/travel/js/planner.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@caab887748127fa9950bbf3e2725aa9a0a9f25fb/travel/js/footprint.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@caab887748127fa9950bbf3e2725aa9a0a9f25fb/travel/js/app.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@661ff242d5f95d291ba5d40150c5b678bb58734b/travel/js/lib/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@661ff242d5f95d291ba5d40150c5b678bb58734b/travel/data_bundle.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@661ff242d5f95d291ba5d40150c5b678bb58734b/travel/js/bridge.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@661ff242d5f95d291ba5d40150c5b678bb58734b/travel/js/trip_templates.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@661ff242d5f95d291ba5d40150c5b678bb58734b/travel/js/planner.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@661ff242d5f95d291ba5d40150c5b678bb58734b/travel/js/footprint.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@661ff242d5f95d291ba5d40150c5b678bb58734b/travel/js/app.js"></script>
 <script>
 /* 版块导航：检测是否可滚动，显示右侧渐隐提示 */
 (function(){ function c(){ var w=document.querySelector('.nav-tabs-wrap'),t=w&&w.querySelector('.nav-tabs');
