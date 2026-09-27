@@ -20,7 +20,7 @@
     padding:8px 12px; border-radius:6px; background:rgba(255,255,255,.18); }
   .board-back { position:absolute; left:47.5%; transform:translateX(-50%); z-index:30;
     display:inline-flex; align-items:center; white-space:nowrap;
-    background:rgba(255,255,255,.95); color:#1a3a6c; text-decoration:none;
+    background:rgba(255,255,255,.95) !important; color:#1a3a6c !important; text-decoration:none;
     border:1px solid rgba(0,0,0,.18); border-radius:8px;
     font-size:13px; font-weight:700; padding:7px 10px; line-height:1;
     box-shadow:0 1px 4px rgba(0,0,0,.12); }
@@ -63,7 +63,7 @@
 <body>
 <canvas id="board"></canvas>
 <div class="topbar">
-    <span class="sp"><a class="board-back" href="index.html">← 棋类</a></span>
+    <a class="board-back" href="index.html">← 棋类</a>
   <div class="lgrp"><select id="selDiff">
     <option value="300">快</option>
     <option value="1200" selected>中</option>
