@@ -830,14 +830,7 @@
       if (window.innerWidth <= 768) document.getElementById('panel').classList.remove('open');
     }));
   }
-  function renderCatFilter() {
-    const all = `<button class="chip ${!state.curCat ? 'on' : ''}" data-cat="0">全部</button>`;
-    const chips = Object.keys(CATS).map(k => `<button class="chip ${state.curCat == k ? 'on' : ''}" data-cat="${k}"><span class="dotmini" style="background:${CAT_COLORS[k]}"></span>${CATS[k]}</button>`).join('');
-    document.getElementById('catFilter').innerHTML = all + chips;
-    document.getElementById('catFilter').querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => {
-      state.curCat = +c.dataset.cat; save(); renderCatFilter(); renderSpotList();
-    }));
-  }
+  function renderCatFilter() {}
 
   /* ---------- 顶部搜索 ---------- */
   const topInput = document.getElementById('topInput'), topSuggest = document.getElementById('topSuggest');
