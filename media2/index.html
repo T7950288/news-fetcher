@@ -396,8 +396,11 @@
   });
   player.addEventListener("loadedmetadata", function(){
     document.getElementById("timeTxt").textContent = "00:00 / "+fmtT(player.duration);
-    fitVbox();
+    setTimeout(fitVbox, 200);   /* 等 videoWidth/Height 就绪 */
   });
+  player.addEventListener("loadeddata", fitVbox);
+  player.addEventListener("play", fitVbox);
+  window.addEventListener("resize", function(){ setTimeout(fitVbox, 150); });
   /* 电脑端：竖屏视频竖着放大——底部拉到视频区域最下端(控制条上方黄线)，宽度按视频比例；整体居中，按钮贴右 */
   function fitVbox(){
     if(!window.matchMedia("(min-width:769px)").matches) return;
