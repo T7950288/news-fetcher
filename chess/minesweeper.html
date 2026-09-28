@@ -82,7 +82,7 @@
   </div>
 
   <div class="hint">左键翻开 · 右键/长按插旗（再按一次变问号） · 点击已翻开的数字格可自动翻开周围</div>
-  <div class="foot">经典高级难度：30 × 16 · 99 雷 · v2.1</div>
+  <div class="foot">经典高级难度：30 × 16 · 99 雷 · v2.2</div>
 
 <script>
 (function(){
@@ -93,6 +93,7 @@
   var started = false;
   var seconds = 0, minesLeft = MINES, timerId = null;
   var suppressClick = false, suppressContext = false;
+  var pressed = null; // 当前按下的格子（WIN 按压凹陷反馈）
   var gridEl = document.getElementById('grid');
   var faceBtn = document.getElementById('faceBtn');
   var lcdMines = document.getElementById('lcdMines');
@@ -164,11 +165,19 @@
     } else {
       ctx.fillStyle = '#c0c0c0';
       ctx.fillRect(x, y, cellPx, cellPx);
-      /* 浮雕：上/左白、下/右灰（90 年代经典凸起） */
-      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(x, y + cellPx - 1); ctx.lineTo(x, y); ctx.lineTo(x + cellPx - 1, y); ctx.stroke();
-      ctx.strokeStyle = '#808080';
-      ctx.beginPath(); ctx.moveTo(x + cellPx - 1, y); ctx.lineTo(x + cellPx - 1, y + cellPx - 1); ctx.lineTo(x, y + cellPx - 1); ctx.stroke();
+      if (pressed && pressed.r === r && pressed.c === c) {
+        /* 按压凹陷：上/左灰、下/右白（WIN 按下手感，即时反馈） */
+        ctx.strokeStyle = '#808080'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(x, y + cellPx - 1); ctx.lineTo(x, y); ctx.lineTo(x + cellPx - 1, y); ctx.stroke();
+        ctx.strokeStyle = '#ffffff';
+        ctx.beginPath(); ctx.moveTo(x + cellPx - 1, y); ctx.lineTo(x + cellPx - 1, y + cellPx - 1); ctx.lineTo(x, y + cellPx - 1); ctx.stroke();
+      } else {
+        /* 浮雕：上/左白、下/右灰（90 年代经典凸起） */
+        ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(x, y + cellPx - 1); ctx.lineTo(x, y); ctx.lineTo(x + cellPx - 1, y); ctx.stroke();
+        ctx.strokeStyle = '#808080';
+        ctx.beginPath(); ctx.moveTo(x + cellPx - 1, y); ctx.lineTo(x + cellPx - 1, y + cellPx - 1); ctx.lineTo(x, y + cellPx - 1); ctx.stroke();
+      }
       if (cell.flag === 1 && cell.wrong) {
         ctx.fillStyle = '#ff0000'; ctx.fillRect(x + 1, y + 1, cellPx - 2, cellPx - 2);
         drawX(x, y, cellPx);
@@ -199,10 +208,12 @@
     }
     return '<svg viewBox="0 0 13 23" width="13" height="23">'+s+'</svg>';
   }
+  var DIGIT_SVGS = {};
+  (function(){ for (var d = 0; d <= 9; d++) DIGIT_SVGS[d] = digitSVG(String(d)); })();
   function renderLcd(el, n){
     n = Math.max(0, Math.min(999, n));
     var str = ('000' + n).slice(-3);
-    el.innerHTML = digitSVG(str[0]) + digitSVG(str[1]) + digitSVG(str[2]);
+    el.innerHTML = DIGIT_SVGS[str[0]] + DIGIT_SVGS[str[1]] + DIGIT_SVGS[str[2]];
   }
 
   /* ---------- 笑脸（DOM 保留） ---------- */
@@ -217,7 +228,14 @@
     else mouth = '<path d="M6.5 19.5 Q13 15 19.5 19.5" stroke="#000" stroke-width="1.8" fill="none" stroke-linecap="round"/>';
     return '<svg viewBox="0 0 26 26"><circle cx="13" cy="13" r="11.6" fill="#ffd800" stroke="#000" stroke-width="1.5"/>' + eye + mouth + '</svg>';
   }
-  function setFace(type){ faceBtn.innerHTML = faceSVG(type); }
+  var FACE_SVGS = {};
+  (function(){
+    FACE_SVGS.normal = faceSVG('normal');
+    FACE_SVGS.wow = faceSVG('wow');
+    FACE_SVGS.win = faceSVG('win');
+    FACE_SVGS.lose = faceSVG('lose');
+  })();
+  function setFace(type){ faceBtn.innerHTML = FACE_SVGS[type] || FACE_SVGS.normal; }
 
   /* ---------- 棋盘数据 ---------- */
   function buildBoard(){
@@ -383,46 +401,55 @@
     return { r: r, c: c };
   }
 
-  gridEl.addEventListener('mousedown', function(e){
-    var p = cellFrom(e);
-    if (p && (state === 'ready' || state === 'playing')) setFace('wow');
-  });
-  document.addEventListener('mouseup', function(){
-    if (state === 'playing') setFace('normal');
-  });
-
-  gridEl.addEventListener('click', function(e){
-    if (suppressClick) { suppressClick = false; return; }
-    if (e.button !== 0) return;
-    var p = cellFrom(e);
-    if (!p) return;
-    if (state === 'lost' || state === 'won') return;
-    var r = p.r, c = p.c;
+  function doReveal(r, c){
     if (state === 'ready') {
       buildBoard();
       placeMines(r, c);
       state = 'playing';
-      setFace('normal');
     }
     var cell = board[r][c];
     if (cell.open) chord(r, c);
     else reveal(r, c);
     if (state === 'playing') setFace('normal');
-  });
+  }
 
+  gridEl.addEventListener('mousedown', function(e){
+    if (e.button === 0) {
+      if (suppressClick) { suppressClick = false; return; }
+      var p = cellFrom(e);
+      if (!p) return;
+      if (state === 'lost' || state === 'won') return;
+      pressed = { r: p.r, c: p.c };
+      if (state === 'ready' || state === 'playing') setFace('wow');
+      renderCell(p.r, p.c); // 立即画按压凹陷：按下瞬间即有反馈
+    } else if (e.button === 2) {
+      if (suppressContext) { suppressContext = false; return; }
+      var p2 = cellFrom(e);
+      if (!p2) return;
+      if (state === 'lost' || state === 'won') return;
+      if (state === 'ready') {
+        buildBoard(); placeMines(p2.r, p2.c); state = 'playing'; setFace('normal');
+      }
+      cycleFlag(p2.r, p2.c); // 右键按下即插旗
+    }
+  });
+  document.addEventListener('mouseup', function(e){
+    if (e.button !== 0) return;
+    var pr = pressed;
+    pressed = null;
+    if (!pr) { if (state === 'playing') setFace('normal'); return; }
+    var p = cellFrom(e);
+    var same = p && p.r === pr.r && p.c === pr.c;
+    if (same && state !== 'lost' && state !== 'won') {
+      doReveal(pr.r, pr.c);
+    } else {
+      if (state === 'playing') setFace('normal');
+      renderCell(pr.r, pr.c); // 画回凸起
+    }
+  });
   gridEl.addEventListener('contextmenu', function(e){
     e.preventDefault();
-    if (suppressContext) { suppressContext = false; return; }
-    var p = cellFrom(e);
-    if (!p) return;
-    if (state === 'lost' || state === 'won') return;
-    if (state === 'ready') {
-      buildBoard();
-      placeMines(p.r, p.c);
-      state = 'playing';
-      setFace('normal');
-    }
-    cycleFlag(p.r, p.c);
+    if (suppressContext) suppressContext = false;
   });
 
   /* 移动端：长按插旗 */
