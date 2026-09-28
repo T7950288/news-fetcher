@@ -1219,10 +1219,8 @@
       });
       const m = L.marker([sp.lat, sp.lng], { icon: icon, title: sp.name }).addTo(mySpotLayer);
       m.on('click', () => {
-        if (confirm('删除「' + sp.name + '」？')) {
           mySpots = mySpots.filter(x => x.id !== sp.id);
           renderMySpots(); renderSpotList(); saveMyData();
-        }
       });
     });
   }
@@ -1236,34 +1234,7 @@
     renderMySpots(); renderSpotList(); saveMyData();
   };
 
-  // 右键地图空白处 = 添加新景点（浏览器端）
-  map.on('contextmenu', function(e) {
-    if (e.originalEvent) e.originalEvent.preventDefault();
-    var name = prompt('给这个地点起个名字：');
-    if (!name || !name.trim()) return;
-    var id = 'my' + Date.now();
-    mySpots.push({ id: id, name: name.trim(), lat: e.latlng.lat, lng: e.latlng.lng });
-    renderMySpots(); renderSpotList(); saveMyData();
-  });
-
-  // 左侧列表：右键景点卡片 = 重命名
-  document.getElementById('spotList').addEventListener('contextmenu', function(e) {
-    const card = e.target.closest('.card');
-    if (!card) return;
-    e.preventDefault();
-    const id = card.dataset.id;
-    const sp = byId[id];
-    if (!sp) return;
-    const cur = nameOverrides[id] || sp.name;
-    const newName = prompt('重命名「' + sp.name + '」：', cur);
-    if (newName === null) return;
-    if (newName.trim() && newName.trim() !== sp.name) {
-      nameOverrides[id] = newName.trim();
-    } else {
-      delete nameOverrides[id];
-    }
-    renderSpotList(); refreshMarkers(); saveMyData();
-  });
+  // 网页端右键添加/重命名已禁用（桌面端由Qt对话框处理）
 
 
   /* ---------- 启动 ---------- */
