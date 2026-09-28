@@ -187,7 +187,10 @@ async function loadNews(){
 }
 
 function heroHtml(a,cls){
-  const summary=(a.content_orig||a.summary_zh||"").replace(/\s+/g," ").slice(0,160);
+  let summary=(a.content_orig||a.summary_zh||"").replace(/\s+/g," ").trim();
+  const t=(a.title_orig||a.title_zh||"").trim();
+  if(t&&summary.startsWith(t))summary=summary.slice(t.length).trim();
+  summary=summary.slice(0,160);
   return '<div class="hero-item '+cls+'" onclick="openDetail('+ALL.indexOf(a)+')">'+
     '<span class="htag">头条</span>'+
     '<h2>'+esc(a.title_orig||a.title_zh||"")+'</h2>'+
