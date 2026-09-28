@@ -472,7 +472,7 @@
         const done = Footprint.isSpotDone(state.footprint, sp);
         const isMt = false;
         const lv = sp.level;
-        const is5 = lv === '5A', is4 = lv === '4A', is3 = lv === '3A', isHot = lv === 'hot';
+        const is5 = lv === '5A', is4 = lv === '4A', is3 = lv === '3A', isHot = lv === 'hot' || sp.cat === 'hot';
         // 山峰 26px 山峰图标；景点 1.5 倍圆点级别数字：5A 27px / 4A 24px / 3A 21px / 普通 18px
         const sz = isMt ? 32 : is5 ? 27 : isHot ? 22 : is4 ? 24 : is3 ? 21 : 18;
         const cls = isMt ? ('mt' + (done ? ' done' : '')) : ((is5 ? 'a5' : isHot ? 'hot' : is4 ? 'a4' : is3 ? 'a3' : (done ? 'lit' : 'normal')) + (done ? ' done' : ''));
