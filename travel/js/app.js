@@ -771,7 +771,7 @@
     provKeys.forEach(pk => {
       const list = byProv[pk];
       const n5 = list.filter(s=>s.level==='5A').length;
-      const nHot = list.filter(s=>s.level==='hot').length;
+      const nHot = list.filter(s=>s.level==='hot'||s.cat==='hot').length;
       const hotTag = nHot ? ' <small style="color:#f97316;font-weight:800">景('+nHot+')</small>' : '';
       html += '<div class="prov-group" data-prov="'+pk+'"><div class="prov-toggle" style="padding:8px 12px;font-weight:700;background:#f0f0f0;cursor:pointer;margin-top:4px;white-space:nowrap;"><span class="prov-arrow">▸ </span>'+pk+' <small>('+n5+')</small>'+hotTag+'</div><div class="prov-items" style="display:none;">' +
         list.map(s => '<div class="card" data-id="'+s.id+'"><div class="t"><span class="sp-name">'+levelBadge(s)+s.name+'</span>'+(s.ticket?'<span class="sp-ticket">'+ticketTxt(s)+'</span>':'')+'</div><div class="d">'+Footprint.normCity(s.city)+' · '+(CATS[s.cat]||'')+'</div></div>').join('') +
