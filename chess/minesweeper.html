@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>扫雷 · 经典版</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: system-ui, 'Microsoft YaHei', 'PingFang SC', sans-serif;
+    background: #e9edf1; color: #1f2328;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 0 8px 20px;
+  }
+  /* 顶部工具栏：返回键放在上方中间 */
+  .toolbar {
+    width: 100%; max-width: 700px; position: relative;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 4px 10px;
+  }
+  .toolbar .side { width: 110px; font-size: 13px; color: #57606a; }
+  .toolbar .side.right { text-align: right; }
+  .back-btn {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 14px; color: #1f2328; text-decoration: none;
+    background: #fff; border: 1px solid #d0d7de; border-radius: 999px;
+    padding: 6px 18px; box-shadow: 0 1px 3px rgba(0,0,0,.08);
+    user-select: none; -webkit-user-select: none;
+  }
+  .back-btn:hover { background: #f6f8fa; }
+  /* 经典面板 */
+  .frame {
+    background: #c0c0c0; padding: 8px;
+    border: 2px solid; border-color: #ffffff #808080 #808080 #ffffff;
+    border-radius: 2px;
+  }
+  .panel {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px; margin-bottom: 8px;
+    border: 2px solid; border-color: #808080 #ffffff #ffffff #808080;
+  }
+  .lcd {
+    background: #000; padding: 3px 4px;
+    display: flex; gap: 2px;
+    border: 2px solid; border-color: #808080 #ffffff #ffffff #808080;
+  }
+  .lcd svg { display: block; }
+  .face {
+    width: 36px; height: 36px; background: #c0c0c0; border: none; cursor: pointer;
+    padding: 2px;
+    border: 2px solid; border-color: #ffffff #808080 #808080 #ffffff;
+  }
+  .face:active { border-color: #808080 #ffffff #ffffff #808080; }
+  .face svg { width: 100%; height: 100%; display: block; }
+  /* 网格 */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(30, var(--cell));
+    grid-template-rows: repeat(16, var(--cell));
+    border: 2px solid; border-color: #808080 #ffffff #ffffff #808080;
+  }
+  .cell {
+    width: var(--cell); height: var(--cell);
+    background: #c0c0c0;
+    border: 2px solid; border-color: #ffffff #808080 #808080 #ffffff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: calc(var(--cell) * 0.62); font-weight: 700; line-height: 1;
+    user-select: none; -webkit-user-select: none;
+    touch-action: manipulation;
+    font-family: 'Segoe UI', 'Microsoft YaHei', Tahoma, sans-serif;
+  }
+  .cell.open { border: 1px solid #9aa0a6; }
+  .cell.boom { background: #ff0000; border-color: #9aa0a6; }
+  .cell.wrong { background: #ff0000; border-color: #9aa0a6; }
+  .cell .icon { width: calc(var(--cell) * 0.72); height: calc(var(--cell) * 0.72); display: block; }
+  .cell .q { color: #1f2328; font-weight: 700; }
+  .num-1 { color: #0000ff; } .num-2 { color: #008000; } .num-3 { color: #ff0000; }
+  .num-4 { color: #000080; } .num-5 { color: #800000; } .num-6 { color: #008080; }
+  .num-7 { color: #000000; } .num-8 { color: #808080; }
+  .hint { margin-top: 14px; font-size: 13px; color: #57606a; text-align: center; max-width: 640px; }
+  .foot { margin-top: 6px; font-size: 12px; color: #8b949e; }
+</style>
+</head>
+<body>
+  <div class="toolbar">
+    <div class="side">扫雷 · 经典版</div>
+    <a class="back-btn" href="index.html">← 棋类</a>
+    <div class="side right">v1.0</div>
+  </div>
+
+  <div class="frame">
+    <div class="panel">
+      <div class="lcd" id="lcdMines"></div>
+      <button class="face" id="faceBtn" title="重新开始"></button>
+      <div class="lcd" id="lcdTimer"></div>
+    </div>
+    <div class="grid" id="grid"></div>
+  </div>
+
+  <div class="hint">左键翻开 · 右键/长按插旗（再按一次变问号） · 点击已翻开的数字格可自动翻开周围</div>
+  <div class="foot">经典高级难度：30 × 16 · 99 雷</div>
+
+<script>
+(function(){
+  'use strict';
+  var ROWS = 16, COLS = 30, MINES = 99;
+  var board = [], cells = [];
+  var state = 'ready'; // ready | playing | won | lost
+  var started = false;
+  var seconds = 0, minesLeft = MINES, timerId = null;
+  var suppressClick = false, suppressContext = false;
+  var gridEl = document.getElementById('grid');
+  var faceBtn = document.getElementById('faceBtn');
+  var lcdMines = document.getElementById('lcdMines');
+  var lcdTimer = document.getElementById('lcdTimer');
+
+  /* ---------- 七段数码管 ---------- */
+  var SEG = { a:[2,0,9,3], b:[10,2,3,9], c:[10,13,3,9], d:[2,20,9,3], e:[0,13,3,9], f:[0,2,3,9], g:[2,10,9,3] };
+  var DIGITS = { 0:'abcdef', 1:'bc', 2:'abdeg', 3:'abcdg', 4:'bcfg', 5:'acdfg', 6:'acdefg', 7:'abc', 8:'abcdefg', 9:'abcdfg' };
+  function digitSVG(d){
+    var lit = DIGITS[d] || '';
+    var s = '';
+    for (var k in SEG) {
+      var r = SEG[k], fill = lit.indexOf(k) >= 0 ? '#ff0000' : '#3d0a0a';
+      s += '<rect x="'+r[0]+'" y="'+r[1]+'" width="'+r[2]+'" height="'+r[3]+'" fill="'+fill+'" rx="1"/>';
+    }
+    return '<svg viewBox="0 0 13 23" width="13" height="23">'+s+'</svg>';
+  }
+  function renderLcd(el, n){
+    n = Math.max(0, Math.min(999, n));
+    var str = ('000' + n).slice(-3);
+    el.innerHTML = digitSVG(str[0]) + digitSVG(str[1]) + digitSVG(str[2]);
+  }
+
+  /* ---------- 经典图标（雷 / 旗 / 笑脸） ---------- */
+  function mineSVG(){
+    return '<svg class="icon" viewBox="0 0 16 16">' +
+      '<line x1="8" y1="0" x2="8" y2="3.2" stroke="#000" stroke-width="1.4"/>' +
+      '<line x1="0" y1="8" x2="3.2" y2="8" stroke="#000" stroke-width="1.4"/>' +
+      '<line x1="16" y1="8" x2="12.8" y2="8" stroke="#000" stroke-width="1.4"/>' +
+      '<line x1="8" y1="16" x2="8" y2="12.8" stroke="#000" stroke-width="1.4"/>' +
+      '<line x1="1.6" y1="1.6" x2="3.8" y2="3.8" stroke="#000" stroke-width="1.2"/>' +
+      '<line x1="14.4" y1="1.6" x2="12.2" y2="3.8" stroke="#000" stroke-width="1.2"/>' +
+      '<line x1="1.6" y1="14.4" x2="3.8" y2="12.2" stroke="#000" stroke-width="1.2"/>' +
+      '<line x1="14.4" y1="14.4" x2="12.2" y2="12.2" stroke="#000" stroke-width="1.2"/>' +
+      '<circle cx="8" cy="8" r="4.6" fill="#000"/></svg>';
+  }
+  function flagSVG(){
+    return '<svg class="icon" viewBox="0 0 16 16">' +
+      '<line x1="4.2" y1="1.5" x2="4.2" y2="15" stroke="#000" stroke-width="1.6"/>' +
+      '<polygon points="4.2,2 13.5,5.2 4.2,8.2" fill="#e11"/>' +
+      '<circle cx="4.2" cy="15" r="1.4" fill="#000"/></svg>';
+  }
+  function faceSVG(type){
+    var eye = type === 'win'
+      ? '<rect x="3.5" y="7" width="6.4" height="3.6" rx="1" fill="#000"/><rect x="16.1" y="7" width="6.4" height="3.6" rx="1" fill="#000"/><rect x="9.4" y="8.2" width="7.2" height="1.3" rx="0.6" fill="#000"/>'
+      : '<circle cx="7.4" cy="9.2" r="1.7" fill="#000"/><circle cx="18.6" cy="9.2" r="1.7" fill="#000"/>';
+    var mouth = '';
+    if (type === 'normal') mouth = '<path d="M6.5 16.5 Q13 21 19.5 16.5" stroke="#000" stroke-width="1.8" fill="none" stroke-linecap="round"/>';
+    else if (type === 'wow') mouth = '<circle cx="13" cy="17.2" r="2.6" fill="#000"/>';
+    else if (type === 'win') mouth = '<path d="M5.5 17.5 Q13 23 20.5 17.5" stroke="#000" stroke-width="1.8" fill="none" stroke-linecap="round"/>';
+    else mouth = '<path d="M6.5 19.5 Q13 15 19.5 19.5" stroke="#000" stroke-width="1.8" fill="none" stroke-linecap="round"/>';
+    return '<svg viewBox="0 0 26 26"><circle cx="13" cy="13" r="11.6" fill="#ffd800" stroke="#000" stroke-width="1.5"/>' + eye + mouth + '</svg>';
+  }
+  function setFace(type){ faceBtn.innerHTML = faceSVG(type); }
+
+  /* ---------- 棋盘 ---------- */
+  function buildBoard(){
+    board = [];
+    for (var r = 0; r < ROWS; r++) {
+      board[r] = [];
+      for (var c = 0; c < COLS; c++) board[r][c] = { mine:false, open:false, flag:0, boom:false, wrong:false };
+    }
+  }
+  function countNear(r, c){
+    var n = 0;
+    for (var dr = -1; dr <= 1; dr++)
+      for (var dc = -1; dc <= 1; dc++) {
+        if (dr === 0 && dc === 0) continue;
+        var nr = r + dr, nc = c + dc;
+        if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS && board[nr][nc].mine) n++;
+      }
+    return n;
+  }
+  function placeMines(safeR, safeC){
+    var placed = 0, guard = 0;
+    while (placed < MINES && guard < 100000) {
+      guard++;
+      var r = Math.floor(Math.random() * ROWS);
+      var c = Math.floor(Math.random() * COLS);
+      if (r === safeR && c === safeC) continue;
+      if (!board[r][c].mine) { board[r][c].mine = true; placed++; }
+    }
+    for (var rr = 0; rr < ROWS; rr++)
+      for (var cc = 0; cc < COLS; cc++)
+        board[rr][cc].near = countNear(rr, cc);
+  }
+
+  /* ---------- 渲染 ---------- */
+  function createGrid(){
+    gridEl.innerHTML = '';
+    cells = [];
+    for (var r = 0; r < ROWS; r++) {
+      cells[r] = [];
+      for (var c = 0; c < COLS; c++) {
+        var el = document.createElement('div');
+        el.className = 'cell';
+        el.dataset.r = r; el.dataset.c = c;
+        gridEl.appendChild(el);
+        cells[r][c] = el;
+      }
+    }
+  }
+  function renderCell(r, c){
+    var cell = board[r][c], el = cells[r][c];
+    var cls = ['cell'], html = '';
+    if (cell.open) {
+      cls.push('open');
+      if (cell.mine) {
+        if (cell.boom) { cls.push('boom'); html = mineSVG(); }
+        else html = mineSVG();
+      } else if (cell.near > 0) {
+        cls.push('num-' + cell.near);
+        html = cell.near;
+      }
+    } else {
+      if (cell.flag === 1 && cell.wrong) { cls.push('wrong'); html = '<span style="color:#fff;font-weight:700">✕</span>'; }
+      else if (cell.flag === 1) html = flagSVG();
+      else if (cell.flag === 2) html = '<span class="q">?</span>';
+      else if (state === 'lost' && cell.mine) html = mineSVG();
+    }
+    el.className = cls.join(' ');
+    el.innerHTML = html;
+  }
+  function renderAll(){
+    for (var r = 0; r < ROWS; r++)
+      for (var c = 0; c < COLS; c++) renderCell(r, c);
+  }
+
+  /* ---------- 动作 ---------- */
+  function startTimer(){
+    if (started) return;
+    started = true;
+    seconds = 0;
+    renderLcd(lcdTimer, 0);
+    timerId = setInterval(function(){
+      seconds++;
+      if (seconds > 999) seconds = 999;
+      renderLcd(lcdTimer, seconds);
+      if (seconds >= 999) stopTimer();
+    }, 1000);
+  }
+  function stopTimer(){ if (timerId) { clearInterval(timerId); timerId = null; } }
+
+  function reveal(r, c){
+    if (state === 'won' || state === 'lost') return;
+    var cell = board[r][c];
+    if (cell.open || cell.flag === 1) return;
+    startTimer();
+    if (cell.mine) { explode(r, c); return; }
+    var queue = [[r, c]];
+    while (queue.length) {
+      var p = queue.shift();
+      var pr = p[0], pc = p[1];
+      var cc2 = board[pr][pc];
+      if (cc2.open || cc2.flag === 1 || cc2.mine) continue;
+      cc2.open = true;
+      renderCell(pr, pc);
+      if (cc2.near === 0) {
+        for (var dr = -1; dr <= 1; dr++)
+          for (var dc = -1; dc <= 1; dc++) {
+            if (dr === 0 && dc === 0) continue;
+            var nr = pr + dr, nc = pc + dc;
+            if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS && !board[nr][nc].open && board[nr][nc].flag !== 1)
+              queue.push([nr, nc]);
+          }
+      }
+    }
+    checkWin();
+  }
+  function chord(r, c){
+    var cell = board[r][c];
+    if (!cell.open || cell.near === 0) return;
+    var flags = 0;
+    for (var dr = -1; dr <= 1; dr++)
+      for (var dc = -1; dc <= 1; dc++) {
+        if (dr === 0 && dc === 0) continue;
+        var nr = r + dr, nc = c + dc;
+        if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS && board[nr][nc].flag === 1) flags++;
+      }
+    if (flags !== cell.near) return;
+    for (var dr2 = -1; dr2 <= 1; dr2++)
+      for (var dc2 = -1; dc2 <= 1; dc2++) {
+        if (dr2 === 0 && dc2 === 0) continue;
+        var nr2 = r + dr2, nc2 = c + dc2;
+        if (nr2 >= 0 && nr2 < ROWS && nc2 >= 0 && nc2 < COLS) {
+          var cc3 = board[nr2][nc2];
+          if (!cc3.open && cc3.flag !== 1) reveal(nr2, nc2);
+        }
+      }
+  }
+  function cycleFlag(r, c){
+    if (state === 'won' || state === 'lost') return;
+    if (board[r][c].open) return;
+    board[r][c].flag = (board[r][c].flag + 1) % 3;
+    var cnt = 0;
+    for (var rr = 0; rr < ROWS; rr++)
+      for (var cc = 0; cc < COLS; cc++)
+        if (board[rr][cc].flag === 1) cnt++;
+    minesLeft = MINES - cnt;
+    renderLcd(lcdMines, minesLeft);
+    renderCell(r, c);
+  }
+  function explode(r, c){
+    state = 'lost';
+    stopTimer();
+    board[r][c].boom = true;
+    board[r][c].open = true; // 点中的雷按"翻开"渲染，显示经典红底
+    for (var rr = 0; rr < ROWS; rr++)
+      for (var cc = 0; cc < COLS; cc++) {
+        var cl = board[rr][cc];
+        if (cl.flag === 1 && !cl.mine) cl.wrong = true;
+      }
+    renderAll();
+    setFace('lose');
+  }
+  function checkWin(){
+    var opened = 0;
+    for (var r = 0; r < ROWS; r++)
+      for (var c = 0; c < COLS; c++)
+        if (board[r][c].open) opened++;
+    if (opened === ROWS * COLS - MINES) {
+      state = 'won';
+      stopTimer();
+      for (var rr = 0; rr < ROWS; rr++)
+        for (var cc = 0; cc < COLS; cc++)
+          if (board[rr][cc].mine && board[rr][cc].flag !== 1) { board[rr][cc].flag = 1; renderCell(rr, cc); }
+      minesLeft = 0;
+      renderLcd(lcdMines, 0);
+      setFace('win');
+    }
+  }
+
+  /* ---------- 重置 ---------- */
+  function reset(){
+    stopTimer();
+    state = 'ready'; started = false;
+    seconds = 0; minesLeft = MINES;
+    buildBoard();
+    renderLcd(lcdMines, MINES);
+    renderLcd(lcdTimer, 0);
+    setFace('normal');
+    renderAll();
+  }
+
+  /* ---------- 事件 ---------- */
+  function cellFrom(e){
+    var t = e.target;
+    while (t && t !== gridEl && !(t.classList && t.classList.contains('cell'))) t = t.parentNode;
+    if (!t || t === gridEl) return null;
+    return { r: +t.dataset.r, c: +t.dataset.c };
+  }
+
+  gridEl.addEventListener('mousedown', function(e){
+    var p = cellFrom(e);
+    if (p && (state === 'ready' || state === 'playing')) setFace('wow');
+  });
+  document.addEventListener('mouseup', function(){
+    if (state === 'playing') setFace('normal');
+  });
+
+  gridEl.addEventListener('click', function(e){
+    if (suppressClick) { suppressClick = false; return; }
+    if (e.button !== 0) return;
+    var p = cellFrom(e);
+    if (!p) return;
+    if (state === 'lost' || state === 'won') return;
+    var r = p.r, c = p.c;
+    if (state === 'ready') {
+      buildBoard();
+      placeMines(r, c);
+      state = 'playing';
+      setFace('normal');
+    }
+    var cell = board[r][c];
+    if (cell.open) chord(r, c);
+    else reveal(r, c);
+    if (state === 'playing') setFace('normal');
+  });
+
+  gridEl.addEventListener('contextmenu', function(e){
+    e.preventDefault();
+    if (suppressContext) { suppressContext = false; return; }
+    var p = cellFrom(e);
+    if (!p) return;
+    if (state === 'lost' || state === 'won') return;
+    if (state === 'ready') {
+      buildBoard();
+      placeMines(p.r, p.c);
+      state = 'playing';
+      setFace('normal');
+    }
+    cycleFlag(p.r, p.c);
+  });
+
+  /* 移动端：长按插旗 */
+  var touchTimer = null, touchStartXY = null;
+  gridEl.addEventListener('touchstart', function(e){
+    var t = e.changedTouches[0];
+    touchStartXY = { x: t.clientX, y: t.clientY };
+    var p = cellFrom(e);
+    if (!p) return;
+    touchTimer = setTimeout(function(){
+      if (state === 'lost' || state === 'won') { suppressClick = true; return; }
+      if (state === 'ready') {
+        buildBoard(); placeMines(p.r, p.c); state = 'playing'; setFace('normal');
+      }
+      cycleFlag(p.r, p.c);
+      suppressClick = true;
+      suppressContext = true;
+      touchTimer = null;
+    }, 500);
+  }, { passive: true });
+  gridEl.addEventListener('touchmove', function(){
+    if (touchTimer) { clearTimeout(touchTimer); touchTimer = null; }
+  }, { passive: true });
+  gridEl.addEventListener('touchend', function(e){
+    if (touchTimer) { clearTimeout(touchTimer); touchTimer = null; }
+    if (touchStartXY) {
+      var t = e.changedTouches[0];
+      var dx = t.clientX - touchStartXY.x, dy = t.clientY - touchStartXY.y;
+      if (Math.abs(dx) > 10 || Math.abs(dy) > 10) suppressClick = true;
+      touchStartXY = null;
+    }
+  }, { passive: true });
+
+  faceBtn.addEventListener('click', reset);
+
+  /* ---------- 自适应尺寸 ---------- */
+  function resize(){
+    var avail = Math.min(window.innerWidth - 24, 640);
+    var cell = Math.max(10, Math.floor((avail - 6) / COLS));
+    cell = Math.min(cell, 22);
+    document.documentElement.style.setProperty('--cell', cell + 'px');
+  }
+  window.addEventListener('resize', resize);
+
+  /* ---------- 启动 ---------- */
+  createGrid();
+  resize();
+  reset();
+})();
+</script>
+</body>
+</html>
