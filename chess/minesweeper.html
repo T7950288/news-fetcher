@@ -20,6 +20,7 @@
   }
   .toolbar .side { width: 110px; font-size: 13px; color: #57606a; }
   .toolbar .side.right { text-align: right; }
+  .toolbar .side.right.new { color: #c1121f; font-weight: 700; }
   .back-btn {
     position: absolute; left: 50%; transform: translateX(-50%);
     display: inline-flex; align-items: center; gap: 4px;
@@ -68,7 +69,7 @@
     font-size: calc(var(--cell) * 0.62); font-weight: 700; line-height: 1;
     user-select: none; -webkit-user-select: none;
     touch-action: manipulation;
-    font-family: 'Segoe UI', 'Microsoft YaHei', Tahoma, sans-serif;
+    font-family: Tahoma, 'Microsoft Sans Serif', 'Segoe UI', 'Microsoft YaHei', sans-serif;
   }
   .cell.open { border: 1px solid #9aa0a6; }
   .cell.boom { background: #ff0000; border-color: #9aa0a6; }
@@ -86,7 +87,7 @@
   <div class="toolbar">
     <div class="side">扫雷 · 经典版</div>
     <a class="back-btn" href="index.html">← 棋类</a>
-    <div class="side right">v1.0</div>
+    <div class="side right" id="bestBox">最快 --</div>
   </div>
 
   <div class="frame">
@@ -99,7 +100,7 @@
   </div>
 
   <div class="hint">左键翻开 · 右键/长按插旗（再按一次变问号） · 点击已翻开的数字格可自动翻开周围</div>
-  <div class="foot">经典高级难度：30 × 16 · 99 雷</div>
+  <div class="foot">经典高级难度：30 × 16 · 99 雷 · v1.1</div>
 
 <script>
 (function(){
@@ -114,6 +115,18 @@
   var faceBtn = document.getElementById('faceBtn');
   var lcdMines = document.getElementById('lcdMines');
   var lcdTimer = document.getElementById('lcdTimer');
+  var bestEl = document.getElementById('bestBox');
+  var BEST_KEY = 'ms_best_time', best = 0;
+  try { best = parseInt(localStorage.getItem(BEST_KEY) || '0', 10) || 0; } catch (e) {}
+  function renderBest(newRecord){
+    if (!bestEl) return;
+    bestEl.textContent = '最快 ' + (best > 0 ? best + ' 秒' : '--');
+    if (newRecord) {
+      bestEl.classList.add('new');
+      setTimeout(function(){ bestEl.classList.remove('new'); }, 3000);
+    }
+  }
+  renderBest(false);
 
   /* ---------- 七段数码管 ---------- */
   var SEG = { a:[2,0,9,3], b:[10,2,3,9], c:[10,13,3,9], d:[2,20,9,3], e:[0,13,3,9], f:[0,2,3,9], g:[2,10,9,3] };
@@ -201,20 +214,22 @@
   function createGrid(){
     gridEl.innerHTML = '';
     cells = [];
+    var frag = document.createDocumentFragment();
     for (var r = 0; r < ROWS; r++) {
       cells[r] = [];
       for (var c = 0; c < COLS; c++) {
         var el = document.createElement('div');
         el.className = 'cell';
         el.dataset.r = r; el.dataset.c = c;
-        gridEl.appendChild(el);
+        frag.appendChild(el);
         cells[r][c] = el;
       }
     }
+    gridEl.appendChild(frag);
   }
   function renderCell(r, c){
     var cell = board[r][c], el = cells[r][c];
-    var cls = ['cell'], html = '';
+    var cls = ['cell'], html = null;
     if (cell.open) {
       cls.push('open');
       if (cell.mine) {
@@ -231,7 +246,9 @@
       else if (state === 'lost' && cell.mine) html = mineSVG();
     }
     el.className = cls.join(' ');
-    el.innerHTML = html;
+    if (html === null) el.textContent = '';
+    else if (typeof html === 'number') el.textContent = html;
+    else el.innerHTML = html;
   }
   function renderAll(){
     for (var r = 0; r < ROWS; r++)
@@ -259,9 +276,9 @@
     if (cell.open || cell.flag === 1) return;
     startTimer();
     if (cell.mine) { explode(r, c); return; }
-    var queue = [[r, c]];
-    while (queue.length) {
-      var p = queue.shift();
+    var queue = [[r, c]], qi = 0;
+    while (qi < queue.length) {
+      var p = queue[qi++];
       var pr = p[0], pc = p[1];
       var cc2 = board[pr][pc];
       if (cc2.open || cc2.flag === 1 || cc2.mine) continue;
@@ -339,6 +356,11 @@
       minesLeft = 0;
       renderLcd(lcdMines, 0);
       setFace('win');
+      if (best === 0 || seconds < best) {
+        best = seconds;
+        try { localStorage.setItem(BEST_KEY, String(best)); } catch (e) {}
+        renderBest(true);
+      }
     }
   }
 
