@@ -1219,8 +1219,12 @@
       });
       const m = L.marker([sp.lat, sp.lng], { icon: icon, title: sp.name }).addTo(mySpotLayer);
       m.on('click', () => {
-          mySpots = mySpots.filter(x => x.id !== sp.id);
-          renderMySpots(); renderSpotList(); saveMyData();
+          uiPrompt('删除「' + sp.name + '」？', '', (ok) => {
+              if (ok) {
+                  mySpots = mySpots.filter(x => x.id !== sp.id);
+                  renderMySpots(); renderSpotList(); saveMyData();
+              }
+          });
       });
     });
   }
@@ -1234,7 +1238,60 @@
     renderMySpots(); renderSpotList(); saveMyData();
   };
 
-  // 网页端右键添加/重命名已禁用（桌面端由Qt对话框处理）
+  // 网页内通用弹窗（替代prompt/confirm，兼容QWebEngineView）
+  function uiPrompt(title, defaultVal, cb) {
+      let box = document.getElementById('__ui_prompt');
+      if (box) box.remove();
+      box = document.createElement('div');
+      box.id = '__ui_prompt';
+      box.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.4);z-index:10000;display:flex;align-items:center;justify-content:center;';
+      box.innerHTML = '<div style="background:#fff;border-radius:10px;padding:20px;width:340px;box-shadow:0 4px 20px rgba(0,0,0,.3);">' +
+        '<div style="font-size:15px;font-weight:600;margin-bottom:12px;">' + title + '</div>' +
+        '<input type="text" id="__ui_input" value="' + (defaultVal||'') + '" style="width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:6px;font-size:14px;box-sizing:border-box;outline:none;">' +
+        '<div style="text-align:right;margin-top:14px;">' +
+        '<button id="__ui_cancel" style="padding:6px 16px;margin-right:8px;border:1px solid #ccc;background:#fff;border-radius:6px;cursor:pointer;font-size:13px;">取消</button>' +
+        '<button id="__ui_ok" style="padding:6px 16px;border:none;background:#2563eb;color:#fff;border-radius:6px;cursor:pointer;font-size:13px;">确定</button>' +
+        '</div></div>';
+      document.body.appendChild(box);
+      const input = box.querySelector('#__ui_input');
+      input.focus(); input.select();
+      const close = (ok) => { box.remove(); cb(ok, input.value.trim()); };
+      box.querySelector('#__ui_ok').onclick = () => close(true);
+      box.querySelector('#__ui_cancel').onclick = () => close(false);
+      box.onclick = (e) => { if (e.target === box) close(false); };
+      input.onkeydown = (e) => { if (e.key === 'Enter') close(true); if (e.key === 'Escape') close(false); };
+  }
+
+  // 右键地图空白处 = 添加景点
+  map.on('contextmenu', function(e) {
+    if (e.originalEvent) e.originalEvent.preventDefault();
+    uiPrompt('给这个地点起个名字：', '', (ok, name) => {
+        if (!ok || !name) return;
+        var id = 'my' + Date.now();
+        mySpots.push({ id: id, name: name, lat: e.latlng.lat, lng: e.latlng.lng });
+        renderMySpots(); renderSpotList(); saveMyData();
+    });
+  });
+
+  // 左侧列表右键 = 重命名
+  document.getElementById('spotList').addEventListener('contextmenu', function(e) {
+    const card = e.target.closest('.card');
+    if (!card) return;
+    e.preventDefault();
+    const id = card.dataset.id;
+    const sp = byId[id];
+    if (!sp) return;
+    const cur = nameOverrides[id] || sp.name;
+    uiPrompt('重命名「' + sp.name + '」：', cur, (ok, val) => {
+        if (!ok) return;
+        if (val && val !== sp.name) {
+            nameOverrides[id] = val;
+        } else {
+            delete nameOverrides[id];
+        }
+        renderSpotList(); refreshMarkers(); saveMyData();
+    });
+  });
 
 
   /* ---------- 启动 ---------- */
