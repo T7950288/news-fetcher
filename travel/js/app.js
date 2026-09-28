@@ -884,7 +884,7 @@
       || CITIES.find(c => c.name.includes(q)) || COUNTIES.find(c => c.name.includes(q));
     const ss = AT.filter(s => s.name.includes(q)).slice(0, 6);
     if (cc) {
-      switchTab('spots'); state.curQ = cc.name; renderSpotList(); flyCity(cc.name);
+      switchTab('spots'); state.curQ = ''; state.provMode = []; renderSpotList(); flyCity(cc.name);
     } else if (ss.length) {
       switchTab('spots'); state.curQ = q; renderSpotList(); flySpot(ss[0]);
     } else {
