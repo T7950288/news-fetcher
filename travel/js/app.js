@@ -413,7 +413,7 @@
         const k = Math.floor(pp.x / NAME_GRID) + ',' + Math.floor(pp.y / NAME_GRID);
         let showNm = false;
         if (!usedNm.has(k)) { usedNm.add(k); showNm = true; }
-        const nm = showNm ? `<div class="mk-name ${done ? '' : 'w'}">${sp.name}</div>` : '';
+        const nm = showNm ? `<div class="mk-name ${done ? '' : 'w'}">${dispName(sp)}</div>` : '';
         const inner = `<div class="spot-marker a5${done ? ' done' : ''}" style="width:27px;height:27px"><b>5</b>${nm}</div>`;
         const m = L.marker(disp(sp.lat, sp.lng), { icon: divIcon(hitWrap(inner), Math.max(HIT, 29)), zIndexOffset: 0 });
         if (footMode) m.on('click', function () { doToggleSpot(sp); linkToLeft('city', Footprint.normCity(sp.county || sp.city)); });
@@ -484,7 +484,7 @@
           const k = Math.floor(pp.x / NAME_GRID) + ',' + Math.floor(pp.y / NAME_GRID);
           if (!usedNm.has(k)) { usedNm.add(k); showNm = true; }
         }
-        const nm = showNm ? `<div class="mk-name ${done ? '' : 'w'}">${sp.name}</div>` : '';
+        const nm = showNm ? `<div class="mk-name ${done ? '' : 'w'}">${dispName(sp)}</div>` : '';
         const lvNum = isMt ? MTN(20) : is5 ? '<b>5</b>' : isHot ? '<b style="font-size:11px">景</b>' : is4 ? '<b>4</b>' : is3 ? '<b>3</b>' : '';
         const inner = `<div class="spot-marker ${cls}" style="width:${sz}px;height:${sz}px">${done && !isMt ? PLANE(is5 ? 17 : is4 ? 14 : 12) : lvNum}${nm}</div>`;
         const m = L.marker(disp(sp.lat, sp.lng), { icon: divIcon(hitWrap(inner), Math.max(HIT, sz + 2)), zIndexOffset: isMt ? 5000 : 0 });
@@ -768,13 +768,18 @@
     arr.forEach(s => { (byProv[s.province] = byProv[s.province] || []).push(s); });
     const provKeys = Object.keys(byProv).sort();
     let html = head;
+    if (mySpots.length) {
+      html += '<div class="prov-group" data-prov="__my"><div class="prov-toggle" style="padding:8px 12px;font-weight:700;background:#dbeafe;cursor:pointer;margin-top:4px;white-space:nowrap;"><span class="prov-arrow">▸ </span>⭐ 我的添加 <small>('+mySpots.length+')</small></div><div class="prov-items" style="display:none;">' +
+        mySpots.map(s => '<div class="card" data-id="'+s.id+'"><div class="t"><span class="sp-name" style="color:#2563eb;">我 '+s.name+'</span></div><div class="d">右键地图可添加 · 点击标注可删除</div></div>').join('') +
+        '</div></div>';
+    }
     provKeys.forEach(pk => {
       const list = byProv[pk];
       const n5 = list.filter(s=>s.level==='5A').length;
       const nHot = list.filter(s=>s.level==='hot'||s.cat==='hot').length;
       const hotTag = nHot ? ' <small style="color:#f97316;font-weight:800">景('+nHot+')</small>' : '';
       html += '<div class="prov-group" data-prov="'+pk+'"><div class="prov-toggle" style="padding:8px 12px;font-weight:700;background:#f0f0f0;cursor:pointer;margin-top:4px;white-space:nowrap;"><span class="prov-arrow">▸ </span>'+pk+' <small>('+n5+')</small>'+hotTag+'</div><div class="prov-items" style="display:none;">' +
-        list.map(s => '<div class="card" data-id="'+s.id+'"><div class="t"><span class="sp-name">'+levelBadge(s)+s.name+'</span>'+(s.ticket?'<span class="sp-ticket">'+ticketTxt(s)+'</span>':'')+'</div><div class="d">'+Footprint.normCity(s.city)+' · '+(CATS[s.cat]||'')+'</div></div>').join('') +
+        list.map(s => '<div class="card" data-id="'+s.id+'"><div class="t"><span class="sp-name">'+levelBadge(s)+dispName(s)+'</span>'+(s.ticket?'<span class="sp-ticket">'+ticketTxt(s)+'</span>':'')+'</div><div class="d">'+Footprint.normCity(s.city)+' · '+(CATS[s.cat]||'')+'</div></div>').join('') +
         '</div></div>';
     });
     box.innerHTML = html || '<div class="empty">没有找到相关景点，换个关键词试试。</div>';
@@ -1188,6 +1193,79 @@
   });
   window.addEventListener('resize', () => map.invalidateSize());
 
+  /* ---------- 我的景点 & 重命名 ---------- */
+  let nameOverrides = {};   // {spotId: "自定义名"}
+  let mySpots = [];         // [{id,name,lat,lng}]
+  const mySpotLayer = L.layerGroup().addTo(map);
+
+  function saveMyData() {
+    Store.get(Store.KEY).then(saved => {
+      saved = saved || {};
+      saved.nameOverrides = nameOverrides;
+      saved.mySpots = mySpots;
+      Store.set(Store.KEY, saved);
+    });
+  }
+  function dispName(sp) {
+    return nameOverrides[sp.id] || sp.name;
+  }
+  function renderMySpots() {
+    mySpotLayer.clearLayers();
+    mySpots.forEach(sp => {
+      const icon = L.divIcon({
+        className: '',
+        html: '<div style="width:22px;height:22px;border-radius:50%;background:#fff;border:2.5px solid #3b82f6;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#3b82f6;">我</div><div style="text-align:center;font-size:11px;color:#1e40af;margin-top:2px;white-space:nowrap;">'+sp.name+'</div>',
+        iconSize: [22, 34], iconAnchor: [11, 11]
+      });
+      const m = L.marker([sp.lat, sp.lng], { icon: icon, title: sp.name }).addTo(mySpotLayer);
+      m.on('click', () => {
+        if (confirm('删除「' + sp.name + '」？')) {
+          mySpots = mySpots.filter(x => x.id !== sp.id);
+          renderMySpots(); renderSpotList(); saveMyData();
+        }
+      });
+    });
+  }
+
+  // 供桌面端Qt调用：在指定屏幕坐标添加景点
+  window.__addSpotAt = function(px, py, name) {
+    if (!name) return;
+    var pt = map.containerPointToLatLng([px, py]);
+    var id = 'my' + Date.now();
+    mySpots.push({ id: id, name: name, lat: pt.lat, lng: pt.lng });
+    renderMySpots(); renderSpotList(); saveMyData();
+  };
+
+  // 右键地图空白处 = 添加新景点（浏览器端）
+  map.on('contextmenu', function(e) {
+    if (e.originalEvent) e.originalEvent.preventDefault();
+    var name = prompt('给这个地点起个名字：');
+    if (!name || !name.trim()) return;
+    var id = 'my' + Date.now();
+    mySpots.push({ id: id, name: name.trim(), lat: e.latlng.lat, lng: e.latlng.lng });
+    renderMySpots(); renderSpotList(); saveMyData();
+  });
+
+  // 左侧列表：右键景点卡片 = 重命名
+  document.getElementById('spotList').addEventListener('contextmenu', function(e) {
+    const card = e.target.closest('.card');
+    if (!card) return;
+    e.preventDefault();
+    const id = card.dataset.id;
+    const sp = byId[id];
+    if (!sp) return;
+    const cur = nameOverrides[id] || sp.name;
+    const newName = prompt('重命名「' + sp.name + '」：', cur);
+    if (newName === null) return;
+    if (newName.trim() && newName.trim() !== sp.name) {
+      nameOverrides[id] = newName.trim();
+    } else {
+      delete nameOverrides[id];
+    }
+    renderSpotList(); refreshMarkers(); saveMyData();
+  });
+
+
   /* ---------- 启动 ---------- */
   Store.get(Store.KEY).then(saved => {
     if (saved) {
@@ -1206,7 +1284,7 @@
       rec.cities = cs;
     });
     if (mig) save();
-    renderCatFilter(); renderSpotList(); renderPrefs(); renderSavedTrips(); renderFoot(); refreshMarkers();
+    renderMySpots(); renderCatFilter(); renderSpotList(); renderPrefs(); renderSavedTrips(); renderFoot(); refreshMarkers();
     setTimeout(() => map.invalidateSize(), 200);
   });
 })();
