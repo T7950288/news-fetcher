@@ -121,6 +121,18 @@ GITEE_TOKEN = os.environ["GITEE_TOKEN"]
 GITEE_OWNER = "t7950288"
 GITEE_REPO = "news"
 GITEE_PATH = "news.json"  # v8.4: 单文件100条全量(网页翻页用); 手机端APK取前50
+
+# v9.14: 写路径白名单保险——云端抓取只允许写 news.json 这一个数据文件,
+# 防止脚本出错/路径被改时误写 travel/ media/ chess/ 等其他版块文件
+ALLOWED_WRITE_PATHS = {"news.json"}
+
+def _assert_write_path(path):
+    """v9.14: 只允许写白名单内文件, 其他路径一律拒绝(防误伤其他版块)"""
+    if path not in ALLOWED_WRITE_PATHS:
+        raise RuntimeError(
+            f"write path blocked by whitelist: {path!r} "
+            f"(only {sorted(ALLOWED_WRITE_PATHS)} allowed)")
+
 CST = timezone(timedelta(hours=8))
 MIN_BODY = 80        # RSS导语最小长度
 MAX_BODY = 8000      # 原文全文保留上限(Edge右键翻译, 不翻译了)
@@ -639,7 +651,9 @@ def gitee_get():
 
 def github_put(data):
     """v9.6: 同步写 news.json 到 GitHub 仓库根。网页版(Pages)从 GitHub raw 读数据,
-       绕开 Gitee 匿名 API 401 风控(2026-09-23 起 Gitee 匿名读开始返回401)。"""
+       绕开 Gitee 匿名 API 401 风控(2026-09-23 起 Gitee 匿名读开始返回401)。
+       v9.14: 入口白名单校验, 只允许写 news.json"""
+    _assert_write_path("news.json")
     tok = os.environ.get("GITHUB_TOKEN")
     if not tok:
         print("no GITHUB_TOKEN, skip github sync")
@@ -673,6 +687,8 @@ def github_put(data):
 def gitee_put(data, sha, tries=2):
     # v9.5: 上传超时修复——①PUT超时90s ②超时/URLError也重试(之前只重试HTTP 400/409/404,
     #       超时异常直接raise导致云端每轮UPLOAD ERR却显示success, 数据卡住不更新)
+    # v9.14: 入口白名单校验, 只允许写 news.json
+    _assert_write_path(GITEE_PATH)
     for i in range(tries):
         url_get = (f"https://gitee.com/api/v5/repos/{GITEE_OWNER}/{GITEE_REPO}/contents/{GITEE_PATH}"
                    f"?ref=master&access_token={GITEE_TOKEN}")
@@ -708,7 +724,8 @@ def gitee_put(data, sha, tries=2):
 
 
 def gitee_put_phone(data):
-    """v8.1: 手机端 news.json = 最新50条"""
+    """v8.1: 手机端 news.json = 最新50条; v9.14: 入口白名单校验"""
+    _assert_write_path("news.json")
     url_get = (f"https://gitee.com/api/v5/repos/{GITEE_OWNER}/{GITEE_REPO}/contents/news.json"
                f"?ref=master&access_token={GITEE_TOKEN}")
     sha = None
