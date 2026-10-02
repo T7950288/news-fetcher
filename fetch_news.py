@@ -157,9 +157,12 @@ SOURCE_RANK = {
 }
 
 # v6 用户指定: 不要五国媒体, 30条全部照搬 Google News 当时主热榜(Top Stories), 不做喜好挑选
+# v9.18: 热榜RSS只返回最近~14h条目, 36h窗口形同虚设; 搜索RSS加 when=2d 参数拉回48h内新闻,
+#        另增 GOOGLE_WORLD 搜索源补充更早国际新闻 —— 时间跨度才能真正到36h
 FEEDS = [
     ("https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en", "GOOGLE_TOP", "US", "world", True),
-    ("https://news.google.com/rss/search?q=China&hl=en-US&gl=US&ceid=US:en", "GOOGLE_CHINA", "CN", "world", True),
+    ("https://news.google.com/rss/search?q=China&hl=en-US&gl=US&ceid=US:en&when=2d", "GOOGLE_CHINA", "CN", "world", True),
+    ("https://news.google.com/rss/search?q=world&hl=en-US&gl=US&ceid=US:en&when=2d", "GOOGLE_WORLD", "US", "world", True),
 ]
 
 # Google热门源: 真实媒体名 -> 国家
@@ -570,6 +573,8 @@ def fetch_one(url, source, country, hint, is_google=False):
     arts = []
     is_china = source == "GOOGLE_CHINA"
     max_per = 30  # v6 照搬当时热榜前30
+    if is_google and source in ("GOOGLE_CHINA", "GOOGLE_WORLD"):
+        max_per = 60  # v9.18: 搜索源加when=2d后条目变多, 放宽取回上限以覆盖更早新闻
     urls = url if isinstance(url, list) else [url]
     content = None
     now = datetime.now(CST)
@@ -1378,7 +1383,7 @@ def main():
     main_list = [a for a in uniq if not a.get("_china")]
     recent_main = [a for a in main_list
                    if 0 <= (now - datetime.fromisoformat(a["published_at"])).total_seconds() < 129600]
-    recent_main = pick_news(recent_main, TARGET)
+    # v9.18: 不再截断到TARGET=42 —— 36h窗口内全部保留(uniq已按时间倒序), 让旧条目真正进入列表
     recent_china = [a for a in china_list
                     if 0 <= (now - datetime.fromisoformat(a["published_at"])).total_seconds() < 129600]
     # 中国相关: 保持Google搜索排序取前6; 与主榜重复标题跳过
@@ -1426,8 +1431,9 @@ def main():
             a["content_zh"] = ""
             a["summary_zh"] = ""
             a["translate_by"] = "none"
-    MAX_TOTAL = 100  # v8: 网页第1页最新50条 + 第2页被覆盖旧闻50条
-    merged2 = recent[:TARGET + len(recent_china)]  # 本轮 42+8 = 50 条
+    MAX_TOTAL = 250  # v9.18: 100->250 —— 36h内按~6.6条/h约有240条, 100上限会把旧条目挤掉; 250才装得下36h窗口
+    # v9.18: 不再只取前50条 —— 36h窗口内本轮条目全部保留(时间倒序), 旧条目(24-36h前)不再被截断丢弃
+    merged2 = recent[:MAX_TOTAL]  # v9.18: 36h窗口内全部保留到上限
     # 36h内被覆盖的旧条目(有正文即可), 按时间倒序补位到最多100条 —— 翻译取消后不再限已翻译
     # v9.9: 补位同标题只留一条(杜绝"大熊猫"式重复堆积) + 正文<200字的一句话式丢弃
     # v9.13: 时间窗口 24h -> 36h (用户要求, 条数从34回升)
