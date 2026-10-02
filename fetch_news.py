@@ -604,6 +604,20 @@ def fetch_one(url, source, country, hint, is_google=False):
     except Exception as e:
         print(f"  {source}: PARSE ERR {str(e)[:60]}")
         return arts
+    # v9.21诊断: 记录源实际返回条目数与时间范围, 验证36h窗口为何不足
+    if is_google:
+        _raw_entries = list(d.entries)
+        _pubs = []
+        for _e in _raw_entries:
+            for _k in ("published_parsed", "updated_parsed"):
+                _t = getattr(_e, _k, None)
+                if _t:
+                    _pubs.append(datetime(*_t[:6], tzinfo=timezone.utc).astimezone(CST).isoformat())
+                    break
+        if _pubs:
+            DIAG["src_" + source + "_n"] = len(_raw_entries)
+            DIAG["src_" + source + "_oldest"] = min(_pubs)
+            DIAG["src_" + source + "_newest"] = max(_pubs)
     lang = COUNTRY_LANG.get(country, "en")
     for e in d.entries[:max_per]:
         title, media = clean_gn_title(getattr(e, "title", ""))
@@ -1488,7 +1502,8 @@ def main():
         print(f"一句话式裁剪: {len(short)} -> 5 条")
     print("MERGED country", dict(_C(a["country"] for a in merged2)))
     print("MERGED ai", sum(1 for a in merged2 if a.get("translate_by") == "ai"))
-    new_data = {"version": "1.0", "updated_at": now.isoformat(), "articles": merged2}
+    new_data = {"version": "1.0", "updated_at": now.isoformat(), "articles": merged2,
+                "diag": {k: v for k, v in DIAG.items() if k.startswith("src_")}}
     # v9.7: GitHub 是权威数据源(网页读 raw), 必须成功; Gitee 尽力写, 快失败不拖时间
     gh_ok = False
     try:
