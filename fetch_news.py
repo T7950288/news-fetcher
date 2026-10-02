@@ -333,6 +333,9 @@ SPORT_SKIP_WORDS = [
     "red sox", "yankees", "dodgers", "celtics", "lakers", "steelers", "browns",
     "cowboys", "49ers", "seahawks",
     "new show",
+    # v9.16: 补漏——拳击/格斗(赛事)、事故类社会新闻
+    "boxing", "fight confirmed", "title fight", "heavyweight bout", "mma",
+    "ufc", "knockout", "sinks yacht", "yacht sinks", "yacht capsized", "whale sinks",
     "boyfriend", "girlfriend", "fiance", "fiancee", "red carpet", "met gala",
     "grammy", "oscars", "emmys", "reality show", "tiktok star", "netflix series",
     "movie trailer", "box office", "chart-topping", "billion views", "music video",
