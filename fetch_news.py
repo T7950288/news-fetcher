@@ -672,6 +672,10 @@ def fetch_one(url, source, country, hint, is_google=False):
         else:
             cat, weight = cls
         min_body = 30 if country == "JP" else MIN_BODY
+        if is_google:
+            # v9.23: 谷歌源导语普遍短(尤其旧条目只有一句话), 80字门槛会砍掉36h内的旧新闻;
+            # 放宽到标题即可保留(正文靠后续enrich全文抓取补全, 无正文的再由一句话式裁剪兜底)
+            min_body = 8
         if len(desc) < min_body:
             DIAG["fetch_short"] = DIAG.get("fetch_short", 0) + 1
             continue
@@ -1514,10 +1518,12 @@ def main():
     # v9.11: 中国相关一句话式一律不入库(宁缺毋滥), 非中国相关一句话式全库≤5条
     merged2 = [a for a in merged2 if not (a.get("_china") and len((a.get("content_orig") or "").strip()) < 200)]
     short = [a for a in merged2 if len((a.get("content_orig") or "").strip()) < 200]
-    if len(short) > 5:
-        keep_ids = {a["id"] for a in sorted(short, key=lambda x: x.get("published_at", ""), reverse=True)[:5]}
+    # v9.23: 一句话式上限5->100 —— 谷歌旧条目(24-36h前)导语短属常态, 5条上限会把它们裁光,
+    # 导致36h窗口无法兑现; 放宽到100让旧条目保留(标题+导语仍可读)
+    if len(short) > 100:
+        keep_ids = {a["id"] for a in sorted(short, key=lambda x: x.get("published_at", ""), reverse=True)[:100]}
         merged2 = [a for a in merged2 if a["id"] not in {b["id"] for b in short} or a["id"] in keep_ids]
-        print(f"一句话式裁剪: {len(short)} -> 5 条")
+        print(f"一句话式裁剪: {len(short)} -> 100 条")
     print("MERGED country", dict(_C(a["country"] for a in merged2)))
     print("MERGED ai", sum(1 for a in merged2 if a.get("translate_by") == "ai"))
     new_data = {"version": "1.0", "updated_at": now.isoformat(), "articles": merged2,
