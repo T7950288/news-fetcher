@@ -574,6 +574,8 @@ def fetch_one(url, source, country, hint, is_google=False):
     arts = []
     is_china = source == "GOOGLE_CHINA"
     max_per = 30  # v6 照搬当时热榜前30
+    if is_google and source == "GOOGLE_TOP":
+        max_per = 200  # v9.24: 热榜源实际返回~38条含10-01 03:32的更早条目, 30截断把36h窗口内的旧条目砍掉; 放开
     if is_google and source in ("GOOGLE_CHINA", "GOOGLE_WORLD"):
         max_per = 200  # v9.20: when=7d搜索源按相关度排序, 前60条仍只覆盖~20h; 放宽到200拿回36h内旧条目
     urls = url if isinstance(url, list) else [url]
