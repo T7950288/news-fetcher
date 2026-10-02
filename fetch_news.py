@@ -660,17 +660,20 @@ def fetch_one(url, source, country, hint, is_google=False):
         # v9.15: 谷歌热榜也执行无聊过滤(之前 is_google 直接跳过, 体育娱乐漏网)。
         # 仍保留"判不出类别照搬"的v6宽松逻辑在下方(只过滤, 不挑媒体)
         if skip_news(title, desc, lang, link, media):
+            DIAG["fetch_skip_news"] = DIAG.get("fetch_skip_news", 0) + 1
             continue
         cls = classify(title, desc, lang, hint)
         if cls is None:
             if is_google:
                 cat, weight = "general", 5  # v6 全收: 判不出类别也照搬
             else:
+                DIAG["fetch_uncls"] = DIAG.get("fetch_uncls", 0) + 1
                 continue
         else:
             cat, weight = cls
         min_body = 30 if country == "JP" else MIN_BODY
         if len(desc) < min_body:
+            DIAG["fetch_short"] = DIAG.get("fetch_short", 0) + 1
             continue
         pub = None
         for k in ("published_parsed", "updated_parsed"):
@@ -705,6 +708,11 @@ def fetch_one(url, source, country, hint, is_google=False):
             "_src_links": _links if is_google else [],
         })
     print(f"  {source}: {len(arts)} ok")
+    if is_google and arts:
+        _p = [a["published_at"] for a in arts]
+        DIAG["arts_" + source + "_n"] = len(_p)
+        DIAG["arts_" + source + "_oldest"] = min(_p)
+        DIAG["arts_" + source + "_newest"] = max(_p)
     return arts
 
 
@@ -1279,6 +1287,11 @@ def main():
             best[key] = a
     uniq = sorted(best.values(), key=lambda x: x["published_at"], reverse=True)
     _log(f"unique {len(uniq)}")
+    if uniq:
+        _p = [a["published_at"] for a in uniq]
+        DIAG["uniq_n"] = len(_p)
+        DIAG["uniq_oldest"] = min(_p)
+        DIAG["uniq_newest"] = max(_p)
 
     # 全文抓取(去重后量小, 10线程并行 v9.8)
     _log("fetching full text...")
@@ -1411,6 +1424,11 @@ def main():
           dict(_C(a["country"] for a in recent)))
     print("picked cat", dict(_C(a["category"] for a in recent)))
     print("picked full", sum(1 for a in recent if a.get("_full")))
+    if recent_main:
+        _p = [a["published_at"] for a in recent_main]
+        DIAG["recent_main_n"] = len(_p)
+        DIAG["recent_main_oldest"] = min(_p)
+        DIAG["recent_main_newest"] = max(_p)
 
     try:
         old, sha = gitee_get()
@@ -1503,7 +1521,7 @@ def main():
     print("MERGED country", dict(_C(a["country"] for a in merged2)))
     print("MERGED ai", sum(1 for a in merged2 if a.get("translate_by") == "ai"))
     new_data = {"version": "1.0", "updated_at": now.isoformat(), "articles": merged2,
-                "diag": {k: v for k, v in DIAG.items() if k.startswith("src_")}}
+                "diag": {k: v for k, v in DIAG.items() if k.startswith(("src_", "arts_", "uniq_", "recent_", "fetch_"))}}
     # v9.7: GitHub 是权威数据源(网页读 raw), 必须成功; Gitee 尽力写, 快失败不拖时间
     gh_ok = False
     try:
