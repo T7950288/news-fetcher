@@ -157,12 +157,13 @@ SOURCE_RANK = {
 }
 
 # v6 用户指定: 不要五国媒体, 30条全部照搬 Google News 当时主热榜(Top Stories), 不做喜好挑选
-# v9.18: 热榜RSS只返回最近~14h条目, 36h窗口形同虚设; 搜索RSS加 when=2d 参数拉回48h内新闻,
-#        另增 GOOGLE_WORLD 搜索源补充更早国际新闻 —— 时间跨度才能真正到36h
+# v9.18: 热榜RSS只返回最近~14h条目, 36h窗口形同虚设; 搜索RSS加 when=7d 参数拉回更早新闻,
+#        再靠脚本内 129600s(36h) 过滤裁出正好36h窗口 —— 时间跨度才能真正到36h
+#        (Google News RSS 的 when 支持 1h/1d/7d/30d, 不支持 2d, 用7d最稳)
 FEEDS = [
     ("https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en", "GOOGLE_TOP", "US", "world", True),
-    ("https://news.google.com/rss/search?q=China&hl=en-US&gl=US&ceid=US:en&when=2d", "GOOGLE_CHINA", "CN", "world", True),
-    ("https://news.google.com/rss/search?q=world&hl=en-US&gl=US&ceid=US:en&when=2d", "GOOGLE_WORLD", "US", "world", True),
+    ("https://news.google.com/rss/search?q=China&hl=en-US&gl=US&ceid=US:en&when=7d", "GOOGLE_CHINA", "CN", "world", True),
+    ("https://news.google.com/rss/search?q=world&hl=en-US&gl=US&ceid=US:en&when=7d", "GOOGLE_WORLD", "US", "world", True),
 ]
 
 # Google热门源: 真实媒体名 -> 国家
