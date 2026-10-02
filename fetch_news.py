@@ -1290,10 +1290,10 @@ def main():
     china_list = [a for a in uniq if a.get("_china")]
     main_list = [a for a in uniq if not a.get("_china")]
     recent_main = [a for a in main_list
-                   if 0 <= (now - datetime.fromisoformat(a["published_at"])).total_seconds() < 86400]
+                   if 0 <= (now - datetime.fromisoformat(a["published_at"])).total_seconds() < 129600]
     recent_main = pick_news(recent_main, TARGET)
     recent_china = [a for a in china_list
-                    if 0 <= (now - datetime.fromisoformat(a["published_at"])).total_seconds() < 86400]
+                    if 0 <= (now - datetime.fromisoformat(a["published_at"])).total_seconds() < 129600]
     # 中国相关: 保持Google搜索排序取前6; 与主榜重复标题跳过
     main_keys = {re.sub(r"\W+", "", a["title_orig"].lower())[:60] for a in recent_main}
     recent_china = [a for a in recent_china
@@ -1333,8 +1333,9 @@ def main():
             a["translate_by"] = "none"
     MAX_TOTAL = 100  # v8: 网页第1页最新50条 + 第2页被覆盖旧闻50条
     merged2 = recent[:TARGET + len(recent_china)]  # 本轮 42+8 = 50 条
-    # 24h内被覆盖的旧条目(有正文即可), 按时间倒序补位到最多100条 —— 翻译取消后不再限已翻译
+    # 36h内被覆盖的旧条目(有正文即可), 按时间倒序补位到最多100条 —— 翻译取消后不再限已翻译
     # v9.9: 补位同标题只留一条(杜绝"大熊猫"式重复堆积) + 正文<200字的一句话式丢弃
+    # v9.13: 时间窗口 24h -> 36h (用户要求, 条数从34回升)
     have = {a["id"] for a in merged2}
     seen_t = set()
     for a in merged2:
@@ -1352,7 +1353,7 @@ def main():
         seen_t.add(k)
         merged2.append(a)
     merged2 = [a for a in merged2
-               if 0 <= (now - datetime.fromisoformat(a["published_at"])).total_seconds() < 86400]
+               if 0 <= (now - datetime.fromisoformat(a["published_at"])).total_seconds() < 129600]
     merged2 = merged2[:MAX_TOTAL]
     # v9.12: 事件级去重——同一事件(标题核心词重叠≥3词且占较短者≥50%)只留最新一条
     _STOP = set("a an the of to in on for with and or at from by about as is are was were be has have had this that it its over into amid after before amid said says say will would could should can may might".split())
