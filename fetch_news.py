@@ -163,17 +163,35 @@ FEEDS = [
 ]
 
 # Google热门源: 真实媒体名 -> 国家
+# v9.15: 新增大量体育/娱乐媒体(之前定义后未启用, 且列表不全)。
+# 注意: 科技媒体(the verge/wired/engadget/gizmodo等)不放黑名单——用户要科技新闻, 靠标题词过滤即可
 GOOGLE_SKIP_SOURCES = {
     "game informer", "eurogamer", "ign", "kotaku", "polygon", "gamerant",
     "vogue", "elle", "cosmopolitan", "tmz", "people", "us weekly",
     "e! online", "hollywood reporter", "variety", "deadline",
     "mirror", "the sun", "daily star", "metro", "ok! magazine", "gq",
     "marie claire", "glamour", "refinery29", "buzzfeed", "mashable",
-    "the verge", "wired", "techcrunch", "engadget", "arstechnica",
     "motorsport.com", "espn", "sky sports", "formula 1", "f1", "bleacher report",
     "sporting news", "the athletic", "sports illustrated", "talksport",
-    "cnet", "gizmodo", "toms hardware", "pc gamer", "digital trends",
     "screen rant", "comicbook", "cinemablend", "gamingbolt",
+    # v9.15 补充: 体育
+    "profootballrumors", "nfl", "nba", "mlb", "nhl", "cbs sports", "fox sports",
+    "nbc sports", "sportsnaut", "yardbarker", "the score", "heavy sports",
+    "clutchpoints", "sportskeeda", "sporting", "fansided", "draftkings",
+    "fantasy football", "rotoworld", "rotowire", "247sports", "on3",
+    "mma fighting", "ufc", "wrestling", "wwe", "boxing",
+    "racing news", "autosport", "cyclingnews", "golf digest", "golfweek",
+    "yahoo sports", "masslive", "profootballnetwork", "pff", "the ringer",
+    "fansided", "sporting news", "nbc sports",
+    # v9.15 补充: 娱乐八卦
+    "e! news", "eonline", "usmagazine", "pagesix", "page six", "just jared", "justjared",
+    "dailymail entertainment", "people.com", "etonline", "the list", "sheknows",
+    "celebrit", "gossip", "radaronline", "the blast", "taste of country",
+    "billboard", "rolling stone", "pitchfork", "spin", "hollywoodlife",
+    "tvline", "entertainment weekly", "ew.com", "the wrap", "movieweb",
+    "collider", "slashfilm", "indiewire", "thecut", "refinery", "huffpost",
+    "the mashable", "nylon", "paper mag", "the shade room", "allure",
+    "instyle", "teen vogue", "brides", "the knot", "dlisted",
 }
 
 GOOGLE_COUNTRY = {
@@ -279,7 +297,7 @@ DISASTER_KEYS = [
 SKIP_KEYS = {
     "en": ["weather", "cloudy", "sunny", "forecast", "motorway", "road closure",
            "football", "soccer", "basketball", "tennis", "golf", "cricket", "rugby",
-           "premier league", "champions league", "match", "game result", "score",
+           "premier league", "champions league", "game result",
            "celebrity", "actor", "actress", "movie", "film", "singer", "concert",
            "hollywood", "entertainment", "taylor swift", "tv ratings", "shopping",
            "collagen", "discount code", "penis", "ufo", "alien", "nepo baby",
@@ -301,6 +319,27 @@ SKIP_KEYS = {
            "占い", "ペット", "殺人", "強盗", "交通", "天気予報"],
 }
 
+# v9.15: 体育/娱乐专有词——用词边界匹配, 防子串误伤(inflation含nfl、child marriage含marriage等)。
+# 易误伤泛词(match/score/marriage/dead at/heat/cardinals等)不在此列, 交由媒体黑名单GOOGLE_SKIP_SOURCES兜底。
+SPORT_SKIP_WORDS = [
+    "nfl", "nba", "mlb", "nhl", "wnba", "ncaa", "super bowl", "playoffs",
+    "touchdown", "quarterback", "linebacker", "wide receiver", "fumble",
+    "thursday night football", "sunday night football", "monday night football",
+    "world series", "march madness", "college football", "fantasy football",
+    "nfl draft", "free agency", "draft pick", "trade rumors", "power rankings",
+    "game preview", "game recap", "box score", "starting lineup",
+    "messi", "ronaldo", "lebron", "curry", "durant", "ohtani",
+    # v9.15: 无歧义球队名(易误伤词如 cardinals/saints/patriots/chiefs/heat/packers/raiders 不放, 靠媒体黑名单兜底)
+    "red sox", "yankees", "dodgers", "celtics", "lakers", "steelers", "browns",
+    "cowboys", "49ers", "seahawks",
+    "new show",
+    "boyfriend", "girlfriend", "fiance", "fiancee", "red carpet", "met gala",
+    "grammy", "oscars", "emmys", "reality show", "tiktok star", "netflix series",
+    "movie trailer", "box office", "chart-topping", "billion views", "music video",
+    "influencer", "album release", "music festival", "celebrity breakup",
+    "celebrity couple", "royal family", "royal wedding",
+]
+
 
 SKIP_URL_PARTS = [
     "/kultur/", "/panorama/", "/vermischtes/", "/tvshowbiz/", "/femail/", "/sport",
@@ -312,10 +351,20 @@ SKIP_URL_PARTS = [
 ]
 
 
-def skip_news(title, desc, lang, url=""):
+def skip_news(title, desc, lang, url="", media=""):
     t = (title + " " + desc).lower()
     if any(k in t for k in DISASTER_KEYS):
         return False  # 重大灾难保留
+    # v9.15: 谷歌热榜媒体黑名单——体育/娱乐媒体直接丢弃(espn, profootballrumors, E! News等)
+    if media:
+        m = media.lower()
+        for skip_m in GOOGLE_SKIP_SOURCES:
+            if skip_m in m:
+                return True
+    # v9.15: 体育/娱乐专有词——词边界匹配, 防 "inflation" 误中 "nfl"、"child marriage" 误中 "marriage"
+    for w in SPORT_SKIP_WORDS:
+        if re.search(r"(?<![a-z0-9])" + re.escape(w) + r"(?![a-z0-9])", t):
+            return True
     u = (url or "").lower()
     for part in SKIP_URL_PARTS:
         if part in u:
@@ -585,7 +634,9 @@ def fetch_one(url, source, country, hint, is_google=False):
                     desc = full
                 if len(desc) >= 300:
                     break
-        if not is_google and skip_news(title, desc, lang, link):
+        # v9.15: 谷歌热榜也执行无聊过滤(之前 is_google 直接跳过, 体育娱乐漏网)。
+        # 仍保留"判不出类别照搬"的v6宽松逻辑在下方(只过滤, 不挑媒体)
+        if skip_news(title, desc, lang, link, media):
             continue
         cls = classify(title, desc, lang, hint)
         if cls is None:
