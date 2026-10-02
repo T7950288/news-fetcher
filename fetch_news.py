@@ -700,6 +700,22 @@ def gitee_get():
     raise RuntimeError("no gitee file available")
 
 
+def github_get():
+    """v9.16: gitee 历史读取失败时的回退源——GitHub 仓库自己的 news.json。
+    网页版(Pages)本就以 GitHub raw 为权威数据源, 用它做历史补位同样可靠。"""
+    tok = os.environ.get("GITHUB_TOKEN")
+    if not tok:
+        raise RuntimeError("no GITHUB_TOKEN")
+    h = {"Authorization": "Bearer " + tok, "Accept": "application/vnd.github+json",
+         "User-Agent": "x", "Content-Type": "application/json"}
+    url = "https://api.github.com/repos/T7950288/news-fetcher/contents/news.json"
+    req = urllib.request.Request(url, headers=h)
+    with urllib.request.urlopen(req, timeout=20) as r:
+        info = json.loads(r.read())
+    data = json.loads(base64.b64decode(info["content"]).decode("utf-8"))
+    return data, info["sha"]
+
+
 def github_put(data):
     """v9.6: 同步写 news.json 到 GitHub 仓库根。网页版(Pages)从 GitHub raw 读数据,
        绕开 Gitee 匿名 API 401 风控(2026-09-23 起 Gitee 匿名读开始返回401)。
@@ -1377,7 +1393,15 @@ def main():
         old, sha = gitee_get()
     except Exception as e:
         print("GITEE GET ERR", e)
-        old, sha = {"articles": []}, None
+        old, sha = None, None
+    # v9.16: gitee 历史读取失败时回退到 GitHub(自己仓库的 news.json), 保证条数靠历史补位不暴跌
+    if old is None:
+        try:
+            old, sha = github_get()
+            print(f"GITHUB fallback history OK {len(old.get('articles', []))} 条")
+        except Exception as e:
+            print("GITHUB GET ERR", e)
+            old, sha = {"articles": []}, None
 
     old_ids = {a["id"] for a in old["articles"]}
     # v6: 全部照搬Google热榜, 旧库全部有正文条目进 old_by_id, 同id带翻译不重复翻
@@ -1418,6 +1442,10 @@ def main():
             continue  # 同标题只留一条
         if len((a.get("content_orig") or "").strip()) < 200:
             continue  # 一句话式/无正文的丢弃
+        # v9.16: 历史补位同样过无聊过滤——否则旧体育/娱乐条目(如 NFL/名人八卦)借补位回流
+        if skip_news(a.get("title_orig") or "", a.get("content_orig") or "",
+                     a.get("_lang", "en"), a.get("url", ""), a.get("source", "")):
+            continue
         seen_t.add(k)
         merged2.append(a)
     merged2 = [a for a in merged2
