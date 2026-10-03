@@ -155,10 +155,10 @@ async function fetchJson(u,isGitee,apiRaw){
   }catch(e){clearTimeout(timer);throw e;}
 }
 async function fetchData(){
-  // v9.25: 不再"谁先返回用谁"(gitee国内快总是先到, 但其数据可能滞后于GitHub权威源),
-  // 改为并行拉取全部源, 取 updated_at 最新的那份 —— 保证点"更新"拿到的是最新数据
+  // v9.34: 并行拉取全部源, 取 updated_at 最新且不旧于本地已显示的——gitee源已停更,
+  // 若GitHub源在弱网下失败、只有gitee成功, 不得用旧数据回退页面(用户会看到时间倒退)
   const ctrl=new AbortController();
-  const timer=setTimeout(()=>ctrl.abort(),15000);
+  const timer=setTimeout(()=>ctrl.abort(),20000);
   const results=await Promise.allSettled([
     fetchJson(GITEE_API,true),
     fetchJson(NEWS_SOURCES[0],false),
@@ -166,9 +166,12 @@ async function fetchData(){
   ]);
   clearTimeout(timer);
   let best=null;
+  const floor=lastUpdatedAt?new Date(lastUpdatedAt).getTime()-3600000:0; // 允许比已显示旧1小时内的源参与比较
   for(const r of results){
     if(r.status==="fulfilled"&&r.value&&r.value.updated_at){
-      if(!best||r.value.updated_at>best.updated_at)best=r.value;
+      const t=new Date(r.value.updated_at).getTime();
+      if(t<floor)continue; // 明显旧于本地(>1h)的源跳过, 防回退
+      if(!best||t>new Date(best.updated_at).getTime())best=r.value;
     }
   }
   if(!best)throw new Error("所有数据源均失败");
@@ -210,17 +213,21 @@ async function initNews(){
   try{cached=JSON.parse(localStorage.getItem(CACHE_KEY)||"null");}catch(e){}
   if(cached&&cached.updated_at&&Array.isArray(cached.items)&&cached.items.length){
     lastUpdatedAt=cached.updated_at;ALL=cached.items;
-    document.getElementById("meta").textContent="共 "+ALL.length+" 条 · 更新于 "+cached.updated_at.replace("T"," ").replace(/\+.*/,"")+"（正在后台刷新…）";
+    document.getElementById("meta").textContent="共 "+ALL.length+" 条 · 更新于 "+cached.updated_at.replace("T"," ").replace(/\+.*/,"")+"（正在刷新…）";
     renderList();
   }else{
     document.getElementById("meta").textContent="正在加载新闻…";
   }
+  // v9.34: 首次加载优先走无CDN缓存的GitHub API raw源——手机/切后台场景下,
+  // GitHub Pages CDN可能仍缓存旧版, 用API源确保一进来就是最新
   try{
-    const d=await fetchData();
+    const d=await fetchDataApi();
     showData(d);
-  }catch(e){
-    if(!(cached&&cached.updated_at&&Array.isArray(cached.items)&&cached.items.length)){
-      document.getElementById("meta").textContent="加载失败："+e.message;
+  }catch(e1){
+    try{const d=await fetchData();showData(d);}catch(e2){
+      if(!(cached&&cached.updated_at&&Array.isArray(cached.items)&&cached.items.length)){
+        document.getElementById("meta").textContent="加载失败："+(e2.message||e1.message);
+      }
     }
   }
 }
@@ -409,6 +416,19 @@ async function autoRefresh5(){
 initNews();
 setInterval(autoCheck,30000);
 setInterval(autoRefresh5,300000);
+// v9.34: 手机浏览器切后台会冻结定时器, 回到前台不自动刷新 → 显式监听, 立即拉最新
+document.addEventListener("visibilitychange",()=>{
+  if(document.visibilityState==="visible"){
+    autoCheck();
+    autoRefresh5();
+  }
+});
+window.addEventListener("pageshow",(e)=>{
+  if(e.persisted||document.visibilityState==="visible"){
+    autoCheck();
+  }
+});
+document.addEventListener("focus",()=>{autoCheck();});
 
 /* 回到顶部：滚动超600px显示 */
 function updateTopBtn(){
