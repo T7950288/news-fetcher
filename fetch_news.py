@@ -455,6 +455,15 @@ PAYWALL_MARKERS = [
     "um spiegel+ außerhalb",
     "subscribe to read", "log in to read", "sign in to continue",
     "get full access", "you must be logged in",
+    # v9.26: FT等订阅广告页文案(付费墙检测漏网, 广告被当正文)
+    "save now on essential digital access",
+    "trusted ft journalism",
+    "cancel anytime during your trial",
+    "check whether you already have access",
+    "annualised monthly price",
+    "complete digital access with exclusive insights",
+    "digitised print replica",
+    "enter your postcode to confirm delivery",
 ]
 
 
