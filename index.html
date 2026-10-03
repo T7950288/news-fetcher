@@ -361,10 +361,42 @@ function openDetail(i){
 function closeModal(){document.getElementById("modal").classList.remove("show");window.scrollTo(0,savedScrollY);}
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal();});
 
+// v9.33: 自动兜底触发——GitHub定时触发器有平台级中断(官方best-effort), 页面开着时若数据
+// 超过AUTO_STALE_MIN分钟未更新、本地有令牌, 自动dispatch一次云端抓取, 防长时间停更。
+// 每AUTO_STALE_MIN最多自动触发一次(用localStorage记上次自动触发时间, 避免与正常定时/手动冲突)。
+const AUTO_STALE_MIN=20;
+const AUTO_KEY="gh_news_auto_dispatch_at";
+async function maybeAutoDispatch(){
+  if(document.getElementById("refreshBtn").disabled)return;           // 正在手动触发中, 跳过
+  const token=getStoredToken();
+  if(!token)return;                                                   // 没令牌无法自动触发
+  if(!lastUpdatedAt)return;                                           // 尚无数据基准
+  const ageMin=(Date.now()-new Date(lastUpdatedAt).getTime())/60000;
+  if(ageMin<AUTO_STALE_MIN)return;                                    // 数据还新鲜, 无需触发
+  let lastAuto=0;
+  try{lastAuto=parseInt(localStorage.getItem(AUTO_KEY)||"0",10)||0;}catch(e){}
+  if(Date.now()-lastAuto<AUTO_STALE_MIN*60000)return;                 // 20分钟内已自动触发过, 防死循环
+  try{localStorage.setItem(AUTO_KEY,String(Date.now()));}catch(e){}
+  try{
+    await fetch(DISPATCH_URL,{
+      method:"POST",
+      headers:{
+        "Authorization":"Bearer "+token,
+        "Accept":"application/vnd.github+json",
+        "X-GitHub-Api-Version":"2022-11-28",
+        "Content-Type":"application/json"
+      },
+      body:JSON.stringify({ref:"main"})
+    });
+    const meta=document.getElementById("meta");
+    meta.textContent=(meta.textContent.split(" · ")[0])+" · 检测到长时间未更新，已自动触发云端抓取（预计5~8分钟更新）";
+  }catch(e){}
+}
 async function autoCheck(){
   const m=document.getElementById("modal");
   if(m&&m.classList.contains("show"))return;
   try{const d=await fetchDataQuiet();if(d.updated_at&&d.updated_at!==lastUpdatedAt){const y=window.scrollY;showData(d);window.scrollTo(0,y);}}catch(e){}
+  maybeAutoDispatch();
 }
 async function autoRefresh5(){
   const m=document.getElementById("modal");
