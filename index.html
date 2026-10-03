@@ -127,6 +127,9 @@ const NEWS_SOURCES=[
   "https://t7950288.github.io/news-fetcher/news.json",
   "https://raw.githubusercontent.com/T7950288/news-fetcher/main/news.json"
 ];
+// v9.32: GitHub API raw 源(无CDN缓存, 实时返回最新)——专用于点"更新"后的轮询,
+// 绕过 GitHub Pages 约10分钟的CDN缓存(该缓存忽略query string, ?_t= 绕不过)
+const API_RAW="https://api.github.com/repos/T7950288/news-fetcher/contents/news.json";
 const CACHE_KEY="gh_news_cache_v2";
 const CATS=[["world","国际大事"],["op-ed","社论"],["finance","财经"],["tech","科技"],["general","综合"]];
 const CAT_CLS={world:"tag-world","op-ed":"tag-op-ed",finance:"tag-finance",tech:"tag-tech",general:"tag-general"};
@@ -138,10 +141,12 @@ function fmtTime(iso){var d=new Date(iso),p=function(n){return n<10?"0"+n:n;};re
 function srcName(a){return a._google?(a.source+" · Google热榜"):a.source;}
 function isSensitive(a){var t=(a.title_orig||"")+" "+(a.content_orig||"").slice(0,300);return SENS.test(t);}
 
-async function fetchJson(u,isGitee){
+async function fetchJson(u,isGitee,apiRaw){
   const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),6000);
   try{
-    const r=await fetch(u+(isGitee?"":"?_t="+Date.now()),{cache:"no-store",signal:ctrl.signal});
+    const opt={cache:"no-store",signal:ctrl.signal};
+    if(apiRaw)opt.headers={"Accept":"application/vnd.github.raw"};
+    const r=await fetch(u+(isGitee?"":"?_t="+Date.now()),opt);
     clearTimeout(timer);
     if(!r.ok)throw new Error("HTTP "+r.status);
     const j=await r.json();
@@ -170,6 +175,28 @@ async function fetchData(){
   return best;
 }
 async function fetchDataQuiet(){return await fetchData();}
+
+// v9.32: 点更新后的轮询专用 —— 加 GitHub API raw 源(无CDN缓存), 绕过 GitHub Pages 10分钟缓存,
+// 保证云端数据一写入, 页面立即能拉到新版本
+async function fetchDataApi(){
+  const ctrl=new AbortController();
+  const timer=setTimeout(()=>ctrl.abort(),15000);
+  const results=await Promise.allSettled([
+    fetchJson(API_RAW,false,true),
+    fetchJson(GITEE_API,true),
+    fetchJson(NEWS_SOURCES[0],false),
+    fetchJson(NEWS_SOURCES[1],false)
+  ]);
+  clearTimeout(timer);
+  let best=null;
+  for(const r of results){
+    if(r.status==="fulfilled"&&r.value&&r.value.updated_at){
+      if(!best||r.value.updated_at>best.updated_at)best=r.value;
+    }
+  }
+  if(!best)throw new Error("所有数据源均失败");
+  return best;
+}
 
 function showData(data){
   lastUpdatedAt=data.updated_at||"";
@@ -241,22 +268,26 @@ async function triggerCloudFetch(){
     if(r.status===204||r.status===200){
       const oldAt=lastUpdatedAt;
       meta.textContent=(meta.textContent.split(" · ")[0])+" · 已触发云端抓取，正在等待更新…";
-      // 轮询等待云端新数据(最多约3分钟), 有更新即刷新
-      for(let i=0;i<12;i++){
-        await sleepMs(15000);
+      // v9.32: 轮询窗口从3分钟延长到8分钟(24次x20s)——脚本实际跑5~8分钟, 3分钟窗口太短会错过更新;
+      // 轮询用 fetchDataApi()(含GitHub API raw源, 无CDN缓存), 数据一写入立即能拉到
+      let gotUpdated=false;
+      for(let i=0;i<24;i++){
+        await sleepMs(20000);
         try{
-          const d=await fetchData();
+          const d=await fetchDataApi();
           if(d.updated_at&&d.updated_at!==oldAt){
             showData(d);
             meta.textContent="共 "+ALL.length+" 条 · 更新于 "+(d.updated_at||"").replace("T"," ").replace(/\+.*/,"")+"（已触发云端抓取）";
-            btn.disabled=false;btn.textContent="更新";
-            return;
+            gotUpdated=true;
+            break;
           }
         }catch(e){}
       }
-      // 超时: 至少重读一次当前数据
-      try{const d=await fetchData();showData(d);}catch(e){}
-      meta.textContent+=" · 已触发，云端可能仍在处理";
+      if(!gotUpdated){
+        // 超时: 至少重读一次当前数据
+        try{const d=await fetchDataApi();showData(d);}catch(e){}
+        meta.textContent+=" · 已触发，云端可能仍在处理（最长约8分钟，页面会自动刷新）";
+      }
     }else{
       const msg=await r.text().catch(()=>"");
       meta.textContent="触发失败：HTTP "+r.status+(msg?msg.slice(0,100):"");
