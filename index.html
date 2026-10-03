@@ -105,7 +105,7 @@ header{background:#1a3a6c;color:#fff;padding:12px 20px;position:sticky;top:0;z-i
         <a class="nav-tab" data-section="chess"><span class="full">游戏</span><span class="short">游戏</span></a>
       </nav>
     </div>
-    <button class="refresh-btn" id="refreshBtn" onclick="loadNews()">更新</button>
+    <button class="refresh-btn" id="refreshBtn" onclick="triggerCloudFetch()">更新</button>
   </div>
 </header>
 <div id="homePane" class="pane active">
@@ -203,6 +203,72 @@ async function loadNews(){
   try{const d=await fetchData();showData(d);document.getElementById("meta").textContent+=" · 已更新（云端每15分钟自动抓取）";}
   catch(e){document.getElementById("meta").textContent="加载失败："+e.message;}
   finally{btn.disabled=false;btn.textContent="更新";}
+}
+
+/* v9.26: 点"更新"真正触发云端抓取 —— 用浏览器本地存储的受限令牌调用 GitHub Actions dispatch API;
+   令牌只存于用户本机浏览器(localStorage), 不进网页代码, 其他访客看不到; 该令牌仅workflow_dispatch权限,
+   即使泄露也只能触发抓取, 不能改动仓库代码与数据 */
+const DISPATCH_URL="https://api.github.com/repos/T7950288/news-fetcher/actions/workflows/fetch.yml/dispatches";
+const TOKEN_KEY="gh_news_dispatch_token";
+function getStoredToken(){
+  try{return localStorage.getItem(TOKEN_KEY)||"";}catch(e){return "";}
+}
+function setStoredToken(t){
+  try{localStorage.setItem(TOKEN_KEY,t);}catch(e){}
+}
+function sleepMs(ms){return new Promise(r=>setTimeout(r,ms));}
+async function triggerCloudFetch(){
+  const btn=document.getElementById("refreshBtn");
+  const meta=document.getElementById("meta");
+  let token=getStoredToken();
+  if(!token){
+    token=prompt("首次使用需配置触发令牌（仅保存于本浏览器，用于点更新时触发云端抓取）：\n\n请粘贴你的 GitHub 令牌。");
+    if(!token){return;}
+    setStoredToken(token);
+  }
+  btn.disabled=true;btn.textContent="正在触发云端抓取…";
+  try{
+    const r=await fetch(DISPATCH_URL,{
+      method:"POST",
+      headers:{
+        "Authorization":"Bearer "+token,
+        "Accept":"application/vnd.github+json",
+        "X-GitHub-Api-Version":"2022-11-28",
+        "Content-Type":"application/json"
+      },
+      body:JSON.stringify({ref:"main"})
+    });
+    if(r.status===204||r.status===200){
+      const oldAt=lastUpdatedAt;
+      meta.textContent=(meta.textContent.split(" · ")[0])+" · 已触发云端抓取，正在等待更新…";
+      // 轮询等待云端新数据(最多约3分钟), 有更新即刷新
+      for(let i=0;i<12;i++){
+        await sleepMs(15000);
+        try{
+          const d=await fetchData();
+          if(d.updated_at&&d.updated_at!==oldAt){
+            showData(d);
+            meta.textContent="共 "+ALL.length+" 条 · 更新于 "+(d.updated_at||"").replace("T"," ").replace(/\+.*/,"")+"（已触发云端抓取）";
+            btn.disabled=false;btn.textContent="更新";
+            return;
+          }
+        }catch(e){}
+      }
+      // 超时: 至少重读一次当前数据
+      try{const d=await fetchData();showData(d);}catch(e){}
+      meta.textContent+=" · 已触发，云端可能仍在处理";
+    }else{
+      const msg=await r.text().catch(()=>"");
+      meta.textContent="触发失败：HTTP "+r.status+(msg?msg.slice(0,100):"");
+      if(r.status===401||r.status===403){
+        try{localStorage.removeItem(TOKEN_KEY);}catch(e){}
+        meta.textContent+="（令牌无效，已清除，请重新点更新配置）";
+      }
+    }
+  }catch(e){
+    meta.textContent="触发失败："+e.message;
+  }
+  btn.disabled=false;btn.textContent="更新";
 }
 
 function heroHtml(a,cls){
