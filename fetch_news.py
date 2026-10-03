@@ -1537,6 +1537,18 @@ def main():
         print(f"一句话式裁剪: {len(short)} -> 100 条")
     print("MERGED country", dict(_C(a["country"] for a in merged2)))
     print("MERGED ai", sum(1 for a in merged2 if a.get("translate_by") == "ai"))
+    # v9.27: 空数据保护——本轮抓取全失败(如Google RSS限流/网络异常)时, 不覆盖线上已有数据
+    if len(merged2) < 10:
+        try:
+            old_d, _ = github_get()
+            old_n = len((old_d or {}).get("articles", []))
+        except Exception:
+            old_n = 0
+        if old_n > len(merged2):
+            print(f"WARNING: 本轮仅 {len(merged2)} 条 < 线上 {old_n} 条, 疑似抓取失败, 保留线上数据不覆盖")
+            sys.exit(1)
+        else:
+            print(f"WARNING: 本轮仅 {len(merged2)} 条(线上 {old_n} 条), 仍然上传")
     new_data = {"version": "1.0", "updated_at": now.isoformat(), "articles": merged2,
                 "diag": {k: v for k, v in DIAG.items() if k.startswith(("src_", "arts_", "uniq_", "recent_", "fetch_"))}}
     # v9.7: GitHub 是权威数据源(网页读 raw), 必须成功; Gitee 尽力写, 快失败不拖时间
