@@ -196,6 +196,9 @@ GOOGLE_SKIP_SOURCES = {
     "collider", "slashfilm", "indiewire", "thecut", "refinery", "huffpost",
     "the mashable", "nylon", "paper mag", "the shade room", "allure",
     "instyle", "teen vogue", "brides", "the knot", "dlisted",
+    # v9.31: 补漏——攀岩/户外/垂直类体育媒体(用户反馈"TODAY AT THE ASIAN GAMES"来自worldclimbing)
+    "worldclimbing", "climbing.com", "rockclimbing", "outdoor", "backcountry",
+    "skiamerica", "snowboarder", "freeskier", "powder",
 }
 
 GOOGLE_COUNTRY = {
@@ -345,6 +348,14 @@ SPORT_SKIP_WORDS = [
     "movie trailer", "box office", "chart-topping", "billion views", "music video",
     "influencer", "album release", "music festival", "celebrity breakup",
     "celebrity couple", "royal family", "royal wedding",
+    # v9.31: 补漏——大型综合运动会/赛事(用户反馈21:59后仍见亚运会等体育条目)
+    "asian games", "olympic", "paralympic", "world cup", "grand prix",
+    "tennis open", "championship", "tournament", "qualifying round",
+    "medal tally", "gold medal", "silver medal", "bronze medal",
+    "athlete", "marathon runner", "triathlon", "gymnastics", "weightlifting",
+    "swimming", "cycling race", "skiing", "snowboard", "skateboard",
+    "cricket world cup", "rugby world cup", "fifa", "uefa", "nba finals",
+    "playoff", "semi-final", "final score", "match report", "highlights",
 ]
 
 
@@ -960,6 +971,8 @@ SOURCE_DOMAIN = {
     "bloomberg": "bloomberg.com", "cnn": "cnn.com",
     "wsj": "wsj.com", "wall street journal": "wsj.com",
     "new york times": "nytimes.com", "npr.org": "npr.org",
+    "the times": "thetimes.com", "times of london": "thetimes.com",
+    "the economist": "economist.com", "economist": "economist.com",
 }
 
 
@@ -1043,6 +1056,8 @@ PAYWALL_DOMAINS = {
     "nytimes.com", "wsj.com", "ft.com", "bloomberg.com", "washingtonpost.com",
     "telegraph.co.uk", "scmp.com", "latimes.com", "politico.com", "axios.com",
     "businessinsider.com", "reuters.com", "apnews.com", "afp.com",
+    # v9.31: 补充——泰晤士报/经济学人(用户反馈 thetimes.com 一句话新闻"Brooklyn Brewery"漏网)
+    "thetimes.com", "thetimes.co.uk", "economist.com",
 }
 
 RSS_POOL = [
@@ -1608,6 +1623,26 @@ def main():
     merged2 = _dedup
     # v9.11: 中国相关一句话式一律不入库(宁缺毋滥), 非中国相关一句话式全库≤5条
     merged2 = [a for a in merged2 if not (a.get("_china") and len((a.get("content_orig") or "").strip()) < 200)]
+    # v9.31: 付费墙媒体的一句话新闻直接放弃——全文被付费墙挡住只剩RSS导语(如NYT/FT/泰晤士报),
+    # 标题+一句话导语无阅读价值, 用户明确要求"直接不抓"。判定依据:
+    #   ① 正文<200字 且 非_full(没抓到全文);
+    #   ② 媒体域名属付费墙黑名单(原始url域名为准; 转载宿主如yahoo.com不算付费墙)。
+    # 正文≥200字 或 _full=True 的付费墙文章(成功抓到正文)不受影响, 正常保留。
+    _pw_doms = PAYWALL_DOMAINS
+    pw_short_drop = 0
+    _merged3 = []
+    for a in merged2:
+        _co = (a.get("content_orig") or "").strip()
+        _u = (a.get("url") or "").lower()
+        _is_pw = (find_domain(_u) in _pw_doms
+                  or find_domain(a.get("source", "")) in _pw_doms
+                  or any(pd in _u for pd in _pw_doms))
+        if len(_co) < 200 and not a.get("_full") and _is_pw:
+            pw_short_drop += 1
+            continue
+        _merged3.append(a)
+    merged2 = _merged3
+    print(f"付费墙一句话丢弃: {pw_short_drop} 条")
     short = [a for a in merged2 if len((a.get("content_orig") or "").strip()) < 200]
     # v9.23: 一句话式上限5->100 —— 谷歌旧条目(24-36h前)导语短属常态, 5条上限会把它们裁光,
     # 导致36h窗口无法兑现; 放宽到100让旧条目保留(标题+导语仍可读)
