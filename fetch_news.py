@@ -802,6 +802,68 @@ def github_put(data):
         return False
 
 
+# v9.30: 备份文件定时清理——仓库根只保留最近 BACKUP_KEEP_DAYS 天的 fetch_news_backup_*/index_backup_*,
+# 更早的自动删除, 防止备份文件随版本迭代无限累积撑大仓库体积
+BACKUP_KEEP_DAYS = 3
+BACKUP_PREFIXES = ("fetch_news_backup_", "index_backup_")
+BACKUP_PROTECT = {"fetch_news.py", "index.html", "news.json", "README.md"}
+
+
+def cleanup_backups():
+    """列出仓库根目录备份文件, 删除超过 BACKUP_KEEP_DAYS 天的旧备份(每次抓取跑完后调用)。
+    只删备份文件, 绝不触碰 fetch_news.py / index.html / news.json 等正式文件。"""
+    tok = os.environ.get("GITHUB_TOKEN")
+    if not tok:
+        print("no GITHUB_TOKEN, skip backup cleanup")
+        return
+    h = {"Authorization": "Bearer " + tok, "Accept": "application/vnd.github+json",
+         "User-Agent": "x", "Content-Type": "application/json"}
+    base = "https://api.github.com/repos/T7950288/news-fetcher"
+    try:
+        req = urllib.request.Request(base + "/contents/", headers=h)
+        with urllib.request.urlopen(req, timeout=20) as r:
+            items = json.loads(r.read())
+    except Exception as e:
+        print("backup cleanup: list err", e)
+        return
+    now = datetime.now()
+    deleted = 0
+    for it in items:
+        name = it.get("name", "")
+        if it.get("type") != "file":
+            continue
+        if not (name.startswith(BACKUP_PREFIXES)):
+            continue
+        # 解析文件名日期: fetch_news_backup_YYYYMMDD... / index_backup_YYYYMMDD...
+        m = re.search(r"(\d{8})", name)
+        if not m:
+            continue
+        try:
+            fdate = datetime.strptime(m.group(1), "%Y%m%d")
+        except Exception:
+            continue
+        age = (now - fdate).days
+        if age < BACKUP_KEEP_DAYS:
+            continue
+        # 超过3天 -> 删除
+        try:
+            sha = it.get("sha")
+            req = urllib.request.Request(
+                base + "/contents/" + urllib.parse.quote(name),
+                data=json.dumps({"message": "auto cleanup old backup", "sha": sha}).encode(),
+                headers=h, method="DELETE")
+            with urllib.request.urlopen(req, timeout=30) as r:
+                r.read()
+            print("backup cleanup: deleted", name, "(age %dd)" % age)
+            deleted += 1
+        except Exception as e:
+            print("backup cleanup: del err", name, str(e)[:120])
+    if deleted:
+        print("backup cleanup: %d old backup(s) removed (keep %dd)" % (deleted, BACKUP_KEEP_DAYS))
+    else:
+        print("backup cleanup: no old backup to remove (keep %dd)" % BACKUP_KEEP_DAYS)
+
+
 def gitee_put(data, sha, tries=2):
     # v9.5: 上传超时修复——①PUT超时90s ②超时/URLError也重试(之前只重试HTTP 400/409/404,
     #       超时异常直接raise导致云端每轮UPLOAD ERR却显示success, 数据卡住不更新)
@@ -1586,6 +1648,11 @@ def main():
         sys.exit(1)
     else:
         print("ALL UPLOADS OK")
+        # v9.30: 备份文件定时清理——每次抓取成功后执行, 只留最近3天备份, 防止仓库体积无限膨胀
+        try:
+            cleanup_backups()
+        except Exception as e:
+            print("BACKUP CLEANUP ERR(ignored):", e)
         sys.exit(0)
 
 
