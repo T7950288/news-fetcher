@@ -464,6 +464,11 @@ PAYWALL_MARKERS = [
     "complete digital access with exclusive insights",
     "digitised print replica",
     "enter your postcode to confirm delivery",
+    # v9.28: FT订阅广告残渣行(剥离后仍可能残留)
+    "free access via your university",
+    "hand delivery availability",
+    "discover all the plans currently available",
+    "digital access for organisations",
 ]
 
 
@@ -1497,8 +1502,21 @@ def main():
         k = re.sub(r"\W+", "", (a.get("title_orig") or a.get("title_zh") or "").lower())[:60]
         if k in seen_t:
             continue  # 同标题只留一条
-        if len((a.get("content_orig") or "").strip()) < 200:
-            continue  # 一句话式/无正文的丢弃
+        # v9.28: 历史补位同样执行付费墙广告检测——旧条目若正文是订阅广告(如FT), 剥离广告行;
+        # 剥离后正文仍短则置空(标题+来源保留, 网页显示"无正文"), 不再显示广告
+        _is_ad = False
+        _co = a.get("content_orig") or ""
+        _low = _co.lower()
+        if any(m in _low for m in PAYWALL_MARKERS):
+            _is_ad = True
+            _keep = [ln for ln in _co.split("\n")
+                     if not any(m in ln.lower() for m in PAYWALL_MARKERS)]
+            _clean = "\n".join(_keep).strip()
+            # 剥离后剩余太少(仍为订阅残渣/无正文) -> 置空, 标题+来源保留
+            a["content_orig"] = _clean[:MAX_BODY] if len(_clean) >= 200 else ""
+            a["_full"] = False
+        if not _is_ad and len((a.get("content_orig") or "").strip()) < 200:
+            continue  # 一句话式/无正文的丢弃(仅非广告条目)
         # v9.16: 历史补位同样过无聊过滤——否则旧体育/娱乐条目(如 NFL/名人八卦)借补位回流
         if skip_news(a.get("title_orig") or "", a.get("content_orig") or "",
                      a.get("_lang", "en"), a.get("url", ""), a.get("source", "")):
