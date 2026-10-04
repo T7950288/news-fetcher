@@ -506,6 +506,56 @@ def _scrub_paywall_ad(a):
     return True
 
 
+_TITLE_STOP = set("a an the of to in on for with and or at from by about as is are was were be has have had this that it its over into amid after before amid said says say will would could should can may might".split())
+
+_GEN_WORDS = set("hundreds thousand thousands millions people years year month week day time times world part parts another same many most more first last new says said still after since while one two three amid during about later earlier recent latest".split())
+
+
+def _stem(w):
+    """轻量词干: 去常见后缀(es/s/ed/ing), 保留>=5字符词干"""
+    for suf in ("ing", "ed", "es", "s"):
+        if len(w) - len(suf) >= 5 and w.endswith(suf):
+            return w[: -len(suf)]
+    return w
+
+
+def _title_body_match(title, body, ratio=0.5):
+    """v9.36: 标题↔正文相关性校验——标题核心词(>3字符非停用词, 词干化)与正文
+    前3000字的匹配度判定。
+
+    判定规则(宽松防误伤, 只拦"完全无关"):
+      ① 标题核心词命中正文 ≥2 词 → 相关
+      ② 标题强实体词(≥5字符且非通用词, 如 China/Banks/Mekong/FlyDubai)命中
+         ≥1 词 → 相关
+      ③ 两者都不满足 → 判为错配(标题与正文无关)
+
+    背景: enrich() 全文抓取只判 len>=300, 不校验内容是否与标题相关——
+    Google链接解码/反查出错的URL(如FT标题配time.com法国抗议正文)被当全文用,
+    造成 186 条里 54 条标题正文错配。此函数用于: ①enrich候选正文相关性门槛
+    (不相关→换下一家候选); ②主流程/历史补位错配条目的正文置空(标题保留)。
+
+    说明: 词干化+全文前3000字匹配, 避免误伤正常新闻(collapses/collapsed、
+    El Niño 的 ñ、reportedly 等词形差异); "完全无关"的错配才会被拦。
+    """
+    if not title or not body:
+        return False
+    toks = []
+    for w in re.sub(r"[^a-z0-9\s]", " ", title.lower()).split():
+        if w not in _TITLE_STOP and len(w) > 3:
+            s = _stem(w)
+            if s not in toks:
+                toks.append(s)
+    if not toks:
+        return True  # 标题无可用核心词(如极短标题), 不做相关性拦截
+    head = " ".join(_stem(w) for w in re.sub(r"[^a-z0-9\s]", " ", body.lower()[:3000]).split())
+    hit = sum(1 for w in toks if w in head)
+    strong = [w for w in toks if len(w) >= 5 and w not in _GEN_WORDS]
+    hit_strong = sum(1 for w in strong if w in head)
+    if hit >= 2 or hit_strong >= 1:
+        return True
+    return False
+
+
 def _fetch_jina(url):
     """jina reader 兜底: 服务端渲染跟随重定向, 返回markdown文本; 429限流重试2次"""
     for _att in range(3):
@@ -1366,6 +1416,10 @@ def agency_full_text(a):
     ft = fetch_full_text(u, a.get("_lang", "en"))
     if not ft:
         return a
+    # v9.36: 通讯社检索同样校验标题↔正文相关性(防反查串台)
+    if not _title_body_match(a.get("title_orig") or t, ft):
+        DIAG["agency_mismatch"] = DIAG.get("agency_mismatch", 0) + 1
+        return a
     DIAG["agency_fetch_ok"] += 1
     a["content_orig"] = ft
     a["agency"] = src
@@ -1480,7 +1534,7 @@ def main():
                     cands.append((src, ux))
             for src, u in cands:
                 ft = fetch_full_text(u, lang)
-                if ft and len(ft) >= 300:
+                if ft and len(ft) >= 300 and _title_body_match(main_title, ft):
                     a["content_orig"] = ft
                     a["agency"] = src
                     a["_full"] = True
@@ -1493,7 +1547,7 @@ def main():
                 if not wu:
                     continue
                 ft = fetch_full_text(wu, lang)
-                if ft and len(ft) >= 300:
+                if ft and len(ft) >= 300 and _title_body_match(main_title, ft):
                     a["content_orig"] = ft
                     a["agency"] = src + " (wayback)"
                     a["_full"] = True
@@ -1591,6 +1645,14 @@ def main():
     # FT订阅广告页被当全文抓回(广告>200字且_full=True)绕过一句话付费墙丢弃, 直接进列表
     for _a in merged2:
         _scrub_paywall_ad(_a)
+    # v9.36: 主流程错配校验——recent条目若带正文但与标题无关(老库残留/解码串台),
+    # 置空正文保留标题; 正常正文不受影响
+    for _a in merged2:
+        if (_a.get("content_orig") or "").strip() and \
+                not _title_body_match(_a.get("title_orig") or _a.get("title_zh") or "",
+                                      _a.get("content_orig") or ""):
+            _a["content_orig"] = ""
+            _a["_full"] = False
     # 36h内被覆盖的旧条目(有正文即可), 按时间倒序补位到最多100条 —— 翻译取消后不再限已翻译
     # v9.9: 补位同标题只留一条(杜绝"大熊猫"式重复堆积) + 正文<200字的一句话式丢弃
     # v9.13: 时间窗口 24h -> 36h (用户要求, 条数从34回升)
@@ -1612,6 +1674,14 @@ def main():
         _is_ad = _scrub_paywall_ad(a)
         if not _is_ad and len((a.get("content_orig") or "").strip()) < 200:
             continue  # 一句话式/无正文的丢弃(仅非广告条目)
+        # v9.36: 历史补位同样校验标题↔正文相关性——旧条目若有正文但内容与标题
+        # 完全无关(如FT标题配time.com法国抗议正文的错配残渣), 置空正文保留标题,
+        # 防止错配内容借补位回流到列表
+        if not _is_ad and (a.get("content_orig") or "").strip() and \
+                not _title_body_match(a.get("title_orig") or a.get("title_zh") or "",
+                                      a.get("content_orig") or ""):
+            a["content_orig"] = ""
+            a["_full"] = False
         # v9.16: 历史补位同样过无聊过滤——否则旧体育/娱乐条目(如 NFL/名人八卦)借补位回流
         if skip_news(a.get("title_orig") or "", a.get("content_orig") or "",
                      a.get("_lang", "en"), a.get("url", ""), a.get("source", "")):
