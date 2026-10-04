@@ -3,6 +3,11 @@ on:
   schedule:
     - cron: '*/15 * * * *'
   workflow_dispatch:
+    inputs:
+      trigger:
+        description: 触发来源(manual=手动按钮, auto=页面自动兜底, 空=API直接触发)
+        required: false
+        type: string
 
 concurrency:
   group: news-fetch
