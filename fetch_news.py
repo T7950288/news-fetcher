@@ -480,6 +480,18 @@ PAYWALL_MARKERS = [
     "hand delivery availability",
     "discover all the plans currently available",
     "digital access for organisations",
+    # v9.37: Time/订阅类广告行(feed个性化推广, 常被fetch_full_text抓回)
+    "personalize your feed",
+    "get instant alerts",
+    "update your preferences in account settings",
+    "follow this section",
+    "follow this tag",
+    "follow this author",
+    # v9.37: FT Edit/通讯类订阅推广
+    "get 2 months free",
+    "eight surprising articles a day",
+    "expert, reliable, considered, actionable opinion",
+    "it's topical and succinct",
 ]
 
 
@@ -508,7 +520,7 @@ def _scrub_paywall_ad(a):
 
 _TITLE_STOP = set("a an the of to in on for with and or at from by about as is are was were be has have had this that it its over into amid after before amid said says say will would could should can may might".split())
 
-_GEN_WORDS = set("hundreds thousand thousands millions people years year month week day time times world part parts another same many most more first last new says said still after since while one two three amid during about later earlier recent latest".split())
+_GEN_WORDS = set("hundred thousand thousands millions people years year month week day time times world part parts another same many most more first last new says said still after since while one two three amid during about later earlier recent latest hundred million billion second third fourth percent close closed system systems face faced school schools home city state country states back top".split())
 
 
 def _stem(w):
@@ -548,12 +560,11 @@ def _title_body_match(title, body, ratio=0.5):
     if not toks:
         return True  # 标题无可用核心词(如极短标题), 不做相关性拦截
     head = " ".join(_stem(w) for w in re.sub(r"[^a-z0-9\s]", " ", body.lower()[:3000]).split())
-    hit = sum(1 for w in toks if w in head)
-    strong = [w for w in toks if len(w) >= 5 and w not in _GEN_WORDS]
-    hit_strong = sum(1 for w in strong if w in head)
-    if hit >= 2 or hit_strong >= 1:
-        return True
-    return False
+    sig = [w for w in toks if len(w) >= 5 and w not in _GEN_WORDS]
+    if not sig:
+        # 标题无强实体词(全为通用词/短词), 退化为: 任意核心词命中≥2 即相关
+        return sum(1 for w in toks if w in head) >= 2
+    return sum(1 for w in sig if w in head) >= 1
 
 
 def _fetch_jina(url):
