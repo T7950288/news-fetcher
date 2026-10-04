@@ -483,6 +483,29 @@ PAYWALL_MARKERS = [
 ]
 
 
+def _scrub_paywall_ad(a):
+    """v9.35: 付费墙广告正文统一剥离(主流程+历史补位共用)。
+
+    漏洞背景: v9.28的广告剥离只写在"历史补位"分支, 而本轮新抓的recent主流程
+    没做任何广告检测——FT等付费墙媒体被fetch_full_text当作全文抓回订阅广告页
+    (正文>200字且_full=True), 既绕过v9.31"一句话付费墙丢弃", 又不在补位循环,
+    广告直接进列表。
+
+    规则: 正文命中PAYWALL_MARKERS → 剥离广告行; 剥离后<200字视为无正文置空,
+    标题+来源保留(网页显示"无正文"), 不再把广告当正文展示。
+    """
+    _co = a.get("content_orig") or ""
+    _low = _co.lower()
+    if not any(m in _low for m in PAYWALL_MARKERS):
+        return False
+    _keep = [ln for ln in _co.split("\n")
+             if not any(m in ln.lower() for m in PAYWALL_MARKERS)]
+    _clean = "\n".join(_keep).strip()
+    a["content_orig"] = _clean[:MAX_BODY] if len(_clean) >= 200 else ""
+    a["_full"] = False
+    return True
+
+
 def _fetch_jina(url):
     """jina reader 兜底: 服务端渲染跟随重定向, 返回markdown文本; 429限流重试2次"""
     for _att in range(3):
@@ -1564,6 +1587,10 @@ def main():
     MAX_TOTAL = 250  # v9.18: 100->250 —— 36h内按~6.6条/h约有240条, 100上限会把旧条目挤掉; 250才装得下36h窗口
     # v9.18: 不再只取前50条 —— 36h窗口内本轮条目全部保留(时间倒序), 旧条目(24-36h前)不再被截断丢弃
     merged2 = recent[:MAX_TOTAL]  # v9.18: 36h窗口内全部保留到上限
+    # v9.35: 主流程同样执行付费墙广告剥离——v9.28只处理了历史补位, 本轮新抓的
+    # FT订阅广告页被当全文抓回(广告>200字且_full=True)绕过一句话付费墙丢弃, 直接进列表
+    for _a in merged2:
+        _scrub_paywall_ad(_a)
     # 36h内被覆盖的旧条目(有正文即可), 按时间倒序补位到最多100条 —— 翻译取消后不再限已翻译
     # v9.9: 补位同标题只留一条(杜绝"大熊猫"式重复堆积) + 正文<200字的一句话式丢弃
     # v9.13: 时间窗口 24h -> 36h (用户要求, 条数从34回升)
@@ -1581,17 +1608,8 @@ def main():
             continue  # 同标题只留一条
         # v9.28: 历史补位同样执行付费墙广告检测——旧条目若正文是订阅广告(如FT), 剥离广告行;
         # 剥离后正文仍短则置空(标题+来源保留, 网页显示"无正文"), 不再显示广告
-        _is_ad = False
-        _co = a.get("content_orig") or ""
-        _low = _co.lower()
-        if any(m in _low for m in PAYWALL_MARKERS):
-            _is_ad = True
-            _keep = [ln for ln in _co.split("\n")
-                     if not any(m in ln.lower() for m in PAYWALL_MARKERS)]
-            _clean = "\n".join(_keep).strip()
-            # 剥离后剩余太少(仍为订阅残渣/无正文) -> 置空, 标题+来源保留
-            a["content_orig"] = _clean[:MAX_BODY] if len(_clean) >= 200 else ""
-            a["_full"] = False
+        # v9.35: 改用统一函数 _scrub_paywall_ad (与主流程同一套逻辑)
+        _is_ad = _scrub_paywall_ad(a)
         if not _is_ad and len((a.get("content_orig") or "").strip()) < 200:
             continue  # 一句话式/无正文的丢弃(仅非广告条目)
         # v9.16: 历史补位同样过无聊过滤——否则旧体育/娱乐条目(如 NFL/名人八卦)借补位回流
