@@ -1447,6 +1447,26 @@ def main():
     signal.signal(signal.SIGALRM, _wd)
     signal.alarm(540)  # 9 分钟强制结束, 防止卡死拖垮定时队列
     t0 = time.time()
+    # v9.38: 识别本次抓取的触发方式, 写入 news.json 的 updated_by (网页展示用)
+    #   定时自动 = GitHub Actions schedule 每15分钟; 手动更新 = 页面点"更新"按钮;
+    #   自动兜底 = 页面检测到长时间未更新自动触发。普通刷新不抓取, 不在此列。
+    _trigger = "定时自动"
+    _ev = os.environ.get("GITHUB_EVENT_NAME", "")
+    if _ev == "workflow_dispatch":
+        _tp = ""
+        try:
+            with open(os.environ.get("GITHUB_EVENT_PATH", ""), "r", encoding="utf-8") as _f:
+                _tp = (_f.read() or "")
+        except Exception:
+            _tp = ""
+        if "manual" in _tp:
+            _trigger = "手动更新"
+        elif "auto" in _tp:
+            _trigger = "自动兜底"
+        else:
+            _trigger = "手动更新"
+    DIAG["updated_by"] = _trigger
+    _log(f"触发方式: {_trigger}")
     _log("fetching sources...")
     with ThreadPoolExecutor(max_workers=8) as ex:
         results = list(ex.map(lambda f: fetch_one(*f), FEEDS))
@@ -1763,7 +1783,9 @@ def main():
             sys.exit(1)
         else:
             print(f"WARNING: 本轮仅 {len(merged2)} 条(线上 {old_n} 条), 仍然上传")
-    new_data = {"version": "1.0", "updated_at": now.isoformat(), "articles": merged2,
+    new_data = {"version": "1.0", "updated_at": now.isoformat(),
+                "updated_by": DIAG.get("updated_by", "定时自动"),
+                "articles": merged2,
                 "diag": {k: v for k, v in DIAG.items() if k.startswith(("src_", "arts_", "uniq_", "recent_", "fetch_"))}}
     # v9.7: GitHub 是权威数据源(网页读 raw), 必须成功; Gitee 尽力写, 快失败不拖时间
     gh_ok = False
