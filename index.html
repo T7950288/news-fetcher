@@ -204,7 +204,9 @@ async function fetchDataApi(){
 function showData(data){
   lastUpdatedAt=data.updated_at||"";
   ALL=(data.articles||[]).slice().sort((a,b)=>(b.published_at||"").localeCompare(a.published_at||""));
-  document.getElementById("meta").textContent="共 "+ALL.length+" 条 · 更新于 "+(data.updated_at||"").replace("T"," ").replace(/\+.*/,"");
+  // v9.38: 显示本次数据的更新方式(定时自动/手动更新/自动兜底); 旧数据无该字段则省略
+  const by=data.updated_by||"";
+  document.getElementById("meta").textContent="共 "+ALL.length+" 条 · 更新于 "+(data.updated_at||"").replace("T"," ").replace(/\+.*/,"")+(by?(" · "+by):"");
   try{localStorage.setItem(CACHE_KEY,JSON.stringify({updated_at:lastUpdatedAt,items:ALL.slice()}));}catch(e){}
   renderList();
 }
@@ -270,7 +272,7 @@ async function triggerCloudFetch(){
         "X-GitHub-Api-Version":"2022-11-28",
         "Content-Type":"application/json"
       },
-      body:JSON.stringify({ref:"main"})
+      body:JSON.stringify({ref:"main",inputs:{trigger:"manual"}})
     });
     if(r.status===204||r.status===200){
       const oldAt=lastUpdatedAt;
@@ -393,7 +395,7 @@ async function maybeAutoDispatch(){
         "X-GitHub-Api-Version":"2022-11-28",
         "Content-Type":"application/json"
       },
-      body:JSON.stringify({ref:"main"})
+      body:JSON.stringify({ref:"main",inputs:{trigger:"auto"}})
     });
     const meta=document.getElementById("meta");
     meta.textContent=(meta.textContent.split(" · ")[0])+" · 检测到长时间未更新，已自动触发云端抓取（预计5~8分钟更新）";
