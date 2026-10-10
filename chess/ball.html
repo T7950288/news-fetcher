@@ -174,6 +174,13 @@ function physicsStep() {
   // 移除完成消失的球
   balls = balls.filter(b => !(b.dying === 0 && b.dead));
 
+  // 删球动画播完后，如果只剩 1 颗活球，立即结束
+  const aliveCount = balls.filter(b => !b.dead).length;
+  if (aliveCount <= 1) {
+    endGame('冷方胜出，只剩一颗球');
+    return;
+  }
+
   // 撞壁
   for (const b of balls) {
     const dx=b.x-CX, dy=b.y-CY, dist=Math.hypot(dx,dy);
