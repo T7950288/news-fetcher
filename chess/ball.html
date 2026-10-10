@@ -113,10 +113,12 @@ let physTime = 0, lastNow = 0, acc = 0;
 function fitCanvas() {
   const availW = window.innerWidth - 16;
   const availH = window.innerHeight - 110;
-  const size = Math.max(280, Math.min(availW, availH, 820));
+  const size = Math.max(240, Math.min(availW, availH, 820));
   cv.style.width = size + 'px'; cv.style.height = size + 'px';
   cv.width = size; cv.height = size;
   CX = size/2; CY = size/2; R = size/2 - 2;
+  // 球半径随屏幕大小自适应：手机小屏球也小
+  BR = Math.max(8, Math.min(14, Math.round(size / 45)));
 }
 
 function randomPos() {
