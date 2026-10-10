@@ -162,7 +162,8 @@ function physicsStep() {
       if (!tryAdd(e)) return;
     } else {
       doRemove();
-      if (balls.length <= 1) { endGame('冷方胜出，只剩一颗球'); return; }
+      const aliveNow = balls.filter(b => !b.dead).length;
+      if (aliveNow <= 1) { endGame('冷方胜出，只剩一颗球'); return; }
     }
   }
 
