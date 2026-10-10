@@ -162,8 +162,6 @@ function physicsStep() {
       if (!tryAdd(e)) return;
     } else {
       doRemove();
-      const aliveNow = balls.filter(b => !b.dead).length;
-      if (aliveNow <= 1) { endGame('冷方胜出，只剩一颗球'); return; }
     }
   }
 
@@ -175,11 +173,14 @@ function physicsStep() {
   // 移除完成消失的球
   balls = balls.filter(b => !(b.dying === 0 && b.dead));
 
-  // 删球动画播完后，如果只剩 1 颗活球，立即结束
-  const aliveCount = balls.filter(b => !b.dead).length;
-  if (aliveCount <= 1) {
-    endGame('冷方胜出，只剩一颗球');
-    return;
+  // 等所有缩小动画播完、场上没有 dying 中的球时，才判断是否只剩1球结束
+  const hasDying = balls.some(b => b.dying > 0);
+  if (!hasDying) {
+    const aliveCount = balls.filter(b => !b.dead).length;
+    if (aliveCount <= 1) {
+      endGame('冷方胜出，只剩一颗球');
+      return;
+    }
   }
 
   // 撞壁：反射 + 速度放大3%（每碰一次壁动能+3%）
