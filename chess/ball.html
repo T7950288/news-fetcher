@@ -188,7 +188,7 @@ function physicsStep() {
   if (!hasDying && endGameAt === null) {
     const aliveCount = balls.filter(b => !b.dead).length;
     if (aliveCount <= 1) {
-      endGameAt = physTime + 1000;   // 延迟1秒再结算
+      endGameAt = physTime + 600;   // 延迟0.6秒再结算
     }
   }
   // 延迟到点，真正结束
