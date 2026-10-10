@@ -36,9 +36,18 @@
     cursor: pointer; letter-spacing: 4px;
   }
   button:hover { background: #c0392b; }
+  .back {
+    position: fixed; top: 14px; right: 16px; z-index: 20;
+    padding: 7px 14px; border-radius: 8px;
+    background: rgba(255,255,255,.1); color: #fff; text-decoration: none;
+    font-size: 13px; letter-spacing: 1px; opacity: .8;
+    backdrop-filter: blur(6px);
+  }
+  .back:hover { opacity: 1; background: rgba(255,255,255,.2); }
 </style>
 </head>
 <body>
+<a class="back" href="./">← 棋类</a>
 <h1>圆 内 弹 力 球</h1>
 <div id="hud">
   <span>时间 <b id="time">0.0</b> s</span>
