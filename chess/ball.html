@@ -197,7 +197,7 @@ function physicsStep() {
       b.x = CX+nx*(R-BR); b.y = CY+ny*(R-BR);
       const dot = b.vx*nx + b.vy*ny;
       b.vx -= 2*dot*nx; b.vy -= 2*dot*ny;
-      b.vx *= 1.03; b.vy *= 1.03;
+      b.vx *= 1.05; b.vy *= 1.05;
     }
   }
 
