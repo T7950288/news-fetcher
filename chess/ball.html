@@ -66,7 +66,7 @@
 </div>
 <div id="hud">
   <span>时间 <b id="time">0.0</b> s</span>
-  <span>球数 <b id="count">2</b></span>
+  <span>球数 <b id="count">3</b></span>
 </div>
 <canvas id="cv"></canvas>
 
@@ -123,15 +123,24 @@ function randomPos() {
 
 function setupBalls() {
   balls = []; events = []; physTime = 0; endGameAt = null;
-  const p1 = randomPos();
-  let p2 = randomPos();
+  // 开局：2暖(红0, 黄2) + 1冷(蓝5)
+  const positions = [];
   let g = 0;
-  while (Math.hypot(p1.x-p2.x,p1.y-p2.y) < 8*BR && g++ < 100) p2 = randomPos();
-  const a1 = Math.random()*Math.PI*2, s1 = 2.5+Math.random()*1.5;
-  const a2 = Math.random()*Math.PI*2, s2 = 2.5+Math.random()*1.5;
-  // 开局：红(暖) + 蓝(冷)，一暖一冷
-  balls.push({ x:p1.x, y:p1.y, vx:Math.cos(a1)*s1, vy:Math.sin(a1)*s1, c:0, dying:0 });
-  balls.push({ x:p2.x, y:p2.y, vx:Math.cos(a2)*s2, vy:Math.sin(a2)*s2, c:5, dying:0 });
+  while (positions.length < 3 && g++ < 200) {
+    const p = randomPos();
+    let ok = true;
+    for (const q of positions) {
+      if (Math.hypot(p.x-q.x, p.y-q.y) < 8*BR) { ok = false; break; }
+    }
+    if (ok) positions.push(p);
+  }
+  const colors = [0, 2, 5];  // 红暖、黄暖、蓝冷
+  for (let i = 0; i < 3; i++) {
+    const ang = Math.random()*Math.PI*2, spd = 2.5+Math.random()*1.5;
+    balls.push({ x:positions[i].x, y:positions[i].y,
+                 vx:Math.cos(ang)*spd, vy:Math.sin(ang)*spd,
+                 c:colors[i], dying:0 });
+  }
 }
 
 function drawBackground() {
@@ -327,7 +336,7 @@ function backToStart() {
   paused = false;
   setupBalls(); draw();
   document.getElementById('time').textContent = '0.0';
-  document.getElementById('count').textContent = '2';
+  document.getElementById('count').textContent = '3';
   document.getElementById('startOverlay').classList.add('show');
 }
 
