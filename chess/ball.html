@@ -294,7 +294,9 @@ function endGame(reason) {
   document.getElementById('pauseBtn').textContent = '暂停';
   document.getElementById('overReason').textContent = reason;
   document.getElementById('finalTime').textContent = (physTime/1000).toFixed(1);
-  document.getElementById('finalCount').textContent = balls.filter(b=>!b.dead).length;
+  const aliveNow = balls.filter(b=>!b.dead).length;
+  document.getElementById('finalCount').textContent = aliveNow;
+  document.getElementById('count').textContent = aliveNow;
   document.getElementById('overOverlay').classList.add('show');
 }
 
