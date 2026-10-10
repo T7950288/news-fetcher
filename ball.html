@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>圆内弹力球</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: #14141c;
+    color: #e8e8f0;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 10px; overflow: hidden;
+  }
+  h1 { margin: 4px 0 6px; font-size: 18px; font-weight: 600; letter-spacing: 4px; opacity: 0.85; }
+  #hud { display: flex; gap: 28px; margin-bottom: 8px; font-size: 15px; opacity: 0.75; }
+  #hud b { color: #f5c518; font-variant-numeric: tabular-nums; }
+  canvas {
+    display: block; border-radius: 50%;
+    box-shadow: 0 0 40px rgba(0,0,0,.6);
+  }
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.78);
+    display: none; align-items: center; justify-content: center; flex-direction: column;
+    z-index: 10;
+  }
+  .overlay.show { display: flex; }
+  .overlay h2 { font-size: 42px; color: #f5c518; margin: 0 0 12px; letter-spacing: 6px; }
+  .overlay p { font-size: 20px; margin: 6px 0; }
+  .overlay b { color: #ff6b6b; font-size: 28px; }
+  .overlay .sub { font-size: 14px; opacity: 0.6; margin-top: 14px; letter-spacing: 1px; }
+  button {
+    font-size: 20px; padding: 12px 48px; margin-top: 20px;
+    border: none; border-radius: 10px; background: #e74c3c; color: #fff;
+    cursor: pointer; letter-spacing: 4px;
+  }
+  button:hover { background: #c0392b; }
+</style>
+</head>
+<body>
+<h1>圆 内 弹 力 球</h1>
+<div id="hud">
+  <span>时间 <b id="time">0.0</b> s</span>
+  <span>球数 <b id="count">2</b></span>
+</div>
+<canvas id="cv"></canvas>
+
+<div id="startOverlay" class="overlay show">
+  <h2>圆 内 弹 力 球</h2>
+  <p style="opacity:.7;font-size:16px;max-width:420px;text-align:center;line-height:1.8">
+    两球相撞 → 0.1 秒后冒出新球<br>
+    撞壁不加球，无重力无摩擦<br>
+    球塞满圆即结束
+  </p>
+  <button onclick="startGame()">开 始</button>
+</div>
+
+<div id="overOverlay" class="overlay">
+  <h2>满 屏 ！</h2>
+  <p>撑了 <b id="finalTime">0.0</b> 秒</p>
+  <p>最终共 <b id="finalCount">2</b> 颗球</p>
+  <button onclick="backToStart()">再 来 一 局</button>
+</div>
+
+<script>
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+
+const COLORS = ['#ff5a5f','#ff922b','#ffd43b','#51cf66','#22b8cf','#4dabf7','#b197fc'];
+
+let CX, CY, R, BR = 14;
+let balls = [];
+let spawnQueue = [];
+let colorCursor = 1;
+let running = false;
+let rafId = null;
+
+// 固定时间步长：物理过程完全确定，每次开局结果一致
+const DT = 1000/60;   // 每步 16.667ms
+let physTime = 0;      // 物理时钟（ms）
+let lastNow = 0;
+let acc = 0;
+
+function fitCanvas() {
+  const availW = window.innerWidth - 16;
+  const availH = window.innerHeight - 110;
+  const size = Math.max(280, Math.min(availW, availH, 820));
+  cv.style.width = size + 'px';
+  cv.style.height = size + 'px';
+  cv.width = size;
+  cv.height = size;
+  CX = size / 2;
+  CY = size / 2;
+  R  = size / 2 - 2;
+}
+
+function randomPos() {
+  // 圆内随机一点，离圆心不超过 R-BR-60，避免贴边
+  const ang = Math.random() * Math.PI * 2;
+  const dist = Math.random() * (R - BR - 60);
+  return { x: CX + Math.cos(ang)*dist, y: CY + Math.sin(ang)*dist };
+}
+
+function setupBalls() {
+  balls = [];
+  spawnQueue = [];
+  colorCursor = 1;
+  physTime = 0;
+
+  // 两个随机位置，保证不重叠
+  const p1 = randomPos();
+  let p2 = randomPos();
+  let guard = 0;
+  while (Math.hypot(p1.x-p2.x, p1.y-p2.y) < 8*BR && guard++ < 100) p2 = randomPos();
+
+  // 随机方向，速度大小 2.5 ~ 4.0
+  const a1 = Math.random()*Math.PI*2, s1 = 2.5 + Math.random()*1.5;
+  const a2 = Math.random()*Math.PI*2, s2 = 2.5 + Math.random()*1.5;
+
+  balls.push({ x: p1.x, y: p1.y, vx: Math.cos(a1)*s1, vy: Math.sin(a1)*s1, c: 0 });
+  balls.push({ x: p2.x, y: p2.y, vx: Math.cos(a2)*s2, vy: Math.sin(a2)*s2, c: 5 });
+}
+
+function drawBackground() {
+  const g = ctx.createRadialGradient(CX, CY, R*0.1, CX, CY, R);
+  g.addColorStop(0, '#2c5364');
+  g.addColorStop(1, '#0f2027');
+  ctx.beginPath();
+  ctx.arc(CX, CY, R, 0, Math.PI*2);
+  ctx.fillStyle = g;
+  ctx.fill();
+}
+
+function draw() {
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  drawBackground();
+  for (const b of balls) {
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, BR, 0, Math.PI*2);
+    ctx.fillStyle = COLORS[b.c];
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(b.x - BR*0.3, b.y - BR*0.3, BR*0.25, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.fill();
+  }
+}
+
+function physicsStep() {
+  // 到期生成新球
+  while (spawnQueue.length && spawnQueue[0].at <= physTime) {
+    const s = spawnQueue.shift();
+    if (!trySpawn(s)) return;   // 塞不下 → 游戏结束
+  }
+
+  for (const b of balls) { b.x += b.vx; b.y += b.vy; }
+
+  for (const b of balls) {
+    const dx = b.x - CX, dy = b.y - CY;
+    const dist = Math.hypot(dx, dy);
+    if (dist > R - BR) {
+      const nx = dx/dist, ny = dy/dist;
+      b.x = CX + nx*(R-BR);
+      b.y = CY + ny*(R-BR);
+      const dot = b.vx*nx + b.vy*ny;
+      b.vx -= 2*dot*nx;
+      b.vy -= 2*dot*ny;
+    }
+  }
+
+  for (let i = 0; i < balls.length; i++) {
+    for (let j = i+1; j < balls.length; j++) {
+      const a = balls[i], b = balls[j];
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const d = Math.hypot(dx, dy);
+      if (d > 0 && d < 2*BR) {
+        const nx = dx/d, ny = dy/d;
+        const overlap = 2*BR - d;
+        a.x -= nx*overlap/2; a.y -= ny*overlap/2;
+        b.x += nx*overlap/2; b.y += ny*overlap/2;
+        const va_n = a.vx*nx + a.vy*ny;
+        const vb_n = b.vx*nx + b.vy*ny;
+        if (va_n - vb_n > 0) {
+          const va_tx = a.vx - va_n*nx, va_ty = a.vy - va_n*ny;
+          const vb_tx = b.vx - vb_n*nx, vb_ty = b.vy - vb_n*ny;
+          a.vx = va_tx + vb_n*nx; a.vy = va_ty + vb_n*ny;
+          b.vx = vb_tx + va_n*nx; b.vy = vb_ty + va_n*ny;
+          const cx = (a.x + b.x)/2;
+          const cy = (a.y + b.y)/2;
+          const nvx = (a.vx + b.vx)/2;
+          const nvy = (a.vy + b.vy)/2;
+          const c = colorCursor;
+          colorCursor = (colorCursor + 1) % 7;
+          spawnQueue.push({ at: physTime + 100, x: cx, y: cy, vx: nvx, vy: nvy, c });
+        }
+      }
+    }
+  }
+}
+
+let tickTimer = null;
+
+// 基于 wall clock 推进物理；RAF 前台高频调，setInterval 后台兜底调
+function tick(now) {
+  if (!running) return;
+  if (!lastNow) lastNow = now;
+  let delta = now - lastNow;
+  lastNow = now;
+  if (delta <= 0) return;
+  if (delta > 5000) delta = 5000;  // 极端情况（浏览器被完全冻结）最多补 5 秒，防卡死
+  acc += delta;
+
+  while (acc >= DT) {
+    physTime += DT;
+    physicsStep();
+    acc -= DT;
+    if (!running) { draw(); return; }  // physicsStep 里 gameOver 了
+  }
+
+  document.getElementById('time').textContent = (physTime/1000).toFixed(1);
+  document.getElementById('count').textContent = balls.length;
+  draw();
+}
+
+function rafLoop(now) {
+  if (!running) return;
+  tick(now);
+  rafId = requestAnimationFrame(rafLoop);
+}
+
+// 返回 true=成功放下，false=满屏
+function trySpawn(s) {
+  const offsets = [
+    [0,0], [2*BR,0], [-2*BR,0], [0,2*BR], [0,-2*BR],
+    [3*BR,3*BR], [-3*BR,3*BR], [3*BR,-3*BR], [-3*BR,-3*BR],
+    [4*BR,0], [-4*BR,0], [0,4*BR], [0,-4*BR],
+  ];
+  for (const [ox, oy] of offsets) {
+    const x = s.x + ox, y = s.y + oy;
+    if (Math.hypot(x-CX, y-CY) > R - BR - 1) continue;
+    let ok = true;
+    for (const b of balls) {
+      if (Math.hypot(b.x - x, b.y - y) < 2*BR - 0.5) { ok = false; break; }
+    }
+    if (ok) { balls.push({ x, y, vx: s.vx, vy: s.vy, c: s.c }); return true; }
+  }
+  gameOver();
+  return false;
+}
+
+function gameOver() {
+  running = false;
+  if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+  if (tickTimer) { clearInterval(tickTimer); tickTimer = null; }
+  document.getElementById('finalTime').textContent = (physTime/1000).toFixed(1);
+  document.getElementById('finalCount').textContent = balls.length;
+  document.getElementById('overOverlay').classList.add('show');
+}
+
+function startGame() {
+  document.getElementById('startOverlay').classList.remove('show');
+  document.getElementById('overOverlay').classList.remove('show');
+  running = true;
+  lastNow = 0;
+  acc = 0;
+  if (rafId) cancelAnimationFrame(rafId);
+  if (tickTimer) clearInterval(tickTimer);
+  // 前台：RAF 60fps 渲染
+  rafId = requestAnimationFrame(rafLoop);
+  // 后台兜底：setInterval 在后台标签页会被节流到 ~1Hz，但仍会按真实时间补物理
+  tickTimer = setInterval(() => tick(performance.now()), 250);
+}
+
+function backToStart() {
+  document.getElementById('overOverlay').classList.remove('show');
+  setupBalls();
+  draw();
+  document.getElementById('time').textContent = '0.0';
+  document.getElementById('count').textContent = '2';
+  document.getElementById('startOverlay').classList.add('show');
+}
+
+window.addEventListener('resize', () => {
+  fitCanvas();
+  if (!running) { setupBalls(); draw(); }
+});
+
+// 初始：摆好静止画面，等待点开始
+fitCanvas();
+setupBalls();
+draw();
+</script>
+</body>
+</html>
