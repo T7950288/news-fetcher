@@ -101,6 +101,7 @@ let balls = [];
 let events = [];         // {at, type:'add'|'remove', x,y,vx,vy,c}
 let running = false, paused = false;
 let rafId = null, tickTimer = null;
+let endGameAt = null;   // 延迟1秒结算
 
 const DT = 1000/60;
 let physTime = 0, lastNow = 0, acc = 0;
@@ -121,7 +122,7 @@ function randomPos() {
 }
 
 function setupBalls() {
-  balls = []; events = []; physTime = 0;
+  balls = []; events = []; physTime = 0; endGameAt = null;
   const p1 = randomPos();
   let p2 = randomPos();
   let g = 0;
@@ -175,12 +176,16 @@ function physicsStep() {
 
   // 等所有缩小动画播完、场上没有 dying 中的球时，才判断是否只剩1球结束
   const hasDying = balls.some(b => b.dying > 0);
-  if (!hasDying) {
+  if (!hasDying && endGameAt === null) {
     const aliveCount = balls.filter(b => !b.dead).length;
     if (aliveCount <= 1) {
-      endGame('冷方胜出，只剩一颗球');
-      return;
+      endGameAt = physTime + 1000;   // 延迟1秒再结算
     }
+  }
+  // 延迟到点，真正结束
+  if (endGameAt !== null && physTime >= endGameAt) {
+    endGame('冷方胜出，只剩一颗球');
+    return;
   }
 
   // 撞壁：反射 + 速度放大3%（每碰一次壁动能+3%）
