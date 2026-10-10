@@ -182,14 +182,16 @@ function physicsStep() {
     return;
   }
 
-  // 撞壁
+  // 撞壁：反射 + 速度放大3%（每碰一次壁动能+3%）
   for (const b of balls) {
+    if (b.dead) continue;
     const dx=b.x-CX, dy=b.y-CY, dist=Math.hypot(dx,dy);
     if (dist > R-BR) {
       const nx=dx/dist, ny=dy/dist;
       b.x = CX+nx*(R-BR); b.y = CY+ny*(R-BR);
       const dot = b.vx*nx + b.vy*ny;
       b.vx -= 2*dot*nx; b.vy -= 2*dot*ny;
+      b.vx *= 1.03; b.vy *= 1.03;
     }
   }
 
