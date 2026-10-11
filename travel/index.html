@@ -276,8 +276,30 @@
 <div id="ppViewer" class="pp-viewer"><button id="ppPrev" class="pp-nav pp-prev" title="上一张（←）">‹</button><img id="ppViewerImg" alt=""><button id="ppNext" class="pp-nav pp-next" title="下一张（→）">›</button><div id="ppCount" class="pp-count"></div></div>
 
 <script src="js/lib/leaflet.js"></script>
-<script src="data_bundle.js?v=20261002a"></script>
-<script src="prov_bounds.js?v=20261006a"></script>
+<script>
+/* 2026-10-11 加载提速：数据文件走 CDN 双源（云端网页优先 jsdelivr，失败自动回退
+   GitHub Pages 同目录；电脑端 file:// 直接读本地文件，不受影响）。
+   用同步 XHR 探测：探测未完成时页面不会继续解析，保证脚本顺序。 */
+(function(){
+  var isFile = location.protocol === 'file:';
+  var cdnBase = 'https://cdn.jsdelivr.net/gh/t7950288/news-fetcher@main/travel/';
+  function js(rel){ return '<scr'+'ipt src="'+rel+'"><\/scr'+'ipt>'; }
+  if (isFile) {
+    document.write(js('data_bundle.js?v=20261002a') + js('prov_bounds.js?v=20261006a'));
+    return;
+  }
+  var useCdn = false;
+  try {
+    var x = new XMLHttpRequest();
+    x.open('HEAD', cdnBase + 'data_bundle.js', false);   // 同步：阻塞到探测完成，保顺序
+    x.timeout = 1000;                                     // 最多卡 1 秒，再慢就回退本地
+    x.send(null);
+    useCdn = (x.status >= 200 && x.status < 400);
+  } catch (e) { useCdn = false; }
+  if (useCdn) document.write(js(cdnBase + 'data_bundle.js') + js(cdnBase + 'prov_bounds.js'));
+  else        document.write(js('data_bundle.js?v=20261002a') + js('prov_bounds.js?v=20261006a'));
+})();
+</script>
 <script src="world_bundle.js?v=20261004a"></script>
 <script src="js/qwebchannel.js"></script>
 <script src="cloud_seed.js?v=20261011"></script>
