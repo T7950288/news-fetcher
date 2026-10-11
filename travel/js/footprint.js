@@ -14,17 +14,35 @@ const Footprint = (function () {
   function normCity(name) {
     return String(name || '').replace(/（[\s\S]*?）/g, '').replace(/\([\s\S]*?\)/g, '').trim();
   }
+  // 新成员取色：优先挑一个**当前没人用的**颜色（全部占满才按下标循环）。
+  // ★ 旧逻辑 COLORS[成员数 % 8] 在删过成员后会撞色 —— 「超/英 同为蓝色」的根因。
+  function pickColor(st) {
+    const used = st.members.map(m => m.color);
+    return COLORS.find(c => used.indexOf(c) < 0) || COLORS[st.members.length % COLORS.length];
+  }
   function addMember(st, name) {
     name = name.trim();
     if (!name) return false;
     if (st.members.some(m => m.name === name)) return false;
     const id = 'm' + Math.random().toString(36).slice(2, 7);
-    const color = COLORS[st.members.length % COLORS.length];
+    const color = pickColor(st);
     st.members.push({ id: id, name: name, color: color });
     st.visits[id] = { cities: [], spots: [] };
     st.selected.push(id);
     st.active = id;
     return true;
+  }
+  // 成员颜色去重（加载时迁移，改到才返回 true）：先到先得，
+  // 撞色者按调色板顺序补第一个未占用的颜色（英 → 橙 #e8a33d，用户 2026-10-06）。
+  function dedupeColors(st) {
+    const used = [];
+    let changed = false;
+    st.members.forEach(m => {
+      if (used.indexOf(m.color) < 0) { used.push(m.color); return; }
+      const c = COLORS.find(x => used.indexOf(x) < 0);
+      if (c) { m.color = c; used.push(c); changed = true; }
+    });
+    return changed;
   }
   function removeMember(st, id) {
     if (st.members.length <= 1) return false;
@@ -45,15 +63,16 @@ const Footprint = (function () {
   function v(st, id) { return st.visits[id] || (st.visits[id] = { cities: [], spots: [] }); }
 
   // 标记景点（对当前 active 成员），再点一次取消
-  function markSpot(st, spot) {
+  // unit：调用方算好的「最小所在地」名（市辖区会被归并到所属地级市，见 app.js spotUnitName）
+  function markSpot(st, spot, unit) {
     const rec = v(st, st.active);
     if (rec.spots.includes(spot.id)) {
       rec.spots = rec.spots.filter(x => x !== spot.id);
       return false;
     }
     rec.spots.push(spot.id);
-    // 点亮景点 → 带动它直接所在的县/市（优先县级归属，没有则市级）
-    const c = normCity(spot.county || spot.city);
+    // 点亮景点 → 带动它直接所在的县/市（优先县级归属，没有则市级）；反向不成立
+    const c = normCity(unit || spot.county || spot.city);
     if (c && !rec.cities.includes(c)) rec.cities.push(c);
     return true;
   }
@@ -61,7 +80,7 @@ const Footprint = (function () {
     const mid = memberId || st.active;
     return !!(st.visits[mid] && st.visits[mid].spots.includes(spot.id));
   }
-  // 整城点亮 / 取消（取消时连带移除该成员在该城市的景点记录）
+  // 单点一个地名（县 / 县级市 / 市辖区归并后的市）点亮 / 取消
   function toggleCity(st, cityName) {
     const rec = v(st, st.active);
     cityName = normCity(cityName);
@@ -70,19 +89,21 @@ const Footprint = (function () {
     rec.cities.push(cityName);
     return true;
   }
-  // 地级市/直辖市整体点亮 / 取消（含所有下属县景点）
+  // 地级市 / 直辖市整体点亮 / 取消。
+  // ★ 规则（用户明确要求）：小的能带动大的，大的不能带动小的 ——
+  //   所以这里既不吞并、也不删除下属县的独立记录：
+  //   · 点亮市 → 只把「市」自己记上，下属县若之前单独点亮过，原样保留；
+  //   · 取消市 → 也只取消「市」本身，不去动下属县。
+  //   （原实现会在点市时把下属县记录一并删掉，等于「大的吞掉小的」，并会
+  //     让这些县再也点不动 —— 这是小县城点不亮的原因之一。）
   function togglePrefecture(st, cityName, countyNames) {
     const rec = v(st, st.active);
     cityName = normCity(cityName);
-    const subs = countyNames || [];
     if (rec.cities.includes(cityName)) {
-      // 完整点亮 → 取消市及归并的下属县（不影响使用者自行点亮的景点）
-      rec.cities = rec.cities.filter(c => c !== cityName && !subs.includes(c));
+      rec.cities = rec.cities.filter(c => c !== cityName);
       return false;
     }
-    // 点亮整个市：下属县归并到市；景点不自动点亮，由使用者自行选择
-    subs.forEach(c => { rec.cities = rec.cities.filter(x => x !== c); });
-    if (!rec.cities.includes(cityName)) rec.cities.push(cityName);
+    rec.cities.push(cityName);
     return true;
   }
   function isCityLit(st, cityName, memberId) {
@@ -106,13 +127,18 @@ const Footprint = (function () {
     return map;
   }
   // 统计（基于当前查看成员 active）
-  function stats(st, allCities) {
+  // ★ provMap：可选的「地名 → 省份」全量字典（app.js 的 cityProv，来自全部市级+县级行政区）。
+  //   必须优先用它解析省份归属 —— 不能用 allCities（= 有景点的市/县子集）当字典：
+  //   像「包头市」自己没有景点、不在该子集里，一旦被点亮，内蒙古自治区就数不进「覆盖省份」，
+  //   而地图的省级标记判定用的是全量行政区表（countProvLit）→ 出现「地图 15 / 面板 14」。
+  function stats(st, allCities, provMap) {
     const citySet = new Set(), provSet = new Set();
     const rec = st.visits[st.active];
     if (rec) rec.cities.forEach(c => citySet.add(c));
     const c2p = {};
     (allCities || []).forEach(c => { c2p[c.name] = c.province; });
-    citySet.forEach(c => { if (c2p[c]) provSet.add(c2p[c]); });
+    const px = provMap || c2p;
+    citySet.forEach(c => { const p = px[c] || (provMap ? c2p[c] : ''); if (p) provSet.add(p); });
     return {
       cities: citySet.size,
       provinces: provSet.size,
@@ -123,6 +149,6 @@ const Footprint = (function () {
   }
   return {
     defaultState, normCity, addMember, removeMember, toggleSelect, setActive,
-    markSpot, isSpotDone, toggleCity, togglePrefecture, isCityLit, clearVisits, litMap, stats, COLORS
+    markSpot, isSpotDone, toggleCity, togglePrefecture, isCityLit, clearVisits, litMap, stats, dedupeColors, COLORS
   };
 })();
