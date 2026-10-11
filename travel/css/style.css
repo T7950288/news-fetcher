@@ -40,6 +40,21 @@ input,select{ font-family:inherit; }
 .top-actions{ display:flex; gap:8px; margin-left:auto; }
 .top-actions button{ width:36px; height:36px; border-radius:50%; font-size:17px; background:rgba(255,255,255,.14); color:#fff; }
 .top-actions button:hover{ background:rgba(255,255,255,.28); }
+/* 「⋯」更多按钮：仅手机端（≤768px）显示；宽屏隐藏 */
+#btnMore{ display:none; width:36px; height:36px; border-radius:50%; font-size:20px; line-height:1;
+  background:rgba(255,255,255,.16); color:#fff; border:none; cursor:pointer; font-weight:700;
+  touch-action:manipulation; }
+#btnMore:hover{ background:rgba(255,255,255,.3); }
+#btnMore.on{ background:rgba(255,255,255,.42); }
+/* 「⋯」弹出菜单：手机端专用，从顶栏右端下拉 */
+.more-menu{ position:absolute; top:58px; right:10px; z-index:2600; background:#fff; color:#1f2937;
+  border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.25); overflow:hidden; display:none;
+  min-width:150px; padding:6px; }
+.more-menu.show{ display:block; }
+.more-menu button{ display:block; width:100%; padding:11px 16px; border:none; background:none; cursor:pointer;
+  text-align:left; font-size:14px; color:#1f2937; border-radius:8px; touch-action:manipulation; }
+.more-menu button:hover{ background:#eef4ff; color:#2563eb; }
+.more-menu button:active{ background:#dbe7ff; }
 .home-link{ display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px;
   border-radius:50%; font-size:16px; text-decoration:none; background:rgba(255,255,255,.16); color:#fff; flex:none; }
 .home-link:hover{ background:rgba(255,255,255,.3); }
@@ -337,6 +352,10 @@ body.fs #topbar, body.fs #panel{ display:none; }
   .brand b{ display:none; }
   .brand .logo{ font-size:20px; }
   .home-link, .top-actions button{ width:34px; height:34px; font-size:15px; }
+  /* 手机端顶栏精简：照片/扫描收进「⋯」；备份/恢复/存档（搜索框内）也收进「⋯」 */
+  #btnPhotos, #btnPhotoScan{ display:none !important; }
+  #btnMore{ display:inline-flex; align-items:center; justify-content:center; }
+  .top-search button.bk{ display:none; }
   .top-search input{ height:32px; font-size:13px; padding:0 12px; }
   .top-search button{ height:32px; width:38px; font-size:15px; }
   #panel{ position:absolute; top:0; bottom:0; left:0; width:88%; max-width:340px;
