@@ -57,13 +57,32 @@ input,select{ font-family:inherit; }
 .list{ flex:1; overflow-y:auto; padding:10px; }
 .card{ background:#fff; border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:9px; cursor:pointer; transition:.15s; }
 .card:hover{ border-color:var(--green); box-shadow:0 3px 12px rgba(31,122,109,.12); }
-.card .t{ font-size:15px; font-weight:bold; display:flex; align-items:center; gap:6px; }
-.sp-name{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.card .t{ font-size:15px; font-weight:bold; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.sp-name{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; flex:0 1 auto; }
 .sp-ticket{ margin-left:auto; white-space:nowrap; font-family:inherit; font-size:inherit; font-weight:inherit; color:#b3402a; }
+/* 卡片右侧操作按钮：绝对定位固定在右上角，不参与文字挤压，保证始终可见可点 */
+#spotList .card{ position:relative; padding-right:62px; }
+#spotList .card .t > .sp-edit, #spotList .card .t > .my-edit, #spotList .card .t > .my-del{
+  position:absolute; top:8px; border:none; background:none; cursor:pointer; padding:0 2px; line-height:1; flex:none; }
+#spotList .card .t > .sp-edit, #spotList .card .t > .my-edit{ right:9px; font-size:14px; }
+#spotList .card .t > .sp-del{ right:32px; font-size:13px; }
+#spotList .card .t > .my-del{ right:32px; font-size:15px; color:#dc2626; }
 .card .d{ font-size:12.5px; color:var(--muted); margin-top:5px; line-height:1.5; }
 .badge{ font-size:11px; padding:1px 7px; border-radius:9px; color:#fff; background:#9fb3af; white-space:nowrap; }
 .badge.a5{ background:var(--gold); }
 .badge.b3{ background:#5b9bd5; }
+/* 左侧列表徽章配色与地图标记保持一致（只作用于 #spotList；地图弹窗里的金色「5A」「已点亮」徽章不动）：
+   5A 洋红、热门「景」紫罗兰、自建「景」蓝，统一为「白底 + 彩色描边 + 彩色字」 */
+#spotList .badge.a5{ background:#fff; color:#ff00ff; border:1.5px solid #ff00ff; padding:0 6px; }
+#spotList .badge.hot{ background:#fff; color:#8b5cf6; border:1.5px solid #8b5cf6; padding:0 6px; }
+#spotList .badge.my{ background:#fff; color:#3b82f6; border:1.5px solid #3b82f6; padding:0 6px; }
+#spotList .sp-name.my-nm{ color:#3b82f6; }
+/* 省份标题行：5A 数量用洋红；景(热门+自建) 的两个数字分别用紫、蓝 */
+.prov-toggle .p5{ color:#ff00ff; font-weight:800; }
+.prov-toggle .pj{ color:#555; font-weight:800; }
+.prov-toggle .jh{ color:#8b5cf6; font-style:normal; font-weight:800; }
+.prov-toggle .jm{ color:#3b82f6; font-style:normal; font-weight:800; }
+.prov-toggle .jp{ color:#9aa5b1; font-style:normal; font-weight:400; }
 .dotmini{ width:9px; height:9px; border-radius:50%; display:inline-block; flex:none; }
 
 /* 分类筛选 */
@@ -124,6 +143,15 @@ input,select{ font-family:inherit; }
 .member-edit input{ flex:1; height:36px; border:1px solid var(--line); border-radius:9px; padding:0 11px; font-size:13.5px; outline:none; }
 .member-edit button{ width:42px; border-radius:9px; background:var(--green); color:#fff; font-size:20px; }
 .foot-note{ font-size:12px; color:var(--muted); padding:0 14px 8px; line-height:1.6; flex:none; }
+/* 足迹搜索：2224 行地名里找一个小县城，没有搜索框只能手翻 */
+.foot-search{ display:flex; align-items:center; gap:8px; padding:0 12px 8px; flex:none; }
+.foot-search input{ flex:1; min-width:0; height:34px; border:1px solid var(--line); border-radius:9px;
+  padding:0 10px; font-size:13px; outline:none; background:#fff; }
+.foot-search input:focus{ border-color:var(--green); box-shadow:0 0 0 2px rgba(47,143,106,.14); }
+.foot-search span{ font-size:11.5px; color:var(--muted); white-space:nowrap; }
+.foot-search span b{ color:var(--gold); }
+.city-row.hit{ background:#fff6dd; border-radius:8px; }
+.prov-group.q .prov-title{ color:var(--gold); }
 .city-row{ display:flex; align-items:center; gap:9px; }
 .city-row .lit{ margin-left:auto; font-size:12px; color:var(--gold); white-space:nowrap; }
 .toggle{ width:40px; height:22px; border-radius:11px; background:#cfd8d6; position:relative; flex:none; transition:.15s; }
@@ -152,15 +180,22 @@ input,select{ font-family:inherit; }
 .leaflet-container{ font-family:inherit; font-size:12.5px; }
 .spot-marker{ border-radius:50%; border:2px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,.3);
   display:flex; align-items:center; justify-content:center; position:relative; }
-.spot-marker.normal{ background:#94a3b8; }          /* 未评级/普通景点 */
+.spot-marker.normal{ background:#94a3b8; }          /* 未评级/普通景点：保持实心灰圆，不动 */
 .spot-marker.lit{ background:#e63946; box-shadow:0 0 0 3px rgba(230,57,70,.35), 0 0 10px rgba(230,57,70,.7); }
-.spot-marker.a5{ background:#e63946; }                     /* 5A 红 */
-.spot-marker.a4{ background:#8b5cf6; }                     /* 4A 紫 */
-.spot-marker.a3{ background:#16a34a; }
-.spot-marker.hot{ background:#fff; border:2.5px solid #f97316; }
-.spot-marker.hot b{ color:#f97316; text-shadow:none; font-size:11px !important; }                     /* 3A 绿 */
+/* 5A / 热门：白底 + 彩色描边 + 圈内同色字符（与自建景点同一套样式） */
+.spot-marker.a5{ background:#fff; border:2.5px solid #ff00ff; box-shadow:0 1px 4px rgba(0,0,0,.28); }
+.spot-marker.a5 b{ color:#ff00ff; text-shadow:none; }
+.spot-marker.a4{ background:#fff; border:2.5px solid #8b5cf6; box-shadow:0 1px 4px rgba(0,0,0,.28); }
+.spot-marker.a4 b{ color:#8b5cf6; text-shadow:none; }
+.spot-marker.a3{ background:#fff; border:2.5px solid #16a34a; box-shadow:0 1px 4px rgba(0,0,0,.28); }
+.spot-marker.a3 b{ color:#16a34a; text-shadow:none; }
+.spot-marker.hot{ background:#fff; border:2.5px solid #8b5cf6; box-shadow:0 1px 4px rgba(0,0,0,.28); }
+.spot-marker.hot b{ color:#8b5cf6; text-shadow:none; font-size:11px !important; }
+/* 去过（点亮）：描边与字符转红，红色光晕保留 */
+.spot-marker.a5.done, .spot-marker.a4.done, .spot-marker.a3.done, .spot-marker.hot.done{ border-color:#e63946; }
+.spot-marker.a5.done b, .spot-marker.a4.done b, .spot-marker.a3.done b, .spot-marker.hot.done b{ color:#e63946; }
 .spot-marker.done{ box-shadow:0 0 0 3px rgba(230,57,70,.4), 0 0 12px rgba(230,57,70,.8); }
-.spot-marker b{ color:#fff; font-size:17px; font-weight:800; line-height:1; text-shadow:0 1px 2px rgba(0,0,0,.35); }
+.spot-marker b{ font-size:17px; font-weight:800; line-height:1; }
 .city-marker{ border-radius:50%; display:flex; align-items:center; justify-content:center;
   font-weight:bold; position:relative; }
 .city-marker.normal{ background:rgba(131,149,167,.2); border:2px solid #8395a7; color:#576574; }
@@ -169,9 +204,20 @@ input,select{ font-family:inherit; }
   clip-path:polygon(50% 4%, 97% 95%, 3% 95%);
   filter:drop-shadow(0 0 5px rgba(230,57,70,.9)); }
 .city-marker.partial .sub-n{ font-size:12px; font-weight:800; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.4); }
-.city-marker.prov-marker.normal{ background:#8395a7; border-color:#fff; color:#fff; box-shadow:0 2px 8px rgba(0,0,0,.25); }
-.city-marker.prov-marker.lit{ background:#e63946; border-color:#fff; color:#fff;
-  box-shadow:0 0 0 3px rgba(230,57,70,.4), 0 2px 8px rgba(0,0,0,.35); }
+/* ★ 省级名称标签（z4~z5 取代原 46px 大圆圈；用户 2026-10-03 改版）——
+   原 .city-marker.prov-marker 的实心圆圈已废弃删除（所有级别不再画圆圈）。
+   样式仿底图注记：无底色 + 多层白色描边，普通图与卫星图上都清晰可读；
+   translate(-50%,-50%) 让文字中心正落在坐标点上；文字可点（弹省份卡片 + 左侧联动）；
+   足迹板块下带一行「n 城」小字（其它板块不带，见 app.js 的 litN）。 */
+.prov-label{ position:absolute; transform:translate(-50%,-50%); white-space:nowrap;
+  font-weight:800; letter-spacing:2px; color:#3f4a58; line-height:1.1;
+  text-shadow:0 0 2px #fff, 0 0 4px #fff, 0 0 6px #fff,
+    1px 1px 0 #fff, -1px 1px 0 #fff, 1px -1px 0 #fff, -1px -1px 0 #fff;
+  pointer-events:auto; cursor:pointer; -webkit-user-select:none; user-select:none; }
+.prov-label:hover{ color:#b91c1c; }
+.prov-label .pl-n{ display:block; font-style:normal; font-size:10px; font-weight:700;
+  letter-spacing:0; color:#e63946; text-align:center; margin-top:1px;
+  text-shadow:0 0 2px #fff, 0 0 4px #fff, 1px 1px 0 #fff, -1px -1px 0 #fff; }
 .city-marker.lit{ background:#e63946; border-color:#fff; color:#fff;
   box-shadow:0 0 0 3px rgba(230,57,70,.4), 0 0 16px rgba(230,57,70,.95); animation:litPulse 1.6s infinite; }
 @keyframes litPulse{ 0%,100%{ box-shadow:0 0 0 3px rgba(230,57,70,.4), 0 0 12px rgba(230,57,70,.8); }
@@ -184,6 +230,22 @@ input,select{ font-family:inherit; }
   box-shadow:0 1px 4px rgba(0,0,0,.4); pointer-events:auto; cursor:pointer; }
 .mk-name.w{ background:rgba(255,255,255,.97); color:#333; border-color:rgba(90,110,130,.45);
   text-shadow:none; box-shadow:0 1px 3px rgba(0,0,0,.22); }
+/* 未点亮地级市的名称芯片（9 级起随点常显）：底图在同一位置已有黑色市名，
+   我们的标签用「白底小芯片 + 蓝灰字」以示可点，并比已点亮的名称更轻，不与底图注记抢视线 */
+.mk-name.cnm{ background:rgba(255,255,255,.93); color:#3d556e; font-size:11px; font-weight:700;
+  padding:1px 5px; border-radius:4px; border:1px solid rgba(90,110,130,.5); }
+/* 红色三角（partial）的名称放在外层容器里，悬停要由容器负责触发显示 */
+.cm-hold:hover .mk-name{ display:block !important; }
+/* 景点名称：换成自建景点样式 —— 去掉底色块，直接用与圆圈同色系深一号的文字（名山也已并入同一套） */
+.spot-marker .mk-name,
+.spot-marker .mk-name.w{ background:transparent; border:none; box-shadow:none;
+  text-shadow:none; padding:2px 3px; }
+.spot-marker.a5 .mk-name{ color:#ff00ff; }
+.spot-marker.a4 .mk-name{ color:#6d28d9; }
+.spot-marker.a3 .mk-name{ color:#15803d; }
+.spot-marker.hot .mk-name{ color:#6d28d9; }
+.spot-marker.a5.done .mk-name, .spot-marker.a4.done .mk-name,
+.spot-marker.a3.done .mk-name, .spot-marker.hot.done .mk-name{ color:#b91c1c; }
 /* 未点亮标记悬停显示名称，移到文字上即可点亮 */
 .city-marker:hover .mk-name{ display:block !important; }
 .spot-marker:hover .mk-name{ display:block !important; }
@@ -221,9 +283,13 @@ input,select{ font-family:inherit; }
 /* 点击"第X天"标题时当天标记闪烁 */
 @keyframes flashPin { 0%,100%{ transform:translateX(-50%) scale(1); } 50%{ transform:translateX(-50%) scale(1.6); } }
 .route-pin.flash span{ animation: flashPin .55s ease-in-out 5; }
-/* 景点圆点第二次点击时放大闪烁 */
+/* 景点圆点第二次点击时放大闪烁：0.6s×5次=3秒，圆圈本身（含景字/5字）整体闪 */
 @keyframes flashSpot { 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.9); } }
-.spot-marker.flash-spot > div{ animation: flashSpot .55s ease-in-out 5; }
+/* 闪烁次数 × .6s = 总时长，必须与 app.js 的 FLASH_MS（6000，与卡片自动收起同步）保持一致：
+   10 × .6s = 6 秒。改这里请同步改 FLASH_MS，反之亦然。 */
+.spot-marker.flash-spot{ animation: flashSpot .6s ease-in-out 10; }
+/* 自建景点：flash-spot 加在标记根节点上，其内为「圆圈 + 名称」两个 div，只让圆圈闪 */
+.flash-spot > div:first-child{ animation: flashSpot .6s ease-in-out 10; }
 /* 名称永远在三角形正下方，无任何遮挡 */
 .route-pin .mk-name{ top:100%; margin-top:3px; }
 
@@ -291,13 +357,47 @@ body.fs #topbar, body.fs #panel{ display:none; }
 ::-webkit-scrollbar-thumb{ background:#cdd8d5; border-radius:4px; }
 ::-webkit-scrollbar-track{ background:transparent; }
 
-/* ===== 名山山峰标记（区别于 5A/4A 数字圆点） ===== */
-.spot-marker.mt{ background:#7a5230; border:2px solid #f5e6c8; border-radius:10px 10px 4px 4px; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(0,0,0,.4); }
-.spot-marker.mt.done{ background:#13a06f; border-color:#bff3dd; }
+/* ===== 名山标记：与 5A / 热门同一套样式 —— 白底 + 松绿描边 + 圈内同色「山」字 ===== */
+.spot-marker.mt{ background:#fff; border:2.5px solid #2f8f6a; border-radius:50%;
+  display:flex; align-items:center; justify-content:center; box-shadow:0 1px 4px rgba(0,0,0,.28); }
+.spot-marker.mt b{ color:#2f8f6a; text-shadow:none; font-size:14px; }
+.spot-marker.mt.done{ border-color:#e63946; }
+.spot-marker.mt.done b{ color:#e63946; }
 .spot-marker.mt svg{ display:block; }
-.spot-marker.mt .mk-name{ color:#333; }
-.spot-marker.mt .mk-name i{ display:block; font-style:normal; font-size:10px; font-weight:600; color:#7a5230; line-height:1.2; }
+.spot-marker.mt .mk-name{ color:#2f8f6a; }
+.spot-marker.mt .mk-name i{ display:block; font-style:normal; font-size:10px; font-weight:600; color:#2f8f6a; line-height:1.2;
+  text-shadow:0 1px 2px rgba(255,255,255,.95), 0 0 3px rgba(255,255,255,.9); }   /* 海拔小字：白描边，卫星底图上也看得清 */
 .pop-card .badge.mtb{ background:#7a5230; color:#fff; }
+/* ===== 高缩放（16 级起）：名称标签移到圆点正上方 =====
+   16 级起底图会显示自己的同名注记，且摆法有两种：小 POI 是「图标+文字在右」，
+   景区主名常在「点位正下方」——我们的标签无论放右侧还是下方都会与之相叠，
+   用户便无法拿底图原名对照位置。移到正上方，两种底图样式都让得开。
+   （body.zhi 由 app.js 在 zoom>=16 时挂上） */
+body.zhi .spot-marker .mk-name{ left:50%; top:auto; bottom:100%; transform:translateX(-50%); margin:0 0 4px 0; }
+body.zhi .leaflet-marker-icon .mynm{ position:absolute; left:50%; top:-18px; transform:translateX(-50%); margin-top:0; }
+/* 18 级起底图注记最密：文字保留但向左上大幅错开；圆点圈与"景/4A"字标隐身，
+   原图名称完全无遮挡（圆点位置仍在原地，点击/拖拽不受影响，缩回 17 级即恢复）。
+   此规则按缩放级别全局生效：景点(.spot-marker)、自建景点(.mynm)、行程图钉全部适用，
+   以后新增同类标签自动继承（body.z18 由 app.js 在 zoom>=18 时挂上） */
+body.z18 .mk-name{ transform:translateX(-100%) translateX(-10px); }
+body.z18 .spot-marker .mk-name{ margin:0 0 12px 0; }
+/* 18 级：圆点保持可见，连同名称整体向左上挪开约 26×30px（18 级约 8 米，视觉可忽略），
+   让原图名称完全显露；真实坐标不变，点击/拖拽照常，缩回 17 级归位 */
+body.z18 .spot-marker{ transform:translate(-26px,-30px); }
+/* 地级市点现在也会出现在 18 级（原 9 级起整层收起），同样要向左上让开底图注记 */
+body.z18 .city-marker{ transform:translate(-26px,-30px); }
+body.z18 .route-pin{ transform:translate(-26px,-30px); }
+body.z18 .mydot{ transform:translate(-26px,-30px); }
+body.z18 .mynm{ position:absolute; left:0; top:-56px; margin:0 0 0 -26px;
+  transform:translateX(-100%); }
+/* 名山列表徽标：与地图圆点同款绿（#2f8f6a），白底描边样式与 5A/景 一致 */
+#spotList .badge.mtb{ background:#fff; color:#2f8f6a; border:1.5px solid #2f8f6a; padding:0 6px; }
+/* 十大高峰海拔徽标：与名山标记圈同色系（松绿），实心小圆角，跟在名称后面 */
+#spotList .badge.altb{ background:#2f8f6a; color:#fff; border:none; padding:1px 7px; font-weight:700;
+  letter-spacing:.2px; }
+#spotList .sp-name .badge.altb{ margin-left:5px; }
+.pop-card .badge.mtb{ background:#fff; color:#2f8f6a; border:1.5px solid #2f8f6a; }
+
 /* ===== 卫星/地图切换按钮 ===== */
 .top-actions #btnSat{ background:rgba(255,255,255,.16); color:#fff; }
 .top-actions #btnSat.on{ background:#2f9e6e; color:#fff; }
@@ -305,3 +405,41 @@ body.fs #topbar, body.fs #panel{ display:none; }
 .prov-toggle{white-space:nowrap;font-size:14px !important;}
 
 .prov-toggle{white-space:nowrap !important;}
+/* ===== 🌍 世界板块（2026-10-04）===== */
+/* 国家：深灰粗体 + 白描边（big 大国字号由 JS 内联控制） */
+.w-country{ position:absolute; transform:translate(-50%,-50%); white-space:nowrap;
+  font-weight:800; letter-spacing:3px; text-indent:3px; color:#414d5e; line-height:1.15;
+  text-shadow:0 0 2px #fff, 0 0 4px #fff, 0 0 6px #fff,
+    1px 1px 0 #fff, -1px 1px 0 #fff, 1px -1px 0 #fff, -1px -1px 0 #fff;
+  pointer-events:none; -webkit-user-select:none; user-select:none; }
+/* 大洲名：z3 专用（底图纯卫星零文字后的低档注记），宽字距、白描边压住卫星画面 */
+.w-cont{ position:absolute; transform:translate(-50%,-50%); white-space:nowrap;
+  font-size:17px; font-weight:800; color:#42584f; letter-spacing:4px;
+  text-shadow:0 0 3px #fff, 0 0 6px #fff, 1px 1px 0 #fff, -1px 1px 0 #fff,
+    1px -1px 0 #fff, -1px -1px 0 #fff;
+  pointer-events:none; -webkit-user-select:none; user-select:none; }
+.w-cont span{ text-indent:2px; }
+/* 城市：百万级小字 / 超大城中字 / 首都 ★ 红字 */
+.w-city{ position:absolute; transform:translate(-50%,-50%); white-space:nowrap;
+  font-size:11px; font-weight:600; color:#222c3a;
+  text-shadow:0 0 2px #fff, 0 0 4px #fff, 1px 1px 0 #fff, -1px 1px 0 #fff,
+    1px -1px 0 #fff, -1px -1px 0 #fff;
+  pointer-events:none; -webkit-user-select:none; user-select:none; }
+.w-city.mega{ font-size:13px; font-weight:800; color:#111a28; }
+.w-city.cap{ font-size:12px; font-weight:800; color:#a02030; }
+/* 面板：大洲直达两级列表（洲行 → 展开国家行） */
+#worldQuick{ padding:2px 0; }
+.wq-cont{ display:flex; align-items:center; gap:8px; padding:9px 10px; margin:2px 0;
+  background:#fff; border:1px solid var(--line); border-radius:10px; cursor:pointer; transition:.15s; }
+.wq-cont:hover{ border-color:var(--green); box-shadow:0 3px 12px rgba(31,122,109,.12); }
+.wq-cont.open{ border-color:var(--green); background:#f2faf7; }
+.wq-cont .wq-name{ font-size:14px; font-weight:bold; }
+.wq-cont .wq-n{ margin-left:auto; font-size:12px; color:#6b7280; white-space:nowrap; }
+.wq-cont.open .wq-name::before{ content:"▾ "; color:var(--green); }
+.wq-cont:not(.open) .wq-name::before{ content:"▸ "; color:#9aa5a3; }
+.wq-box{ padding:0 0 2px 14px; }
+.wq-cty{ display:flex; align-items:center; gap:8px; padding:6px 10px; margin:2px 0;
+  border-radius:8px; cursor:pointer; }
+.wq-cty:hover{ background:#fff6dd; }
+.wq-cty .wq-cty-n{ font-size:13px; font-weight:600; }
+.wq-cty .wq-cty-cap{ margin-left:auto; font-size:11px; color:#8a929e; white-space:nowrap; }
