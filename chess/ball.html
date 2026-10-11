@@ -187,6 +187,16 @@ function physicsStep() {
     b.x += b.vx; b.y += b.vy;
     if (b.dying > 0) { b.dying -= 0.08; if (b.dying < 0) b.dying = 0; }
   }
+  // 速度上限：防止高速穿墙/穿球
+  const MAXV = BR * 0.9;
+  for (const b of balls) {
+    if (b.dead) continue;
+    const sp = Math.hypot(b.vx, b.vy);
+    if (sp > MAXV) {
+      b.vx = b.vx/sp * MAXV;
+      b.vy = b.vy/sp * MAXV;
+    }
+  }
   // 移除完成消失的球
   balls = balls.filter(b => !(b.dying === 0 && b.dead));
 
