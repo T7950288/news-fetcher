@@ -2501,6 +2501,28 @@
         if (saved.posOverrides) posOverrides = saved.posOverrides;
         if (Array.isArray(saved.deletedSpots)) deletedSpots = saved.deletedSpots;
         if (saved.showTextOverrides) showTextOverrides = saved.showTextOverrides;
+        // ★ 云端旧数据补齐：浏览器里存的是旧版空数据（无自建景点）时，
+        //   用内置种子（CLOUD_SEED）补齐自建景点/改名/位置调整等字段；
+        //   已有内容的字段绝不覆盖（尊重用户之后的增删改）。
+        if (typeof CLOUD_SEED !== 'undefined' && CLOUD_SEED) {
+          let touched = false;
+          if ((!Array.isArray(saved.mySpots) || saved.mySpots.length === 0) && Array.isArray(CLOUD_SEED.mySpots) && CLOUD_SEED.mySpots.length) {
+            mySpots = CLOUD_SEED.mySpots.slice(); touched = true;
+          }
+          if ((!saved.nameOverrides || !Object.keys(saved.nameOverrides).length) && CLOUD_SEED.nameOverrides && Object.keys(CLOUD_SEED.nameOverrides).length) {
+            nameOverrides = Object.assign({}, CLOUD_SEED.nameOverrides); touched = true;
+          }
+          if ((!saved.posOverrides || !Object.keys(saved.posOverrides).length) && CLOUD_SEED.posOverrides && Object.keys(CLOUD_SEED.posOverrides).length) {
+            posOverrides = Object.assign({}, CLOUD_SEED.posOverrides); touched = true;
+          }
+          if ((!Array.isArray(saved.deletedSpots) || saved.deletedSpots.length === 0) && Array.isArray(CLOUD_SEED.deletedSpots) && CLOUD_SEED.deletedSpots.length) {
+            deletedSpots = CLOUD_SEED.deletedSpots.slice(); touched = true;
+          }
+          if ((!saved.showTextOverrides || !Object.keys(saved.showTextOverrides).length) && CLOUD_SEED.showTextOverrides && Object.keys(CLOUD_SEED.showTextOverrides).length) {
+            showTextOverrides = Object.assign({}, CLOUD_SEED.showTextOverrides); touched = true;
+          }
+          if (touched) save();
+        }
       }
       // 迁移：市辖区统一归并到所属市（区不单独点亮）
       let mig = false;
