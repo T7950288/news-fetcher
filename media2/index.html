@@ -202,7 +202,7 @@
 
   <div class="net-view" id="netView" style="display:none">
     <div class="net-chips" id="netChips"></div>
-    <iframe id="netPlayer" src="https://music.163.com/outchain/player?type=0&id=18165874802&auto=0&height=580" allow="autoplay" frameborder="0"></iframe>
+    <iframe id="netPlayer" src="https://music.163.com/outchain/player?type=0&id=18412212979&auto=0&height=580" allow="autoplay" frameborder="0"></iframe>
   </div>
 
   <div class="now">
@@ -668,12 +668,78 @@
   if(srcLocalEl) srcLocalEl.addEventListener('click', function(){ switchSrc('local'); });
   if(srcNetEl) srcNetEl.addEventListener('click', function(){ switchSrc('net'); });
 
-  /* 网络歌单管理（本地存储） */
+  /* ===== 网络歌单：云端权威同步 =====
+     电脑端（浏览器存有 gh_news_dispatch_token）：改歌单后自动触发云端同步任务写入仓库；
+     手机端：只读跟随云端歌单，本地被清空/换浏览器也不会回退默认。
+     令牌只从本地浏览器读取（与新闻页同一机制），不写入代码。 */
   var NET_KEY = 'net_playlists_v1';
+  var TOKEN_KEY = 'gh_news_dispatch_token';
+  var DEFAULT_PL = [{id:'18412212979', name:'327'}, {id:'18412300473', name:'328'}];
+  var CLOUD_SOURCES = [
+    'https://api.github.com/repos/t7950288/news-fetcher/contents/media2/net_playlists.json',
+    'https://raw.githubusercontent.com/t7950288/news-fetcher/main/media2/net_playlists.json',
+    'https://t7950288.github.io/news-fetcher/media2/net_playlists.json'
+  ];
+  var DISPATCH_URL = 'https://api.github.com/repos/t7950288/news-fetcher/actions/workflows/sync_playlists.yml/dispatches';
+  function getToken(){ try{ return localStorage.getItem(TOKEN_KEY) || ''; }catch(e){ return ''; } }
+  function sameList(a, b){ return JSON.stringify(a || []) === JSON.stringify(b || []); }
+  function validList(d){ return Array.isArray(d) && d.length && d.every(function(p){ return p && p.id; }); }
+  function b64u(s){ return btoa(unescape(encodeURIComponent(s))); }
+  function fetchCloud(){
+    var done = false;
+    var queue = CLOUD_SOURCES.slice();
+    return new Promise(function(resolve, reject){
+      function next(){
+        if(done) return;
+        if(!queue.length){ reject(new Error('所有云端源均失败')); return; }
+        var u = queue.shift();
+        var ctrl = new AbortController();
+        var timer = setTimeout(function(){ ctrl.abort(); }, 7000);
+        var headers = {};
+        if(u.indexOf('api.github.com') >= 0) headers['Accept'] = 'application/vnd.github.raw';
+        fetch(u + '?_t=' + Date.now(), { cache:'no-store', signal:ctrl.signal, headers:headers })
+          .then(function(r){ if(!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
+          .then(function(txt){
+            clearTimeout(timer);
+            var d = JSON.parse(txt);
+            if(!validList(d)) throw new Error('云端歌单格式异常');
+            done = true;
+            resolve(d);
+          })
+          .catch(function(e){
+            clearTimeout(timer);
+            next();
+          });
+      }
+      next();
+    });
+  }
+  function pushCloud(list){
+    var token = getToken();
+    if(!token) return Promise.resolve(false);
+    var body;
+    try{ body = b64u(JSON.stringify(list || [])); }catch(e){ return Promise.resolve(false); }
+    return fetch(DISPATCH_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Accept': 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ ref:'main', inputs:{ playlists: body } })
+    }).then(function(r){
+      return (r.status === 204 || r.status === 200);
+    }).catch(function(){ return false; });
+  }
   var netList = [];
-  try{ netList = JSON.parse(localStorage.getItem(NET_KEY) || '[]'); }catch(e){}
-  if(!netList || !netList.length){ netList = [{id:'18165874802', name:'林栖Official'}]; }
-  if(netList.length === 1 && netList[0].id === '13698350957'){ netList = [{id:'18165874802', name:'林栖Official'}]; try{ localStorage.setItem(NET_KEY, JSON.stringify(netList)); }catch(e){} }
+  var hasLocal = false;
+  try{
+    var raw0 = localStorage.getItem(NET_KEY);
+    hasLocal = !!raw0;
+    netList = JSON.parse(raw0 || '[]');
+  }catch(e){}
+  if(!validList(netList)){ netList = DEFAULT_PL.slice(); hasLocal = false; }
   var curNetId = netList[0].id;
   var ifr0 = document.getElementById('netPlayer');
   if(ifr0) ifr0.src = netPlayerUrl(curNetId);
@@ -708,12 +774,13 @@
   }
   function delPlaylist(id){
     netList = netList.filter(function(p){ return p.id !== id; });
-    if(!netList.length){ netList = [{id:'18165874802', name:'林栖Official'}]; }
+    if(!netList.length){ netList = DEFAULT_PL.slice(); }
     saveNet();
     if(curNetId === id) curNetId = netList[0].id;
     var ifr = document.getElementById('netPlayer');
     if(ifr) ifr.src = netPlayerUrl(curNetId);
     renderChips();
+    pushCloud(netList);
   }
   function editName(p){
     var nm = prompt('修改歌单名称：', p.name || '');
@@ -722,6 +789,7 @@
     p.name = name;
     saveNet();
     renderChips();
+    pushCloud(netList);
   }
   function addPlaylist(){
     var link = prompt('粘贴网易云歌单链接或 ID：', '');
@@ -738,6 +806,7 @@
     netList.push({ id: id, name: name });
     saveNet();
     netPlay(id);
+    pushCloud(netList);
   }
   function refreshNet(){
     var ifr = document.getElementById('netPlayer');
@@ -747,6 +816,33 @@
   var netRefEl = document.getElementById('netRefresh');
   if(netAddEl) netAddEl.addEventListener('click', function(){ switchSrc('net'); addPlaylist(); });
   if(netRefEl) netRefEl.addEventListener('click', function(){ switchSrc('net'); refreshNet(); });
+  /* 启动：拉云端歌单，决定显示与推送（电脑本地为准自动上云；手机跟随云端） */
+  fetchCloud().then(function(cloud){
+    if(!validList(cloud)) return;
+    if(getToken()){
+      /* 电脑端：本地有记录=本地最新，不同则自动推云端；本地被清空时用云端恢复 */
+      if(!hasLocal){
+        netList = cloud.slice();
+        saveNet();
+        curNetId = netList[0].id;
+        var ifr = document.getElementById('netPlayer');
+        if(ifr) ifr.src = netPlayerUrl(curNetId);
+        renderChips();
+      }else if(!sameList(netList, cloud)){
+        pushCloud(netList);
+      }
+    }else{
+      /* 手机端：跟随云端 */
+      if(!sameList(netList, cloud)){
+        netList = cloud.slice();
+        saveNet();
+        curNetId = netList[0].id;
+        var ifr2 = document.getElementById('netPlayer');
+        if(ifr2) ifr2.src = netPlayerUrl(curNetId);
+        renderChips();
+      }
+    }
+  }).catch(function(){});
   renderChips();
 
   updateNow();
