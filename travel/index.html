@@ -4,14 +4,55 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>豆包旅游地图</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@e7a6229374f9315d6c0bc5e2d73b0ff091258af1/travel/js/lib/leaflet.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@e7a6229374f9315d6c0bc5e2d73b0ff091258af1/travel/css/style.css">
+<link rel="stylesheet" href="js/lib/leaflet.css">
+<link rel="stylesheet" href="css/style.css?v=20261004d">
 <style>
   /* 顶栏海拔按键：替换原「地球/全屏」，改为文字胶囊 */
   .top-actions button{ width:auto; min-width:58px; height:34px; padding:0 11px; border-radius:17px;
     font-size:13px; font-weight:700; background:rgba(255,255,255,.16); color:#fff; }
   .top-actions #btnGps{ background:#e8a33d; color:#3a2605; }
   .top-actions #btnGps:active{ background:#d18f2a; }
+  /* 标注模式按钮 */
+  #btnAnnotate{ width:100%; margin:0 0 8px; padding:9px 12px; border:none; border-radius:10px;
+    background:#2563eb; color:#fff; font-size:14px; font-weight:700; cursor:pointer; }
+  #btnAnnotate:hover{ background:#1d4ed8; }
+  #btnAnnotate.on{ background:#dc2626; }
+  #btnAnnotate.on::after{ content:"（再点一次退出标注模式）"; font-size:12px; font-weight:400; }
+  /* 一键备份 / 恢复按钮（搜索框右侧，一键完成） */
+  .top-search{ max-width:640px; }
+  .top-search button.bk{ width:auto; min-width:0; padding:0 12px; margin-left:8px; border-radius:17px;
+    font-size:13px; font-weight:700; background:rgba(255,255,255,.92); color:#2f6b52; }
+  .top-search button.bk:hover{ background:#fff; }
+  .top-search button.bk:active{ background:#e6f2ec; }
+  .top-search button.bk:disabled{ opacity:.55; }
+  /* 「存档」按钮：与备份/恢复区分开（暖色），提示它写的是长期保留的文件夹 */
+  .top-search button.bk.arc{ background:rgba(255,247,232,.95); color:#8a5a12; }
+  .top-search button.bk.arc:hover{ background:#fffdf7; }
+  .top-search button.bk.arc:active{ background:#f7e9cc; }
+  /* 备份/恢复结果提示 */
+  .bk-toast{ position:fixed; left:50%; top:64px; transform:translateX(-50%); z-index:12000;
+    background:rgba(18,42,34,.95); color:#eaf7f1; border:1px solid rgba(127,214,178,.55);
+    border-radius:12px; padding:12px 18px; font-size:14px; line-height:1.75; max-width:76%;
+    text-align:center; display:none; box-shadow:0 6px 24px rgba(0,0,0,.35); }
+  .bk-toast.show{ display:block; }
+  /* 中文右键菜单 */
+  #__ctx_menu div{ padding:9px 16px; font-size:13px; cursor:pointer; color:#1f2937; }
+  #__ctx_menu div:hover{ background:#eef4ff; color:#2563eb; }
+  #__mk_menu div{ padding:9px 16px; font-size:13px; cursor:pointer; color:#1f2937; }
+  #__mk_menu div:hover{ background:#eef4ff; color:#2563eb; }
+  /* 照片缩略图右键菜单（中文，替代 QtWebEngine 自带的英文菜单） */
+  #__pp_menu div{ padding:9px 18px; font-size:13px; cursor:pointer; color:#1f2937;
+    white-space:nowrap; }
+  #__pp_menu div:hover{ background:#eef4ff; color:#2563eb; }
+  #__pp_menu div.danger{ color:#c1121f; }
+  #__pp_menu div.danger:hover{ background:#fdecec; color:#9b0f18; }
+  #__pp_menu .sep{ height:1px; background:#eef0f2; padding:0; margin:4px 0; cursor:default; }
+  /* 照片模块的中文确认框（删除等不可轻率的操作） */
+  #__pp_confirm div.cf-t{ font-size:15px; font-weight:700; color:#1f2937; margin-bottom:8px; }
+  #__pp_confirm div.cf-m{ font-size:13px; color:#4b5563; line-height:1.75;
+    margin-bottom:16px; word-break:break-all; max-height:180px; overflow:auto; }
+  #__pp_confirm button{ border:none; border-radius:8px; padding:8px 18px; font-size:13px;
+    cursor:pointer; }
   /* 海拔结果浮层（地图底部居中，避开右下缩放控件） */
   .alt-float{ position:absolute; left:50%; bottom:88px; transform:translateX(-50%); z-index:1500;
     background:rgba(18,42,34,.94); color:#eaf7f1; border:1px solid rgba(127,214,178,.55);
@@ -24,8 +65,88 @@
   .pop-card .pal{ font-size:13px; color:var(--green-d); margin:6px 0 0; padding-top:6px;
     border-top:1px dashed var(--line); }
   .pop-card .pal b{ color:#c1121f; }
+  /* ---------- 照片图层 ---------- */
+  /* 有照片的县市：绿圆点；名称标签统一白底深字（加 w 类，与 5A 标签同一套样式），
+     (张数) 用深绿加下划线，白底上清晰可点。 */
+  .city-marker.ph{ width:16px; height:16px; border-radius:50%; background:#2f8f6a;
+    border:2px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,.35); }
+  /* (张数)：白底标签上用深绿，一眼能看到 */
+  .mk-name .pc-n{ color:#0f7a45; font-weight:800; margin-left:2px; white-space:nowrap;
+    text-decoration:underline; text-underline-offset:2px; }
+  .mk-name .pc-n:hover{ color:#065f38; }
+  /* 5A 标记：白底 + 洋红描边 + 洋红字符（与自建景点同一套样式）；
+     圈内数字与名称文字统一用洋红；照片绿圆点仍为实心绿，两者区分不受影响。 */
+  .spot-marker.a5{ background:#fff; border:2.5px solid #ff00ff; }
+  .spot-marker.a5 b{ color:#ff00ff; }
+  .top-actions #btnPhotos.on{ background:#2f8f6a; color:#fff; }
+  .top-actions #btnPhotoScan.busy{ background:#e8a33d; color:#3a2605; }
+
+  /* 照片面板：从地图右侧滑出 */
+  .photo-panel{ position:absolute; right:0; top:0; bottom:0; width:min(580px,54%);
+    background:#fff; z-index:800; transform:translateX(102%); transition:transform .28s ease;
+    display:flex; flex-direction:column; box-shadow:-3px 0 16px rgba(0,0,0,.22); }
+  .photo-panel.open{ transform:translateX(0); }
+  .pp-head{ display:flex; align-items:center; gap:8px; padding:10px 12px;
+    border-bottom:1px solid #e5eae7; background:#f7faf8; }
+  .pp-head b{ font-size:15px; color:#1f3a2e; }
+  .pp-sub{ font-size:12px; color:#6b8a7c; }
+  .pp-head button{ margin-left:auto; border:none; background:#e8efeb; color:#2f6b52;
+    width:28px; height:28px; border-radius:14px; cursor:pointer; font-size:13px; }
+  .pp-head button:hover{ background:#d8e6df; }
+  /* overflow-y 用 scroll 而非 auto：让滚动条常驻，内容宽度恒定。
+     否则「有滚动条↔无滚动条」会来回切换，量出的列宽随之跳动，行高永远差十几像素。 */
+  .pp-body{ flex:1; overflow-y:scroll; padding:10px; display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(104px,1fr)); gap:8px; align-content:start; }
+  /* 正方形格子：不用 padding-top 撑高（Chromium 87 下网格项百分比 padding 解析异常，
+     会把格子压成 0.06px 的细线），改为由 JS 实测列宽后写 grid-auto-rows，
+     见 app.js 的 fitPhotoGrid()。 */
+  .pp-item{ position:relative; overflow:hidden; border-radius:8px;
+    background:#e9edeb; cursor:pointer; min-height:60px; }
+  /* 关键：img 是「替换元素」，只写 left/top/right/bottom:0 不会拉伸，
+     它会按固有尺寸（如 320×240）渲染再被 overflow 裁掉 —— 这正是
+     「缩略图只看到照片局部」的原因。必须显式给 width/height:100%，
+     再配合 object-fit:contain 让整张照片完整显示（不足处留浅灰底）。
+     这里 height 的百分比基准是格子的行高（由 fitPhotoGrid 实测列宽写入），
+     格子高度不依赖图片自身，所以不会出现循环塌缩。 */
+  .pp-item img{ position:absolute; left:0; top:0; width:100%; height:100%;
+    object-fit:contain; display:block; }
+  .pp-item:hover img{ opacity:.88; }
+  /* contain 后图片不满格，日期角标改用半透明实底（渐变在浅灰留白上会发黑） */
+  .pp-item .d{ position:absolute; left:0; right:0; bottom:0; font-size:10px; color:#fff;
+    background:rgba(0,0,0,.5); padding:3px 4px; text-align:center; }
+  /* 「≈」：这张照片 EXIF 里没有经纬度，地点是按拍摄时间邻近的照片推断的 */
+  .pp-item .est{ position:absolute; right:4px; top:4px; width:17px; height:17px; line-height:17px;
+    text-align:center; border-radius:50%; font-size:12px; font-weight:700; font-style:normal;
+    background:rgba(47,143,106,.92); color:#fff; box-shadow:0 1px 3px rgba(0,0,0,.3); }
+  /* 「📍」：这张照片 EXIF 里没有经纬度，地点是用户按拍摄时段人工指定的（比推断更确定） */
+  .pp-item .est.man{ background:rgba(232,163,61,.95); font-size:11px; }
+  .pp-empty{ grid-column:1/-1; text-align:center; color:#7b8f85; font-size:13px; padding:36px 10px; }
+  /* 大图查看 */
+  /* 注意：QtWebEngine 的 Chromium 版本对 inset 简写支持不稳，此处用长属性 */
+  .pp-viewer{ position:fixed; left:0; right:0; top:0; bottom:0; background:rgba(0,0,0,.9);
+    z-index:20000; display:none; align-items:center; justify-content:center; cursor:zoom-out; }
+  .pp-viewer.show{ display:flex; }
+  .pp-viewer img{ max-width:94%; max-height:94%; box-shadow:0 8px 40px rgba(0,0,0,.6); }
+  /* 上一张 / 下一张（大图两侧，居中垂直） */
+  .pp-nav{ position:absolute; top:50%; transform:translateY(-50%); width:54px; height:54px;
+    border:none; border-radius:50%; background:rgba(255,255,255,.18); color:#fff; font-size:32px;
+    line-height:1; cursor:pointer; z-index:20001; display:none; align-items:center;
+    justify-content:center; padding:0 0 5px; -webkit-user-select:none; user-select:none; }
+  .pp-viewer.show .pp-nav{ display:flex; }
+  .pp-nav:hover{ background:rgba(255,255,255,.36); }
+  .pp-nav:active{ background:rgba(255,255,255,.5); }
+  .pp-prev{ left:20px; }
+  .pp-next{ right:20px; }
+  .pp-count{ position:absolute; left:50%; bottom:20px; transform:translateX(-50%);
+    color:#eaf7f1; font-size:13px; background:rgba(0,0,0,.5); padding:4px 14px;
+    border-radius:13px; z-index:20001; display:none; letter-spacing:.5px; }
+  .pp-viewer.show .pp-count{ display:block; }
+
   @media (max-width:768px){
+    .photo-panel{ width:100%; }
+    .pp-body{ grid-template-columns:repeat(auto-fill,minmax(84px,1fr)); }
     .top-actions button{ min-width:52px; height:32px; font-size:13px; padding:0 8px; }
+    .top-search button.bk{ padding:0 8px; font-size:12px; margin-left:6px; }
     .alt-float{ bottom:80px; max-width:90%; font-size:13px; }
   }
 </style>
@@ -37,9 +158,14 @@
     <div class="top-search">
       <input id="topInput" type="text" placeholder="搜索城市或景点，如：成都、故宫" autocomplete="off">
       <button id="btnTopSearch" title="搜索">🔍</button>
+      <button id="btnBackup" class="bk" title="一键备份：把改名、手动加的景点、调整过的位置、足迹、行程全部导出到「备份」文件夹（只保留最近 10 份，会自动清理更早的）">💾 备份</button>
+      <button id="btnRestore" class="bk" title="一键恢复：用最新一份备份覆盖当前数据（覆盖前会自动把当前数据另存为快照）">📂 恢复</button>
+      <button id="btnArchive" class="bk arc" title="一键存档：把当前全部数据存进应用目录的「永久存档」文件夹。与「备份」不同，它长期保留、永不被自动清理，适合在手工改完一批位置、大批数据入库前后、应用改版前留底">📦 存档</button>
       <div id="topSuggest" class="suggest"></div>
     </div>
     <div class="top-actions">
+      <button id="btnPhotos" title="显示/隐藏照片图层：把拍了照片的县市显示到地图上（先在左侧点「扫描」建立索引）">📷 照片</button>
+      <button id="btnPhotoScan" title="扫描相册，读取照片的拍摄定位并建立索引。只读，绝不改动原照片">🔄 扫描</button>
       <button id="btnGps" title="GPS 测当前位置海拔与移动速度">📡 海拔</button>
       <button id="btnSat" title="切换卫星影像地图">🛰 卫星</button>
     </div>
@@ -48,6 +174,7 @@
   <div id="main">
     <aside id="panel">
       <nav id="tabs" style="display:flex;">
+        <button class="tab" data-tab="world">🌍 世界</button>
         <button class="tab active" data-tab="spots">🗺️ 景点</button>
         <button class="tab" data-tab="plan">🧳 行程</button>
         <button class="tab" data-tab="foot">👣 足迹</button>
@@ -56,6 +183,7 @@
 
       <!-- 景点 -->
       <section class="pane active" id="pane-spots">
+        <button id="btnAnnotate" title="点击后在地图上选位置，输入名称即可标注">📍 标注景点（点地图选位置）</button>
         <div class="list" id="spotList"></div>
       </section>
 
@@ -74,7 +202,10 @@
             <button class="chip on" id="modeTransit">🚆 公共交通</button>
             <button class="chip" id="modeDrive">🚗 自驾</button>
           </div>
-          <label>我的偏好（可多选）</label>
+          <label>人群主题</label>
+          <div class="filter-cats" id="prefsTheme"></div>
+          <label>地域分区</label>
+          <div class="filter-cats" id="prefsRegion"></div>
           <button id="btnPlan" class="primary">✨ 自动安排行程</button>
           <div class="saved-trips">
             <select id="savedTripSel"><option value="">载入已保存行程…</option></select>
@@ -89,12 +220,26 @@
         <div class="foot-stat" id="footStat"></div>
         <div class="members" id="memberChips"></div>
         <div class="member-edit">
-          <input id="newMember" placeholder="添加成员，如：妈妈" maxlength="6">
+          <input id="newMember" maxlength="6">
           <button id="btnAddMember">＋</button>
         </div>
         <button id="btnClearFoot" class="clear-foot">一键清除当前成员足迹</button>
-        <div class="foot-note">勾选成员后，在景点卡片点「标记去过」，或在下方按城市点亮：</div>
+        <div class="foot-note">勾选成员后：在地图上单击城市 / 景点即点亮，或在下方搜索、点选：</div>
+        <div class="foot-search">
+          <input id="footSearch" type="text" placeholder="搜县 / 市 / 省，如「代县」，回车直接点亮" autocomplete="off">
+          <span id="footSearchN"></span>
+        </div>
         <div class="list" id="cityFootList"></div>
+      </section>
+
+      <!-- 世界 -->
+      <section class="pane" id="pane-world">
+        <div class="foot-note">🌍 世界板块：全球国家 + 首都 + 百万级城市一图浏览；中国部分与「🗺️ 景点」完全一致（含自建景点）。整板块<b>只读</b>，不弹卡、不点亮，要标注 / 点亮请回景点与足迹版块。</div>
+        <div class="foot-search">
+          <input id="worldSearch" type="text" placeholder="搜国家 / 首都 / 世界城市 / 中国景点与市县点，回车飞过去" autocomplete="off">
+          <span id="worldSearchN"></span>
+        </div>
+        <div class="list" id="worldQuick"></div>
       </section>
     </aside>
 
@@ -104,17 +249,32 @@
       <div id="mapLegend" class="legend"></div>
       <div id="mapHint" class="map-hint"></div>
       <div id="altFloat" class="alt-float"></div>
+
+      <!-- 照片面板：从地图右侧滑出，并列铺开该县市全部照片 -->
+      <div id="photoPanel" class="photo-panel">
+        <div class="pp-head">
+          <b id="ppTitle">照片</b>
+          <span id="ppSub" class="pp-sub"></span>
+          <button id="ppClose" title="关闭">✕</button>
+        </div>
+        <div id="ppBody" class="pp-body"></div>
+      </div>
     </div>
   </div>
 </div>
+<div id="bkToast" class="bk-toast"></div>
+<div id="ppViewer" class="pp-viewer"><button id="ppPrev" class="pp-nav pp-prev" title="上一张（←）">‹</button><img id="ppViewerImg" alt=""><button id="ppNext" class="pp-nav pp-next" title="下一张（→）">›</button><div id="ppCount" class="pp-count"></div></div>
 
-<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@e7a6229374f9315d6c0bc5e2d73b0ff091258af1/travel/js/lib/leaflet.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@e7a6229374f9315d6c0bc5e2d73b0ff091258af1/travel/data_bundle.js?v=4"></script>
-<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@e7a6229374f9315d6c0bc5e2d73b0ff091258af1/travel/js/bridge.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@e7a6229374f9315d6c0bc5e2d73b0ff091258af1/travel/js/trip_templates.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@e7a6229374f9315d6c0bc5e2d73b0ff091258af1/travel/js/planner.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@e7a6229374f9315d6c0bc5e2d73b0ff091258af1/travel/js/footprint.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@e7a6229374f9315d6c0bc5e2d73b0ff091258af1/travel/js/app.js"></script>
+<script src="js/lib/leaflet.js"></script>
+<script src="data_bundle.js?v=20261002a"></script>
+<script src="prov_bounds.js?v=20261006a"></script>
+<script src="world_bundle.js?v=20261004a"></script>
+<script src="js/qwebchannel.js"></script>
+<script src="js/bridge.js"></script>
+<script src="js/trip_templates.js"></script>
+<script src="js/planner.js?v=20261001r"></script>
+<script src="js/footprint.js?v=20261006a"></script>
+<script src="js/app.js?v=20261006b"></script>
 <script>
 /* 版块导航：检测是否可滚动，显示右侧渐隐提示 */
 (function(){ function c(){ var w=document.querySelector('.nav-tabs-wrap'),t=w&&w.querySelector('.nav-tabs');
