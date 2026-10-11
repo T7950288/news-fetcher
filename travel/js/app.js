@@ -1352,7 +1352,7 @@
         routeLayer.clearLayers();
         document.getElementById('mapLegend').classList.remove('show');
         refreshMarkers();
-        showMapHint('还没有行程<br>请在左侧输入<b>目的地城市</b><br>再点击「自动安排行程」');
+        // 2026-10-11 去掉「还没有行程」提示框：切到行程 tab 保持地图干净（用户要求）
       }
     } else if (t === 'foot') {
       routeLayer.clearLayers();
