@@ -48,7 +48,13 @@ const Store = (function () {
             qtObj.get(key, function (v) { res(v ? JSON.parse(v) : null); });
           } else {
             const s = localStorage.getItem(key);
-            res(s ? JSON.parse(s) : null);
+            if (s) { res(JSON.parse(s)); }
+            else if (typeof CLOUD_SEED !== 'undefined' && CLOUD_SEED && key === KEY) {
+              // 云端首次打开：载入内置种子数据（自建景点/改名/位置调整等），并立即落盘以便后续编辑持久化
+              try { localStorage.setItem(key, JSON.stringify(CLOUD_SEED)); } catch (e) {}
+              res(CLOUD_SEED);
+            }
+            else { res(null); }
           }
         } catch (e) { res(null); }
       });
