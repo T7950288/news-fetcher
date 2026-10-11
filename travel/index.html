@@ -168,8 +168,18 @@
       <button id="btnPhotoScan" title="扫描相册，读取照片的拍摄定位并建立索引。只读，绝不改动原照片">🔄 扫描</button>
       <button id="btnGps" title="GPS 测当前位置海拔与移动速度">📡 海拔</button>
       <button id="btnSat" title="切换卫星影像地图">🛰 卫星</button>
+      <button id="btnMore" title="更多功能" aria-label="更多功能">⋯</button>
     </div>
   </header>
+
+  <!-- 手机端「⋯」弹出菜单（仅窄屏≤768px显示）：照片/扫描/备份/恢复/存档 -->
+  <div id="moreMenu" class="more-menu">
+    <button data-act="btnPhotos">📷 照片</button>
+    <button data-act="btnPhotoScan">🔄 扫描</button>
+    <button data-act="btnBackup">💾 备份</button>
+    <button data-act="btnRestore">📂 恢复</button>
+    <button data-act="btnArchive">📦 存档</button>
+  </div>
 
   <div id="main">
     <aside id="panel">
