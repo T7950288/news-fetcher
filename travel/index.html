@@ -275,39 +275,17 @@
 <div id="bkToast" class="bk-toast"></div>
 <div id="ppViewer" class="pp-viewer"><button id="ppPrev" class="pp-nav pp-prev" title="上一张（←）">‹</button><img id="ppViewerImg" alt=""><button id="ppNext" class="pp-nav pp-next" title="下一张（→）">›</button><div id="ppCount" class="pp-count"></div></div>
 
-<script src="js/lib/leaflet.js"></script>
-<script>
-/* 2026-10-11 加载提速：数据文件走 CDN 双源（云端网页优先 jsdelivr，失败自动回退
-   GitHub Pages 同目录；电脑端 file:// 直接读本地文件，不受影响）。
-   用同步 XHR 探测：探测未完成时页面不会继续解析，保证脚本顺序。 */
-(function(){
-  var isFile = location.protocol === 'file:';
-  var cdnBase = 'https://cdn.jsdelivr.net/gh/t7950288/news-fetcher@main/travel/';
-  function js(rel){ return '<scr'+'ipt src="'+rel+'"><\/scr'+'ipt>'; }
-  if (isFile) {
-    document.write(js('data_bundle.js?v=20261002a') + js('prov_bounds.js?v=20261006a'));
-    return;
-  }
-  var useCdn = false;
-  try {
-    var x = new XMLHttpRequest();
-    x.open('HEAD', cdnBase + 'data_bundle.js', false);   // 同步：阻塞到探测完成，保顺序
-    x.timeout = 1000;                                     // 最多卡 1 秒，再慢就回退本地
-    x.send(null);
-    useCdn = (x.status >= 200 && x.status < 400);
-  } catch (e) { useCdn = false; }
-  if (useCdn) document.write(js(cdnBase + 'data_bundle.js') + js(cdnBase + 'prov_bounds.js'));
-  else        document.write(js('data_bundle.js?v=20261002a') + js('prov_bounds.js?v=20261006a'));
-})();
-</script>
-<script src="world_bundle.js?v=20261004a"></script>
-<script src="js/qwebchannel.js"></script>
-<script src="cloud_seed.js?v=20261011"></script>
-<script src="js/bridge.js"></script>
-<script src="js/trip_templates.js"></script>
-<script src="js/planner.js?v=20261001r"></script>
-<script src="js/footprint.js?v=20261006a"></script>
-<script src="js/app.js?v=20261011a"></script>
+<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@20874711a7d0c06d59a8d353b834eccd485761fd/travel/js/lib/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@20874711a7d0c06d59a8d353b834eccd485761fd/travel/data_bundle.js?v=4"></script>
+<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@20874711a7d0c06d59a8d353b834eccd485761fd/travel/prov_bounds.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@20874711a7d0c06d59a8d353b834eccd485761fd/travel/world_bundle.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@20874711a7d0c06d59a8d353b834eccd485761fd/travel/js/qwebchannel.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@20874711a7d0c06d59a8d353b834eccd485761fd/travel/cloud_seed.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@20874711a7d0c06d59a8d353b834eccd485761fd/travel/js/bridge.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@20874711a7d0c06d59a8d353b834eccd485761fd/travel/js/trip_templates.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@20874711a7d0c06d59a8d353b834eccd485761fd/travel/js/planner.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@20874711a7d0c06d59a8d353b834eccd485761fd/travel/js/footprint.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/T7950288/news-fetcher@20874711a7d0c06d59a8d353b834eccd485761fd/travel/js/app.js"></script>
 <script>
 /* 版块导航：检测是否可滚动，显示右侧渐隐提示 */
 (function(){ function c(){ var w=document.querySelector('.nav-tabs-wrap'),t=w&&w.querySelector('.nav-tabs');
