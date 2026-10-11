@@ -669,7 +669,7 @@
   if(srcNetEl) srcNetEl.addEventListener('click', function(){ switchSrc('net'); });
 
   /* ===== 网络歌单：云端权威同步 =====
-     电脑端（浏览器存有 gh_news_dispatch_token）：改歌单后自动触发云端同步任务写入仓库；
+     电脑端（浏览器存有 gh_news_dispatch_token）：改歌单后直接写入 GitHub 仓库歌单文件；
      手机端：只读跟随云端歌单，本地被清空/换浏览器也不会回退默认。
      令牌只从本地浏览器读取（与新闻页同一机制），不写入代码。 */
   var NET_KEY = 'net_playlists_v1';
@@ -680,7 +680,6 @@
     'https://raw.githubusercontent.com/t7950288/news-fetcher/main/media2/net_playlists.json',
     'https://t7950288.github.io/news-fetcher/media2/net_playlists.json'
   ];
-  var DISPATCH_URL = 'https://api.github.com/repos/t7950288/news-fetcher/actions/workflows/sync_playlists.yml/dispatches';
   function getToken(){ try{ return localStorage.getItem(TOKEN_KEY) || ''; }catch(e){ return ''; } }
   function sameList(a, b){ return JSON.stringify(a || []) === JSON.stringify(b || []); }
   function validList(d){ return Array.isArray(d) && d.length && d.every(function(p){ return p && p.id; }); }
@@ -717,19 +716,30 @@
   function pushCloud(list){
     var token = getToken();
     if(!token) return Promise.resolve(false);
-    var body;
-    try{ body = b64u(JSON.stringify(list || [])); }catch(e){ return Promise.resolve(false); }
-    return fetch(DISPATCH_URL, {
-      method: 'POST',
-      headers: {
-        'Authorization': 'Bearer ' + token,
-        'Accept': 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ ref:'main', inputs:{ playlists: body } })
+    var content;
+    try{ content = b64u(JSON.stringify(list || [])); }catch(e){ return Promise.resolve(false); }
+    var url = CLOUD_SOURCES[0];
+    // 先取现有文件 sha（确保更新而不是重复创建）
+    return fetch(url + '?_t=' + Date.now(), {
+      headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json' }
     }).then(function(r){
-      return (r.status === 204 || r.status === 200);
+      if(!r.ok) return null;
+      return r.json().then(function(d){ return d.sha || null; }).catch(function(){ return null; });
+    }).then(function(sha){
+      var body = { message: 'sync playlists', content: content };
+      if(sha) body.sha = sha;
+      return fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Authorization': 'Bearer ' + token,
+          'Accept': 'application/vnd.github+json',
+          'X-GitHub-Api-Version': '2022-11-28',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+      });
+    }).then(function(r){
+      return (r.status === 200 || r.status === 201);
     }).catch(function(){ return false; });
   }
   var netList = [];
