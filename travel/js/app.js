@@ -1400,7 +1400,9 @@
   }
   document.querySelectorAll('#tabs .tab').forEach(t => t.addEventListener('click', () => {
     switchTab(t.dataset.tab);
-    if (window.innerWidth <= 768 && t.dataset.tab !== 'plan') document.getElementById('panel').classList.remove('open');
+    // 2026-10-11 手机端体验修复：点 tab 不再自动收起左侧面板（此前点足迹等面板立刻关闭，
+    // 需再点☰才能看内容）。收起只由「关闭」按钮和☰控制。电脑端行为不变。
+    // if (window.innerWidth <= 768 && t.dataset.tab !== 'plan') document.getElementById('panel').classList.remove('open');
   }));
 
   /* ---------- 景点列表 + 分类 ---------- */
@@ -1604,7 +1606,8 @@
           setTimeout(() => openMySpotPopup(mine), 400);
           setTimeout(() => openMySpotPopup(mine), 1100);
         }
-        if (window.innerWidth <= 768) document.getElementById('panel').classList.remove('open');
+        // 2026-10-11 手机端体验修复：点击自建景点不再自动收起面板
+        // if (window.innerWidth <= 768) document.getElementById('panel').classList.remove('open');
         return;
       }
       const s = byId[c.dataset.id];
@@ -1640,7 +1643,8 @@
         c.classList.add('sel');
         flySpot(s);
       }
-      if (window.innerWidth <= 768) document.getElementById('panel').classList.remove('open');
+      // 2026-10-11 手机端体验修复：点击景点卡片不再自动收起面板（收起只由「关闭」和☰控制）
+      // if (window.innerWidth <= 768) document.getElementById('panel').classList.remove('open');
     }));
   }
   // 重绘后把某张卡片展开、滚动到可视区并高亮（改名/新增后让用户立刻看到结果）
@@ -1699,7 +1703,8 @@
         switchTab('spots'); state.curQ = g.dataset.name; renderSpotList(); flyCity(g.dataset.name);
       }
       topInput.value = ''; topSuggest.classList.remove('show');
-      if (window.innerWidth <= 768) document.getElementById('panel').classList.remove('open');
+      // 2026-10-11 手机端体验修复：搜索/选择后不再自动收起面板
+      // if (window.innerWidth <= 768) document.getElementById('panel').classList.remove('open');
     }));
   });
   topInput.addEventListener('blur', () => setTimeout(() => topSuggest.classList.remove('show'), 150));
@@ -1715,7 +1720,8 @@
       switchTab('spots'); renderSpotList();
       map.flyTo(disp(provHit.center[1], provHit.center[0]), 6, { duration: .6 });
       topInput.value = ''; topSuggest.classList.remove('show');
-      if (window.innerWidth <= 768) document.getElementById('panel').classList.remove('open');
+      // 2026-10-11 手机端体验修复：搜索后不再自动收起面板
+      // if (window.innerWidth <= 768) document.getElementById('panel').classList.remove('open');
       return;
     }
     state.provMode = [];
@@ -1731,7 +1737,8 @@
       switchTab('spots'); state.curQ = q; renderSpotList(); refreshMarkers();
     }
     topInput.value = ''; topSuggest.classList.remove('show');
-    if (window.innerWidth <= 768) document.getElementById('panel').classList.remove('open');
+    // 2026-10-11 手机端体验修复：搜索后不再自动收起面板
+    // if (window.innerWidth <= 768) document.getElementById('panel').classList.remove('open');
   }
 
   /* ---------- 行程 ---------- */
@@ -1912,7 +1919,7 @@
       } else sv.textContent = '✓ 此前已保存';
     });
     const vr = box.querySelector('[data-act="viewroute"]');
-    if (vr) vr.addEventListener('click', () => { drawRoutes(res); if (window.innerWidth <= 768) document.getElementById('panel').classList.remove('open'); });
+    if (vr) vr.addEventListener('click', () => { drawRoutes(res); /* 2026-10-11 手机端：查看路线不再自动收起面板 */ });
   }
 
   function drawRoutes(res, keepView) {
@@ -2149,14 +2156,46 @@
   });
   document.getElementById('panelToggle').addEventListener('click', () => {
     var p = document.getElementById('panel');
-    p.style.display = 'flex';
+    // 手机端只切换 .open（纯 CSS transform 滑动），不再混入电脑端的 display 重置，避免卡顿/闪烁
     if (window.innerWidth <= 768) {
-      p.classList.add('open');
+      p.classList.toggle('open');
+      document.getElementById('panelToggle').classList.toggle('show', !p.classList.contains('open'));
+      map.invalidateSize();
+      return;
     }
+    p.style.display = 'flex';
     document.getElementById('panelToggle').classList.remove('show');
     map.invalidateSize();
   });
   window.addEventListener('resize', () => map.invalidateSize());
+
+  /* ---------- 手机端「⋯」更多菜单（照片/扫描/备份/恢复/存档） ---------- */
+  const moreMenu = document.getElementById('moreMenu');
+  const btnMore = document.getElementById('btnMore');
+  if (moreMenu && btnMore) {
+    btnMore.addEventListener('click', (e) => {
+      e.stopPropagation();
+      moreMenu.classList.toggle('show');
+      btnMore.classList.toggle('on', moreMenu.classList.contains('show'));
+    });
+    // 菜单项：触发对应原按钮的点击（原按钮仍在 DOM 中，只是窄屏 CSS 隐藏）
+    moreMenu.querySelectorAll('button').forEach(b => {
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        moreMenu.classList.remove('show');
+        btnMore.classList.remove('on');
+        const tgt = document.getElementById(b.dataset.act);
+        if (tgt) tgt.click();
+      });
+    });
+    // 点击地图/页面其他区域关闭菜单
+    document.addEventListener('click', (e) => {
+      if (!moreMenu.contains(e.target) && e.target !== btnMore) {
+        moreMenu.classList.remove('show');
+        btnMore.classList.remove('on');
+      }
+    });
+  }
 
   /* ---------- 我的景点 & 重命名 ---------- */
   let nameOverrides = {};   // {spotId: "自定义名"}（官方景点显示别名）
