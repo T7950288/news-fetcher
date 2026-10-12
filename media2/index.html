@@ -566,10 +566,15 @@
       if(k) items.push({name:f.name, kind:k, size:f.size, file:f});
     }
     if(!items.length){ setErr("未识别到音乐/视频文件（支持常见格式）"); return; }
+    var startIdx = playlist.length;
     addItems(items, true);
     folderMode = false;
     showHint("已添加 "+items.length+" 个文件");
     fileInput.value = "";
+    /* 手机端: 选一个播一个——每次选择后自动播放新添加的文件(电脑端保持原逻辑) */
+    if(window.innerWidth < 769 && startIdx > 0 && playlist.length){
+      playAt(startIdx);
+    }
   });
 
   /* ===== 启动：尝试恢复上次的文件夹（权限被回收时自动请求重新授权） ===== */
