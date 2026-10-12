@@ -659,7 +659,11 @@
       var mediaSrc = audioCtx.createMediaElementSource(player);
       mediaSrc.connect(gainNode);
       gainNode.connect(audioCtx.destination);
-      if(volBarEl) volBarEl.max = 200;
+      if(volBarEl){
+        volBarEl.max = 200;
+        volBarEl.value = 200;      /* 默认即最大音量(2 倍), 用户可手动调小 */
+        gainNode.gain.value = 2;
+      }
     }catch(e){ audioCtx = null; gainNode = null; }
   }
   window.addEventListener('load', function(){ layoutAll(); });
