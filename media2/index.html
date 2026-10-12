@@ -385,6 +385,7 @@
 
   /* ===== 事件绑定 ===== */
   document.getElementById("playBtn").addEventListener("click", function(){
+    if(audioCtx && audioCtx.state === "suspended"){ audioCtx.resume().catch(function(){}); }
     if(!player.src){ if(playlist.length) playAt(cur>=0?cur:0); return; }
     if(player.paused) player.play().catch(function(){});
     else player.pause();
@@ -414,8 +415,14 @@
     document.getElementById("timeTxt").textContent = fmtT(player.currentTime)+" / "+fmtT(player.duration);
   });
   document.getElementById("volBar").addEventListener("input", function(){
-    player.volume = this.value/100;
-    player.muted = this.value<=0;
+    var v = parseInt(this.value, 10) || 0;
+    if(gainNode){
+      player.volume = 1;
+      gainNode.gain.value = v / 100;
+    } else {
+      player.volume = Math.min(1, v / 100);
+    }
+    player.muted = v <= 0;
   });
   var pipBtn = document.getElementById("pipBtn");
   if(pipBtn){
@@ -640,6 +647,21 @@
     setTimeout(syncBtnHeight, 60);
   }
   player.volume = 1;
+  /* 桌面端音量增益：音量条上限提到 200%（最多放大 2 倍；手机端保持 100% 原样）
+     原理: video 音频经 AudioContext 增益节点输出, gain 可大于 1 */
+  var audioCtx = null, gainNode = null;
+  var volBarEl = document.getElementById("volBar");
+  if(window.innerWidth >= 769 && (window.AudioContext || window.webkitAudioContext)){
+    try{
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      gainNode = audioCtx.createGain();
+      gainNode.gain.value = 1;
+      var mediaSrc = audioCtx.createMediaElementSource(player);
+      mediaSrc.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      if(volBarEl) volBarEl.max = 200;
+    }catch(e){ audioCtx = null; gainNode = null; }
+  }
   window.addEventListener('load', function(){ layoutAll(); });
   window.addEventListener('resize', function(){ layoutAll(); });
   setTimeout(layoutAll, 300);
