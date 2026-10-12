@@ -342,9 +342,14 @@
     document.getElementById("curKind").className = "badge " + it.kind;
     var done = function(f){
       if(!f) return;
+      /* 点击播放即恢复音频上下文(增益模式下挂起会拒播, 表现为点两次才播/切歌不播) */
+      if(audioCtx && audioCtx.state === "suspended"){ audioCtx.resume().catch(function(){}); }
       if(player.src) URL.revokeObjectURL(player.src);
       player.src = URL.createObjectURL(f);
-      player.play().catch(function(){});
+      player.play().catch(function(){
+        /* 若首次 play 被拒(音频上下文刚恢复), 自动重试一次 */
+        setTimeout(function(){ player.play().catch(function(){}); }, 80);
+      });
     };
     if(it.handle){
       it.handle.getFile().then(done).catch(function(){ setErr("无法读取文件：「"+it.name+"」"); });
