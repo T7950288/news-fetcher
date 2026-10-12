@@ -344,12 +344,27 @@
       if(!f) return;
       /* 点击播放即恢复音频上下文(增益模式下挂起会拒播, 表现为点两次才播/切歌不播) */
       if(audioCtx && audioCtx.state === "suspended"){ audioCtx.resume().catch(function(){}); }
-      if(player.src) URL.revokeObjectURL(player.src);
+      var mobile = window.innerWidth < 769;
+      var oldUrl = player.src;
+      if(mobile && oldUrl){
+        /* 手机端播放中切歌: 先干净卸载旧媒体再加载新源, 规避移动浏览器切源拒播 */
+        if(!player.paused) player.pause();
+        player.removeAttribute('src');
+        try{ player.load(); }catch(e){}
+        setTimeout(function(){ URL.revokeObjectURL(oldUrl); }, 500);
+      } else if(oldUrl){
+        URL.revokeObjectURL(oldUrl);
+      }
       player.src = URL.createObjectURL(f);
-      player.play().catch(function(){
-        /* 若首次 play 被拒(音频上下文刚恢复), 自动重试一次 */
-        setTimeout(function(){ player.play().catch(function(){}); }, 80);
-      });
+      var attempts = 0;
+      function tryPlay(){
+        attempts++;
+        player.play().catch(function(){
+          /* 若首次 play 被拒(音频上下文刚恢复等), 自动重试, 最多 3 次 */
+          if(attempts < 3) setTimeout(tryPlay, 120);
+        });
+      }
+      tryPlay();
     };
     if(it.handle){
       it.handle.getFile().then(done).catch(function(){ setErr("无法读取文件：「"+it.name+"」"); });
