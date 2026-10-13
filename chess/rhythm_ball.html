@@ -1,434 +1,333 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>音乐球</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3CradialGradient id='g' cx='35%25' cy='35%25' r='65%25'%3E%3Cstop offset='0%25' stop-color='%23ffffff'/%3E%3Cstop offset='50%25' stop-color='%237fd4ff'/%3E%3Cstop offset='100%25' stop-color='%238a5cff'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='32' cy='32' r='28' fill='url(%23g)'/%3E%3C/svg%3E">
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; overflow: hidden; background: #070b20; font-family: "PingFang SC", "Microsoft YaHei", sans-serif; color: #fff; }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#060b1d; font-family:"Microsoft YaHei","PingFang SC",sans-serif; color:#fff; user-select:none; }
+  #cv { position:fixed; inset:0; width:100%; height:100%; display:block; }
 
-  canvas { display: block; width: 100vw; height: 100vh; }
+  #back {
+    position:fixed; left:14px; top:12px; z-index:30;
+    background:rgba(255,255,255,.14); color:#fff;
+    border:1px solid rgba(255,255,255,.25); border-radius:20px;
+    padding:8px 16px; font-size:15px; cursor:pointer; line-height:1;
+  }
+  #back:active { background:rgba(255,255,255,.32); }
 
-  /* 顶部 HUD */
   #hud {
-    position: fixed; top: 0; left: 0; right: 0;
-    display: flex; justify-content: space-between; align-items: flex-start;
-    padding: 60px 20px 16px; z-index: 10; pointer-events: none;
+    position:fixed; left:14px; top:58px; z-index:30;
+    font-size:12px; color:rgba(255,255,255,.65); letter-spacing:1px;
   }
-  .hud-box {
-    background: rgba(10, 20, 50, 0.45);
-    backdrop-filter: blur(12px);
-    border-radius: 14px;
-    padding: 10px 16px;
-    border: 1px solid rgba(140, 200, 255, 0.2);
-  }
-  .hud-label { font-size: 11px; opacity: 0.65; letter-spacing: 2px; }
-  .hud-value { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; }
-  #combo { color: #7fd4ff; transition: transform 0.1s; }
-  #combo.bump { transform: scale(1.25); }
 
-  /* 返回按钮 */
-  #backBtn {
-    position: fixed; top: 12px; left: 12px; z-index: 30;
-    border: 1px solid rgba(140,200,255,0.25);
-    background: rgba(10,20,50,0.6); backdrop-filter: blur(12px);
-    color: #fff; border-radius: 999px;
-    padding: 8px 14px; font-size: 14px; cursor: pointer;
-    text-decoration: none; display: flex; align-items: center; gap: 6px;
-    transition: background 0.2s;
+  #title {
+    position:fixed; left:50%; top:9%; transform:translateX(-50%); z-index:30;
+    text-align:center; pointer-events:none;
   }
-  #backBtn:hover { background: rgba(20,40,80,0.8); }
+  #title h1 { font-size:min(9vw,44px); font-weight:800; letter-spacing:6px;
+    background:linear-gradient(180deg,#fff,#8fd0ff); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  #title p { margin-top:8px; font-size:min(3.6vw,15px); color:rgba(255,255,255,.8); letter-spacing:1px; }
 
-  /* 中央开始遮罩 */
   #overlay {
-    position: fixed; inset: 0; z-index: 20;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    background: radial-gradient(ellipse at center, rgba(20,40,90,0.55) 0%, rgba(5,10,30,0.85) 100%);
-    transition: opacity 0.4s;
-    text-align: center; padding: 0 24px;
+    position:fixed; inset:0; z-index:20; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:18px;
+    background:radial-gradient(ellipse at center, rgba(10,20,50,.52) 0%, rgba(3,6,18,.78) 100%);
+    transition:opacity .45s;
   }
-  #overlay.hidden { opacity: 0; pointer-events: none; }
-  #overlay h1 {
-    font-size: 44px; font-weight: 800; letter-spacing: 8px;
-    background: linear-gradient(135deg, #7fd4ff, #c89bff, #ff9bd2, #ffd43b);
-    -webkit-background-clip: text; background-clip: text; color: transparent;
-    margin-bottom: 10px;
-  }
-  #overlay p { font-size: 14px; opacity: 0.7; margin-bottom: 36px; letter-spacing: 2px; line-height: 1.8; }
-  .big-btn {
-    border: none; cursor: pointer; color: #fff;
-    background: linear-gradient(135deg, #4a9eff, #8a5cff);
-    padding: 16px 48px; border-radius: 999px; font-size: 18px; font-weight: 600;
-    letter-spacing: 3px; box-shadow: 0 8px 32px rgba(90, 140, 255, 0.4);
-    transition: transform 0.15s, box-shadow 0.15s;
-  }
-  .big-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(90, 140, 255, 0.6); }
-  .big-btn:active { transform: scale(0.97); }
+  #overlay.hidden { opacity:0; pointer-events:none; }
 
-  /* 底部控制条 */
-  #controls {
-    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-    display: flex; gap: 10px; align-items: center; z-index: 10;
-    background: rgba(10, 20, 50, 0.55); backdrop-filter: blur(12px);
-    padding: 10px 14px; border-radius: 999px;
-    border: 1px solid rgba(140, 200, 255, 0.2);
-    max-width: calc(100vw - 24px);
+  #pickBtn {
+    background:linear-gradient(135deg,#2f7bff,#5b4dff); color:#fff;
+    border:none; border-radius:30px; padding:15px 38px;
+    font-size:min(4.5vw,18px); font-weight:700; letter-spacing:2px; cursor:pointer;
+    box-shadow:0 6px 22px rgba(70,100,255,.45);
   }
-  .ctrl-btn {
-    border: none; cursor: pointer; color: #fff;
-    background: rgba(255,255,255,0.12); border-radius: 999px;
-    padding: 10px 18px; font-size: 14px; transition: background 0.2s;
-  }
-  .ctrl-btn:hover { background: rgba(255,255,255,0.25); }
-  #trackName { font-size: 12px; opacity: 0.7; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #pickBtn:active { transform:scale(.96); }
+  #hint { font-size:min(3.4vw,14px); color:rgba(255,255,255,.65); text-align:center; line-height:1.8; }
 
-  /* mute */
-  #muteBtn {
-    position: fixed; top: 72px; right: 20px; z-index: 10;
-    width: 42px; height: 42px; border-radius: 50%;
-    background: rgba(10, 20, 50, 0.55); backdrop-filter: blur(12px);
-    border: 1px solid rgba(140, 200, 255, 0.2);
-    color: #fff; cursor: pointer; font-size: 18px;
-    display: flex; align-items: center; justify-content: center;
+  #ctrl {
+    position:fixed; left:50%; bottom:26px; transform:translateX(-50%); z-index:30;
+    display:flex; align-items:center; gap:10px; white-space:nowrap;
   }
+  .cb {
+    background:rgba(255,255,255,.14); color:#fff;
+    border:1px solid rgba(255,255,255,.28); border-radius:22px;
+    padding:10px 20px; font-size:14px; cursor:pointer; letter-spacing:1px; line-height:1;
+  }
+  .cb:active { background:rgba(255,255,255,.34); }
+  .cb:disabled { opacity:.4; cursor:default; }
+  #st { font-size:12px; color:rgba(255,255,255,.55); padding:0 4px; }
 </style>
 </head>
 <body>
-  <a id="backBtn" href="index.html">← 返回游戏</a>
-  <canvas id="scene"></canvas>
+<canvas id="cv"></canvas>
 
-  <div id="hud">
-    <div class="hud-box">
-      <div class="hud-label">SCORE</div>
-      <div class="hud-value" id="score">0</div>
-    </div>
-    <div class="hud-box" style="text-align:right">
-      <div class="hud-label">COMBO</div>
-      <div class="hud-value" id="combo">0</div>
-    </div>
-  </div>
+<div id="back">返回游戏</div>
+<div id="hud"></div>
 
-  <button id="muteBtn" title="静音">♪</button>
+<div id="title">
+  <h1>音乐球</h1>
+  <p>上传音乐，彩虹泡泡在 3D 空间里随鼓点舞动</p>
+</div>
 
-  <div id="overlay">
-    <h1>音乐球</h1>
-    <p>上传音乐，彩虹泡泡在 3D 空间里随鼓点舞动</p>
-    <button class="big-btn" id="startBtn">选择音乐开始</button>
-  </div>
+<div id="overlay">
+  <button id="pickBtn">选择音乐开始</button>
+  <div id="hint">支持 MP3 / M4A / WAV 等常见音频<br>选一首你喜欢的歌，看泡泡跳舞</div>
+</div>
 
-  <div id="controls">
-    <button class="ctrl-btn" id="chooseBtn">换歌</button>
-    <button class="ctrl-btn" id="playBtn">播放</button>
-    <button class="ctrl-btn" id="pauseBtn">暂停</button>
-    <span id="trackName">未选择音乐</span>
-  </div>
+<div id="ctrl">
+  <button class="cb" id="swapBtn" disabled>换歌</button>
+  <button class="cb" id="playBtn" disabled>播放</button>
+  <button class="cb" id="pauseBtn" disabled>暂停</button>
+  <span id="st">未选择音乐</span>
+</div>
 
-  <input type="file" id="fileInput" accept="audio/*" hidden />
+<input type="file" id="file" accept="audio/*" style="display:none">
 
 <script>
-(() => {
-  const canvas = document.getElementById("scene");
-  const ctx = canvas.getContext("2d");
-  const $ = id => document.getElementById(id);
-  const fileInput = $("fileInput");
-  const overlay = $("overlay");
-  const startBtn = $("startBtn");
-  const chooseBtn = $("chooseBtn");
-  const playBtn = $("playBtn");
-  const pauseBtn = $("pauseBtn");
-  const trackName = $("trackName");
-  const scoreEl = $("score");
-  const comboEl = $("combo");
-  const muteBtn = $("muteBtn");
+(function () {
+  "use strict";
 
-  let W = 0, H = 0, DPR = Math.min(window.devicePixelRatio || 1, 2);
+  /* ========== 基础 ========== */
+  var cv = document.getElementById("cv");
+  var ctx = cv.getContext("2d");
+  var W = 0, H = 0, DPR = 1;
+
   function resize() {
-    W = window.innerWidth; H = window.innerHeight;
-    canvas.width = W * DPR; canvas.height = H * DPR;
-    canvas.style.width = W + "px"; canvas.style.height = H + "px";
+    W = window.innerWidth;
+    H = window.innerHeight;
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = Math.max(1, Math.round(W * DPR));
+    cv.height = Math.max(1, Math.round(H * DPR));
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   }
   window.addEventListener("resize", resize);
   resize();
 
-  // ===== 音频系统 =====
-  let audioCtx = null, analyser = null, source = null, gainNode = null;
-  let freqData = null, timeData = null;
-  let audio = null, isPlaying = false, muted = false;
-  let bassLevel = 0, midLevel = 0, trebleLevel = 0;
+  /* ========== 球群（永远在画面内） ========== */
+  var FOCAL = 1.8;
+  var N = 40;
+  var balls = [];
+  var seedRand = Math.random;
 
-  function initAudio(file) {
+  function makeBall() {
+    return {
+      x: -0.5 + seedRand() * 1.0,      // 横向 ±0.5
+      y: -0.15 + seedRand() * 0.55,    // 纵向 -0.15 ~ 0.40（保证不出屏）
+      z: 0.8 + seedRand() * 1.2,       // 纵深 0.8 ~ 2.0
+      baseR: 0.07 + seedRand() * 0.13, // 基础半径
+      hue: seedRand() * 360,
+      speed: 0.6 + seedRand() * 0.9,
+      seed: seedRand() * 100,
+      bob: 0, puls: 1
+    };
+  }
+  for (var i = 0; i < N; i++) balls.push(makeBall());
+
+  /* ========== 音频 ========== */
+  var audio = null, audioCtx = null, analyser = null, srcNode = null;
+  var freq = null;
+  var isPlaying = false;
+  var fileName = "";
+
+  var fileInput = document.getElementById("file");
+  var pickBtn = document.getElementById("pickBtn");
+  var overlay = document.getElementById("overlay");
+  var swapBtn = document.getElementById("swapBtn");
+  var playBtn = document.getElementById("playBtn");
+  var pauseBtn = document.getElementById("pauseBtn");
+  var st = document.getElementById("st");
+  var hud = document.getElementById("hud");
+
+  function loadAudio(file) {
+    if (!file) return;
+    fileName = file.name;
+    var url = URL.createObjectURL(file);
+    if (!audio) {
+      audio = new Audio();
+      audio.preload = "auto";
+      audio.loop = true;
+    }
     if (!audioCtx) {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+      catch (e) { audioCtx = null; }
     }
-    if (audio) { audio.pause(); audio = null; }
-    const url = URL.createObjectURL(file);
-    audio = new Audio(url);
-    audio.loop = true;
-    source = audioCtx.createMediaElementSource(audio);
-    analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 512;
-    analyser.smoothingTimeConstant = 0.75;
-    gainNode = audioCtx.createGain();
-    gainNode.gain.value = 0.6;
-    source.connect(analyser);
-    analyser.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
-    freqData = new Uint8Array(analyser.frequencyBinCount);
-    timeData = new Uint8Array(analyser.fftSize);
-    trackName.textContent = file.name;
+    audio.src = url;
+    audio.oncanplaythrough = function () {
+      if (audioCtx) {
+        if (!srcNode) {
+          srcNode = audioCtx.createMediaElementSource(audio);
+          analyser = audioCtx.createAnalyser();
+          analyser.fftSize = 256;
+          srcNode.connect(analyser);
+          analyser.connect(audioCtx.destination);
+          freq = new Uint8Array(analyser.frequencyBinCount);
+        }
+        audioCtx.resume && audioCtx.resume();
+      }
+      startPlay();
+    };
+    audio.onerror = function () { st.textContent = "音频加载失败，请换一首"; };
   }
 
-  function updateLevels() {
-    if (!analyser || !freqData) { bassLevel = midLevel = trebleLevel = 0; return; }
-    analyser.getByteFrequencyData(freqData);
-    const n = freqData.length;
-    let b = 0; for (let i = 0; i < n * 0.1; i++) b += freqData[i];
-    bassLevel = (b / (n * 0.1)) / 255;
-    let m = 0; for (let i = n * 0.1; i < n * 0.5; i++) m += freqData[i];
-    midLevel = (m / (n * 0.4)) / 255;
-    let t = 0; for (let i = n * 0.5; i < n; i++) t += freqData[i];
-    trebleLevel = (t / (n * 0.5)) / 255;
-  }
-
-  // ===== 3D 泡泡球系统 =====
-  // 伪 3D：每个球有 (x,y,z)，透视投影 sx = x*F/z, 近大远小、按 z 排序绘制
-  const FOCAL = 1.8;          // 透视焦距系数
-  let balls = [];
-  let particles = [];
-  let stars = [];
-  let flashAlpha = 0;
-  let beatPhase = 0;          // 鼓点相位（驱动跳动）
-  let score = 0, combo = 0, bestCombo = 0;
-  const BALL_COUNT = 40;
-
-  function rand(a, b) { return a + Math.random() * (b - a); }
-
-  function initScene() {
-    // 背景星星
-    stars = [];
-    for (let i = 0; i < 80; i++) {
-      stars.push({ x: Math.random() * W, y: Math.random() * H, r: rand(0.5, 1.8), tw: rand(0.002, 0.01), ph: Math.random() * 6.28 });
-    }
-    // 泡泡球：分布在锥形空间（z 从近到远）
-    balls = [];
-    for (let i = 0; i < BALL_COUNT; i++) {
-      balls.push({
-        x: rand(-0.5, 0.5), y: rand(-0.25, 0.6), z: rand(0.8, 2.0),
-        baseR: rand(0.07, 0.2),
-        hue: rand(0, 360),
-        phase: Math.random() * 6.28,
-        speed: rand(0.6, 1.4),
-        bob: 0, puls: 0, seed: Math.random() * 100
-      });
-    }
-    particles = [];
-    score = 0; combo = 0; bestCombo = 0;
-    scoreEl.textContent = "0";
-    comboEl.textContent = "0";
-  }
-
-  // 透视投影
-  function project(px, py, pz) {
-    const k = FOCAL / pz;
-    const sx = px * W * 0.4 * k + W / 2;
-    const sy = py * H * 0.42 * k + H * 0.56;
-    return { sx: sx, sy: sy, k: k };
-  }
-
-  // ===== 输入事件 =====
-  startBtn.addEventListener("click", () => fileInput.click());
-  chooseBtn.addEventListener("click", () => fileInput.click());
-  fileInput.addEventListener("change", e => {
-    const f = e.target.files[0];
-    if (!f) return;
-    initAudio(f);
-    overlay.classList.add("hidden");
-    if (audioCtx.state === "suspended") audioCtx.resume();
+  function startPlay() {
     audio.play();
     isPlaying = true;
-  });
-  playBtn.addEventListener("click", () => {
-    if (!audio) { fileInput.click(); return; }
-    if (audioCtx.state === "suspended") audioCtx.resume();
-    audio.play(); isPlaying = true;
-  });
-  pauseBtn.addEventListener("click", () => {
-    if (!audio) return;
-    audio.pause(); isPlaying = false;
-  });
-  muteBtn.addEventListener("click", () => {
-    muted = !muted;
-    if (gainNode) gainNode.gain.linearRampToValueAtTime(muted ? 0 : 0.6, audioCtx.currentTime + 0.05);
-    muteBtn.textContent = muted ? "✕" : "♪";
-  });
-
-  // ===== 粒子 =====
-  function spawnParticles(x, y, power) {
-    const count = Math.floor(power * 10) + 3;
-    for (let i = 0; i < count; i++) {
-      particles.push({
-        x: x, y: y,
-        vx: (Math.random() - 0.5) * (3 + power * 7),
-        vy: -Math.random() * (3 + power * 5),
-        life: 1,
-        size: rand(1.5, 4),
-        hue: rand(0, 360)
-      });
-    }
+    swapBtn.disabled = false;
+    playBtn.disabled = true;
+    pauseBtn.disabled = false;
+    st.textContent = "播放中";
+    overlay.classList.add("hidden");
   }
 
-  // ===== 绘制 =====
-  function drawBackground(t) {
-    const g = ctx.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0, "#070b20");
-    g.addColorStop(0.5, "#131b4a");
-    g.addColorStop(1, "#2a1e6e");
+  pickBtn.addEventListener("click", function () { fileInput.click(); });
+  swapBtn.addEventListener("click", function () { fileInput.click(); });
+  playBtn.addEventListener("click", function () {
+    if (!audio) return;
+    audio.play();
+    isPlaying = true;
+    playBtn.disabled = true; pauseBtn.disabled = false;
+    st.textContent = "播放中";
+  });
+  pauseBtn.addEventListener("click", function () {
+    if (!audio) return;
+    audio.pause();
+    isPlaying = false;
+    playBtn.disabled = false; pauseBtn.disabled = true;
+    st.textContent = "已暂停";
+  });
+  fileInput.addEventListener("change", function () {
+    if (fileInput.files && fileInput.files[0]) loadAudio(fileInput.files[0]);
+  });
+
+  /* ========== 渲染 ========== */
+  function drawBackground(time) {
+    // 深蓝渐变背景
+    var g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, "#0a1330");
+    g.addColorStop(0.5, "#0a0f26");
+    g.addColorStop(1, "#050918");
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, W, H);
 
-    // 星星
-    ctx.save();
-    stars.forEach(s => {
-      const a = 0.35 + 0.4 * Math.sin(t * s.tw * 100 + s.ph);
-      ctx.globalAlpha = a;
-      ctx.fillStyle = "#cfd8ff";
-      ctx.beginPath();
-      ctx.arc(s.x, s.y, s.r, 0, 6.28);
-      ctx.fill();
-    });
-    ctx.restore();
-  }
-
-  function drawBalls() {
-    // 更新并排序（远→近）
-    const beat = isPlaying ? Math.pow(bassLevel, 1.4) : 0;
-    beatPhase += 0.05;
-    const sorted = balls.slice().sort((a, b) => b.z - a.z);
-    sorted.forEach(b => {
-      // 鼓点跳动：bass 驱动 y 上跳 + 半径膨胀
-      const bounce = beat * (0.5 + 0.5 * Math.sin(b.phase + b.seed));
-      const puls = 1 + beat * 0.7 * (0.5 + 0.5 * Math.sin(beatPhase * b.speed + b.seed));
-      // 中频轻摇 + 空闲微浮动
-      const sway = midLevel * 0.12 * Math.sin(beatPhase * 0.8 * b.speed + b.seed);
-      const idle = (isPlaying ? 0 : 0.03 * Math.sin(beatPhase * 0.5 * b.speed + b.seed));
-      const x = b.x + sway;
-      const y = b.y - bounce * 0.55 + idle;
-      const z = b.z;
-
-      const p = project(x, y, z);
-      const r = Math.max(3, b.baseR * p.k * 320 * puls);
-      // 鼓点强时亮色偏移
-      const hue = (b.hue + trebleLevel * 60) % 360;
-      const bright = 62 + beat * 40 + midLevel * 15;
-
-      ctx.save();
-      ctx.globalAlpha = Math.min(0.98, 0.65 + (2.0 - z) * 0.35);
-      ctx.shadowColor = `hsla(${hue}, 90%, 70%, 0.9)`;
-      ctx.shadowBlur = r * (0.6 + beat * 1.6);
-      // 球体：左上高光径向渐变（彩虹泡泡）
-      const hg = ctx.createRadialGradient(p.sx - r * 0.35, p.sy - r * 0.4, r * 0.1, p.sx, p.sy, r);
-      hg.addColorStop(0, "#ffffff");
-      hg.addColorStop(0.25, `hsla(${(hue + 40) % 360}, 95%, ${bright + 25}%, 1)`);
-      hg.addColorStop(0.7, `hsla(${hue}, 85%, ${bright}%, 1)`);
-      hg.addColorStop(1, `hsla(${(hue - 45 + 360) % 360}, 80%, ${Math.max(20, bright - 30)}%, 1)`);
-      ctx.fillStyle = hg;
-      ctx.beginPath();
-      ctx.arc(p.sx, p.sy, r, 0, 6.28);
-      ctx.fill();
-      // 高光点
-      ctx.globalAlpha = 0.9;
-      ctx.fillStyle = "rgba(255,255,255,0.85)";
-      ctx.beginPath();
-      ctx.arc(p.sx - r * 0.3, p.sy - r * 0.35, Math.max(1.2, r * 0.16), 0, 6.28);
-      ctx.fill();
-      ctx.restore();
-    });
-  }
-
-  function drawKeys(t) {
-    // 底部 3D 透视琴键
-    const n = 16;
-    const beat = isPlaying ? bassLevel : 0;
-    for (let i = 0; i < n; i++) {
-      const tt = i / (n - 1);
-      const yBase = H * 0.86;
-      const y = yBase - tt * H * 0.06;
-      const kw = (1 - tt * 0.5) * (W / n) * 1.6;
-      const wave = Math.sin(t * 0.004 + i * 0.7) * 0.5 + 0.5;
-      const glow = wave * beat * 1.6;
-      const hue = 200 + tt * 120 + glow * 40;
-      ctx.save();
-      ctx.fillStyle = `hsla(${hue}, 60%, ${26 + glow * 30}%, ${0.5 + tt * 0.35})`;
-      ctx.shadowColor = `hsla(${hue}, 85%, 70%, 0.8)`;
-      ctx.shadowBlur = glow * 24;
-      ctx.fillRect(i * (W / n), y, kw, 4 + tt * 8);
-      ctx.restore();
+    // 星空（静态小点，随音乐微闪）
+    var starN = 90;
+    for (var i = 0; i < starN; i++) {
+      var sx = ((i * 61) % 100) / 100 * W;
+      var sy = ((i * 37) % 100) / 100 * H;
+      var tw = 0.35 + 0.65 * Math.abs(Math.sin(time * 0.0012 + i * 1.7));
+      ctx.fillStyle = "rgba(255,255,255," + (0.25 * tw).toFixed(3) + ")";
+      ctx.fillRect(sx, sy, 2, 2);
     }
   }
 
-  function drawParticles() {
-    for (let i = particles.length - 1; i >= 0; i--) {
-      const p = particles[i];
-      p.x += p.vx; p.y += p.vy; p.vy += 0.14;
-      p.life -= 0.024;
-      if (p.life <= 0) { particles.splice(i, 1); continue; }
-      ctx.save();
-      ctx.globalAlpha = p.life;
-      ctx.fillStyle = `hsla(${p.hue}, 90%, 75%, 1)`;
+  function project(px, py, pz) {
+    var k = FOCAL / pz;
+    return { sx: px * W * 0.4 * k + W / 2, sy: py * H * 0.42 * k + H * 0.55, k: k };
+  }
+
+  function drawBall(b, time, bass, mid) {
+    var bounce = bass;                    // 鼓点能量
+    var puls = 1 + bounce * 0.7;          // 脉冲放大
+    var sway = mid * 0.1 * Math.sin(time * 0.003 * b.speed + b.seed);
+    var idle = isPlaying ? 0 : 0.025 * Math.sin(time * 0.0015 + b.seed * 6);
+    var x = b.x + sway;
+    var y = b.y - bounce * 0.45 + idle;
+    var z = b.z;
+    var p = project(x, y, z);
+
+    var r = Math.max(4, b.baseR * p.k * 330 * puls);
+    var bright = 62 + bounce * 35 + mid * 12;
+    if (bright > 100) bright = 100;
+
+    // 远球淡、近球实
+    var a = 0.55 + (2.0 - z) * 0.42;
+    if (a > 0.98) a = 0.98;
+
+    // 球体：径向渐变（亮心 → 深边），加高光点，不用阴影特效
+    var g = ctx.createRadialGradient(
+      p.sx - r * 0.3, p.sy - r * 0.35, r * 0.15,
+      p.sx, p.sy, r
+    );
+    g.addColorStop(0, "hsla(" + b.hue + ",100%," + (bright + 22) + "%," + a.toFixed(3) + ")");
+    g.addColorStop(0.55, "hsla(" + b.hue + ",95%," + bright + "%," + a.toFixed(3) + ")");
+    g.addColorStop(1, "hsla(" + b.hue + ",90%," + Math.max(12, bright - 40) + "%," + a.toFixed(3) + ")");
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(p.sx, p.sy, r, 0, 6.2832);
+    ctx.fill();
+
+    // 高光小点（增强球体立体感）
+    ctx.fillStyle = "rgba(255,255,255," + (0.5 * a).toFixed(3) + ")";
+    ctx.beginPath();
+    ctx.arc(p.sx - r * 0.32, p.sy - r * 0.36, r * 0.18, 0, 6.2832);
+    ctx.fill();
+  }
+
+  /* ========== 底部琴键 ========== */
+  function drawKeys(time, mid, high) {
+    var keyN = 10;
+    var gap = 5;
+    var totalW = keyN * 26 + (keyN - 1) * gap;
+    var x0 = (W - totalW) / 2;
+    var y0 = H - 56;
+    var glow = (mid + high) * 0.5;
+    for (var i = 0; i < keyN; i++) {
+      var lit = 0.12 + glow * (0.75 + 0.25 * Math.sin(time * 0.006 + i * 0.8));
+      var hueK = (i / keyN) * 300;
+      ctx.fillStyle = "hsla(" + hueK + ",85%," + Math.round(18 + lit * 55) + "%," + (0.5 + lit * 0.5).toFixed(3) + ")";
+      var rw = 6;
       ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size * p.life + 0.5, 0, 6.28);
+      ctx.roundRect ? ctx.roundRect(x0 + i * (26 + gap), y0, 26, 30, rw) : ctx.rect(x0 + i * (26 + gap), y0, 26, 30);
       ctx.fill();
-      ctx.restore();
     }
   }
 
-  function drawFlash() {
-    if (flashAlpha > 0.01) {
-      ctx.fillStyle = `rgba(255,255,255,${flashAlpha})`;
-      ctx.fillRect(0, 0, W, H);
-      flashAlpha *= 0.85;
-    }
-  }
+  /* ========== 主循环 ========== */
+  var lastT = 0;
+  var bassSm = 0, midSm = 0, highSm = 0;
 
-  // 鼓点计分：bass 峰值时刻
-  function beatScoring() {
-    if (!isPlaying) return;
-    if (bassLevel > 0.5 && flashAlpha < 0.15) {
-      flashAlpha = Math.min(0.28, bassLevel * 0.35);
-      combo++;
-      bestCombo = Math.max(bestCombo, combo);
-      score += Math.floor(10 + bassLevel * 60 + combo * 2);
-      scoreEl.textContent = score;
-      comboEl.textContent = combo;
-      comboEl.classList.add("bump");
-      setTimeout(() => comboEl.classList.remove("bump"), 100);
-      // 从底部喷射彩虹粒子
-      for (let i = 0; i < 2; i++) {
-        spawnParticles(W / 2 + rand(-W * 0.3, W * 0.3), H * 0.85, bassLevel);
-      }
-    } else if (bassLevel < 0.2 && combo > 0) {
-      combo = 0;
-      comboEl.textContent = "0";
-    }
-  }
+  function loop(t) {
+    var dt = Math.min(50, t - lastT || 16);
+    lastT = t;
 
-  function loop(now) {
-    const t = now || performance.now();
-    updateLevels();
-    beatScoring();
+    // 频谱 → 能量
+    var bass = 0, mid = 0, high = 0;
+    if (isPlaying && analyser && freq) {
+      analyser.getByteFrequencyData(freq);
+      for (var i = 0; i < 12; i++) bass += freq[i];
+      for (var i = 12; i < 40; i++) mid += freq[i];
+      for (var i = 40; i < 90; i++) high += freq[i];
+      bass = bass / (12 * 255);
+      mid = mid / (28 * 255);
+      high = high / (50 * 255);
+      bass = Math.pow(bass, 1.25);
+      mid = Math.pow(mid, 1.2);
+      high = Math.pow(high, 1.2);
+    }
+    // 平滑
+    bassSm += (bass - bassSm) * 0.25;
+    midSm += (mid - midSm) * 0.3;
+    highSm += (high - highSm) * 0.3;
+
     drawBackground(t);
-    drawBalls();
-    drawParticles();
-    drawKeys(t);
-    drawFlash();
+    for (var j = 0; j < balls.length; j++) drawBall(balls[j], t, bassSm, midSm);
+    drawKeys(t, midSm, highSm);
+
+    // HUD 小字
+    hud.textContent = isPlaying ? ("♫ " + fileName + "　·　BASS " + Math.round(bassSm * 100)) : "";
+
     requestAnimationFrame(loop);
   }
-
-  initScene();
   requestAnimationFrame(loop);
+
+  // 返回游戏
+  document.getElementById("back").addEventListener("click", function () {
+    if (history.length > 1) history.back();
+    else location.href = "index.html";
+  });
 })();
 </script>
 </body>
