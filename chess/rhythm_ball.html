@@ -18,17 +18,17 @@
   #back:active { background:rgba(255,255,255,.32); }
 
   #title {
-    position:fixed; left:50%; top:4.5%; transform:translateX(-50%); z-index:30;
+    position:fixed; left:50%; top:4%; transform:translateX(-50%); z-index:30;
     text-align:center; pointer-events:none;
   }
-  #title h1 { font-size:min(8vw,38px); font-weight:800; letter-spacing:8px;
+  #title h1 { font-size:min(8vw,36px); font-weight:800; letter-spacing:8px;
     color:#fff; text-shadow:0 2px 12px rgba(80,140,255,.5); }
-  #title p { margin-top:6px; font-size:min(3.2vw,13px); color:rgba(255,255,255,.75); letter-spacing:1px; }
+  #title p { margin-top:5px; font-size:min(3.1vw,13px); color:rgba(255,255,255,.7); letter-spacing:1px; }
 
   #overlay {
     position:fixed; inset:0; z-index:20; display:flex; flex-direction:column;
     align-items:center; justify-content:center; gap:16px;
-    background:radial-gradient(ellipse at center, rgba(30,50,110,.35) 0%, rgba(5,9,24,.85) 100%);
+    background:radial-gradient(ellipse at center, rgba(30,50,110,.35) 0%, rgba(5,9,24,.88) 100%);
     transition:opacity .45s;
   }
   #overlay.hidden { opacity:0; pointer-events:none; }
@@ -43,17 +43,18 @@
   #hint { font-size:min(3.4vw,14px); color:rgba(255,255,255,.8); text-align:center; line-height:1.9; }
 
   #ctrl {
-    position:fixed; left:50%; bottom:26px; transform:translateX(-50%); z-index:30;
-    display:flex; align-items:center; gap:10px; white-space:nowrap;
+    position:fixed; left:50%; bottom:24px; transform:translateX(-50%); z-index:30;
+    display:flex; align-items:center; gap:8px; white-space:nowrap; flex-wrap:wrap; justify-content:center;
+    max-width:96vw;
   }
   .cb {
     background:rgba(255,255,255,.14); color:#fff;
-    border:1px solid rgba(255,255,255,.28); border-radius:22px;
-    padding:10px 20px; font-size:14px; cursor:pointer; letter-spacing:1px; line-height:1;
+    border:1px solid rgba(255,255,255,.28); border-radius:20px;
+    padding:9px 16px; font-size:13px; cursor:pointer; letter-spacing:1px; line-height:1;
   }
   .cb:active { background:rgba(255,255,255,.34); }
   .cb:disabled { opacity:.4; cursor:default; }
-  #st { font-size:12px; color:rgba(255,255,255,.55); padding:0 4px; }
+  #st { font-size:12px; color:rgba(255,255,255,.6); padding:0 4px; max-width:34vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 </style>
 </head>
 <body>
@@ -63,15 +64,16 @@
 
 <div id="title">
   <h1>音乐球</h1>
-  <p>小球从高处落下，落在琴键上随歌声舞动</p>
+  <p>小球落键 · 歌词跟唱</p>
 </div>
 
 <div id="overlay">
   <button id="pickBtn">选择音乐开始</button>
-  <div id="hint">支持 MP3 / M4A / WAV 等常见音频<br>小球会从天空落下，在琴键上跳舞</div>
+  <div id="hint">支持 MP3 / M4A / WAV 等音频<br>可选 .lrc 歌词文件，播放时同步滚动跟唱</div>
 </div>
 
 <div id="ctrl">
+  <button class="cb" id="lyricBtn" disabled>歌词</button>
   <button class="cb" id="swapBtn" disabled>换歌</button>
   <button class="cb" id="playBtn" disabled>播放</button>
   <button class="cb" id="pauseBtn" disabled>暂停</button>
@@ -79,6 +81,7 @@
 </div>
 
 <input type="file" id="file" accept="audio/*" style="display:none">
+<input type="file" id="lrcFile" accept=".lrc,.txt" style="display:none">
 
 <script>
 (function () {
@@ -107,12 +110,72 @@
   var songName = "音乐球";
 
   var fileInput = document.getElementById("file");
+  var lrcInput = document.getElementById("lrcFile");
   var pickBtn = document.getElementById("pickBtn");
   var overlay = document.getElementById("overlay");
   var swapBtn = document.getElementById("swapBtn");
   var playBtn = document.getElementById("playBtn");
   var pauseBtn = document.getElementById("pauseBtn");
+  var lyricBtn = document.getElementById("lyricBtn");
   var st = document.getElementById("st");
+
+  /* ========== LRC 歌词 ========== */
+  var lyrics = [];          // [{t: 秒, text: 行}]
+  var lyricName = "";
+
+  function parseLRC(text) {
+    var lines = text.split(/\r?\n/);
+    var out = [];
+    var tagRe = /\[(\d{1,2}):(\d{1,2})(?:[.:](\d{1,3}))?\]/g;
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+      var times = [];
+      var m;
+      tagRe.lastIndex = 0;
+      while ((m = tagRe.exec(line)) !== null) {
+        var min = parseInt(m[1], 10);
+        var sec = parseInt(m[2], 10);
+        var frac = m[3] ? parseFloat("0." + m[3]) : 0;
+        times.push(min * 60 + sec + frac);
+      }
+      if (times.length === 0) continue;
+      var text = line.replace(tagRe, "").trim();
+      if (!text) continue;
+      for (var j = 0; j < times.length; j++) out.push({ t: times[j], text: text });
+    }
+    out.sort(function (a, b) { return a.t - b.t; });
+    return out;
+  }
+
+  function currentLyricIdx() {
+    if (!audio || lyrics.length === 0) return -1;
+    var t = audio.currentTime || 0;
+    var idx = -1;
+    for (var i = 0; i < lyrics.length; i++) {
+      if (lyrics[i].t <= t + 0.3) idx = i;
+      else break;
+    }
+    return idx;
+  }
+
+  lrcInput.addEventListener("change", function () {
+    var f = lrcInput.files && lrcInput.files[0];
+    if (!f) return;
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      var parsed = parseLRC(String(e.target.result || ""));
+      if (parsed.length > 0) {
+        lyrics = parsed;
+        lyricName = f.name;
+        st.textContent = "歌词已加载 · " + lyricName;
+      } else {
+        lyrics = [];
+        lyricName = "";
+        st.textContent = "歌词文件没有时间标签，请用 .lrc 格式";
+      }
+    };
+    reader.readAsText(f, "utf-8");
+  });
 
   function cleanName(n) {
     n = n.replace(/\.[^.]+$/, "");
@@ -159,14 +222,16 @@
     audio.play();
     isPlaying = true;
     swapBtn.disabled = false;
+    lyricBtn.disabled = false;
     playBtn.disabled = true;
     pauseBtn.disabled = false;
-    st.textContent = "播放中 · " + songName;
+    st.textContent = "播放中 · " + songName + (lyrics.length ? "（歌词 " + lyricName + "）" : "（未加载歌词，点「歌词」可加载 .lrc）");
     overlay.classList.add("hidden");
   }
 
   pickBtn.addEventListener("click", function () { fileInput.click(); });
   swapBtn.addEventListener("click", function () { fileInput.click(); });
+  lyricBtn.addEventListener("click", function () { lrcInput.click(); });
   playBtn.addEventListener("click", function () {
     if (!audio) return;
     audio.play();
@@ -185,16 +250,15 @@
     if (fileInput.files && fileInput.files[0]) loadAudio(fileInput.files[0]);
   });
 
-  /* ========== 钢琴键布局（一排，横跨画面） ========== */
+  /* ========== 钢琴键布局 ========== */
   var WHITE_N = 14;
   var keyTop = 0, keyBottom = 0, keyW = 0, keyH = 0, keyX0 = 0;
-  var flash = [];           // 每键闪光值 0~1
-  var press = [];           // 每键下压量 0~1
+  var flash = [], press = [];
   for (var ki = 0; ki < WHITE_N; ki++) { flash.push(0); press.push(0); }
 
   function layoutKeys() {
-    keyH = Math.max(90, Math.round(H * 0.21));
-    keyTop = H - keyH - 64;              // 琴键顶面 y（给底部控制条留空）
+    keyH = Math.max(80, Math.round(H * 0.18));
+    keyTop = H - keyH - 62;
     keyBottom = keyTop + keyH;
     keyW = Math.floor((W - 24) / WHITE_N);
     keyX0 = Math.floor((W - keyW * WHITE_N) / 2);
@@ -202,42 +266,32 @@
   layoutKeys();
   window.addEventListener("resize", layoutKeys);
 
-  // 黑键位置：白键 2、4、7、9、11 之后（模拟钢琴 3-2 分组）
   var blackAfter = [2, 4, 7, 9, 11];
   var blackKeys = [];
   function layoutBlacks() {
     blackKeys = [];
     for (var i = 0; i < blackAfter.length; i++) {
       var b = blackAfter[i];
-      blackKeys.push({
-        x: keyX0 + (b + 1) * keyW - keyW * 0.34,
-        w: keyW * 0.62,
-        h: keyH * 0.58,
-        y: keyTop - keyH * 0.58 + keyH * 0.22
-      });
+      blackKeys.push({ x: keyX0 + (b + 1) * keyW - keyW * 0.34, w: keyW * 0.62, h: keyH * 0.58, y: keyTop - keyH * 0.58 + keyH * 0.22 });
     }
   }
   layoutBlacks();
   window.addEventListener("resize", layoutBlacks);
 
-  /* ========== 下落的小球 ========== */
+  /* ========== 下落小球 ========== */
   var balls = [];
-  var MAX_BALLS = 26;
+  var MAX_BALLS = 24;
 
   function spawnBall(bass) {
     if (balls.length >= MAX_BALLS) return;
     var x = keyX0 + 8 + rand() * (keyW * WHITE_N - 16);
-    var r = 8 + rand() * 16 + bass * 6;
+    var r = 7 + rand() * 14 + bass * 5;
     balls.push({
       x: x, y: -20 - rand() * 60,
       vy: 0.6 + rand() * 0.6,
       g: 0.32 + bass * 0.28,
-      r: r,
-      hue: rand() * 360,
-      hit: -1,             // 已落键的键号
-      bounce: 0,           // 反弹次数
-      alpha: 1,
-      seed: rand() * 100
+      r: r, hue: rand() * 360,
+      hit: -1, bounce: 0, alpha: 1, seed: rand() * 100
     });
   }
 
@@ -247,31 +301,15 @@
       if (b.hit < 0) {
         b.vy += b.g;
         b.y += b.vy;
-        // 碰到琴键顶面
         if (b.y >= keyTop - b.r && b.y - b.vy < keyTop - b.r) {
           var idx = Math.floor((b.x - keyX0) / keyW);
-          if (idx >= 0 && idx < WHITE_N) {
-            b.hit = idx;
-            flash[idx] = 1;
-            press[idx] = 1;
-          }
+          if (idx >= 0 && idx < WHITE_N) { b.hit = idx; flash[idx] = 1; press[idx] = 1; }
         }
       } else {
-        // 已在键上：小幅弹跳后淡出
-        if (b.bounce < 1) {
-          b.vy = -b.vy * 0.45;
-          b.bounce++;
-          b.y = keyTop - b.r;
-        } else {
-          b.alpha -= 0.06;
-          b.y += 0.4;
-        }
+        if (b.bounce < 1) { b.vy = -b.vy * 0.45; b.bounce++; b.y = keyTop - b.r; }
+        else { b.alpha -= 0.06; b.y += 0.4; }
       }
-      if (b.alpha <= 0 || b.y > H + 40) {
-        balls.splice(i, 1);
-        continue;
-      }
-      // 闪光/按压衰减
+      if (b.alpha <= 0 || b.y > H + 40) { balls.splice(i, 1); continue; }
       if (b.hit >= 0) {
         flash[b.hit] = Math.max(0, flash[b.hit] - 0.055);
         press[b.hit] = Math.max(0, press[b.hit] - 0.09);
@@ -290,7 +328,6 @@
     ctx.beginPath();
     ctx.arc(b.x, b.y, b.r, 0, 6.2832);
     ctx.fill();
-    // 高光
     ctx.fillStyle = "rgba(255,255,255," + (0.5 * a).toFixed(3) + ")";
     ctx.beginPath();
     ctx.arc(b.x - b.r * 0.32, b.y - b.r * 0.35, b.r * 0.2, 0, 6.2832);
@@ -305,8 +342,6 @@
     g.addColorStop(1, "#070a18");
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, W, H);
-
-    // 星光
     var starN = 70;
     for (var i = 0; i < starN; i++) {
       var sx = ((i * 61) % 100) / 100 * W;
@@ -317,17 +352,13 @@
     }
   }
 
-  /* ========== 钢琴键绘制 ========== */
-  function drawKeyboard(time, bass, mid) {
-    var keyLift = Math.max(0, bass) * 4;   // 琴键整体随鼓点轻抬
-
-    // 白键
+  /* ========== 钢琴键 ========== */
+  function drawKeyboard(time, bass) {
+    var keyLift = Math.max(0, bass) * 4;
     for (var i = 0; i < WHITE_N; i++) {
       var px = keyX0 + i * keyW;
       var py = keyTop + keyLift + press[i] * 3;
       var fl = flash[i];
-
-      // 侧面（厚度）
       ctx.fillStyle = "#5a6474";
       ctx.beginPath();
       ctx.moveTo(px, py + keyH - 14);
@@ -336,8 +367,6 @@
       ctx.lineTo(px, py + keyH);
       ctx.closePath();
       ctx.fill();
-
-      // 底面暗条
       ctx.fillStyle = "#3c4454";
       ctx.beginPath();
       ctx.moveTo(px, py + keyH - 6);
@@ -346,8 +375,6 @@
       ctx.lineTo(px, py + keyH - 14);
       ctx.closePath();
       ctx.fill();
-
-      // 键面（白→浅灰渐变，闪光时偏蓝亮）
       var lit = 0.10 + fl * 0.75 + bass * 0.18;
       if (lit > 0.95) lit = 0.95;
       var fg = ctx.createLinearGradient(0, py, 0, py + keyH - 14);
@@ -358,12 +385,8 @@
       ctx.beginPath();
       ctx.rect(px, py, keyW, keyH - 14);
       ctx.fill();
-
-      // 键缝
       ctx.fillStyle = "rgba(40,50,70,0.8)";
       ctx.fillRect(px, py, Math.max(1, keyW * 0.05), keyH - 14);
-
-      // 闪光光晕（外圈发光，不用阴影）
       if (fl > 0.03) {
         ctx.fillStyle = "hsla(210,100%," + Math.round(60 + lit * 30) + "%," + (fl * 0.22).toFixed(3) + ")";
         ctx.beginPath();
@@ -371,8 +394,6 @@
         ctx.fill();
       }
     }
-
-    // 黑键
     for (var j = 0; j < blackKeys.length; j++) {
       var bk = blackKeys[j];
       ctx.fillStyle = "#181c28";
@@ -382,37 +403,54 @@
       ctx.fillStyle = "rgba(255,255,255,0.14)";
       ctx.fillRect(bk.x + bk.w * 0.12, bk.y + keyLift * 0.5 + 2, bk.w * 0.2, bk.h * 0.5);
     }
-
-    // 琴键托底横条
     ctx.fillStyle = "#232a3a";
     ctx.fillRect(keyX0 - 6, keyBottom, keyW * WHITE_N + 12, 12);
   }
 
-  /* ========== 歌词文字（琴键上方） ========== */
+  /* ========== KTV 歌词滚动 ========== */
   function drawLyrics(time, bass) {
-    var y = keyTop - 26;
-    var fs = Math.max(20, Math.round(Math.min(W * 0.045, H * 0.05)));
-    var breathe = 1 + bass * 0.06;
+    var idx = currentLyricIdx();
+    var cx = W / 2;
+    var cy0 = keyTop - 190;                 // 歌词区中心基线
+    var mainFs = Math.max(22, Math.round(Math.min(W * 0.052, H * 0.055)));
+    var subFs = Math.max(14, Math.round(mainFs * 0.62));
 
-    ctx.save();
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.font = "bold " + Math.round(fs * breathe) + "px 'Microsoft YaHei',sans-serif";
-    // 文字底条（深色半透明，衬托文字）
-    var tw = ctx.measureText(songName).width;
-    ctx.fillStyle = "rgba(10,16,36,0.45)";
+    // 底条
+    ctx.fillStyle = "rgba(8,13,30,0.5)";
     ctx.beginPath();
-    ctx.roundRect ? ctx.roundRect(W / 2 - tw / 2 - 18, y - fs * 0.72, tw + 36, fs * 1.5, 12) : ctx.rect(W / 2 - tw / 2 - 18, y - fs * 0.72, tw + 36, fs * 1.5);
+    ctx.roundRect ? ctx.roundRect(cx - W * 0.34, cy0 - mainFs * 1.3, W * 0.68, mainFs * 3.1, 16) : ctx.rect(cx - W * 0.34, cy0 - mainFs * 1.3, W * 0.68, mainFs * 3.1);
     ctx.fill();
 
-    ctx.fillStyle = "#ffffff";
-    ctx.fillText(songName, W / 2, y + fs * 0.08);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
 
-    // 副行（状态）
-    ctx.font = "13px 'Microsoft YaHei',sans-serif";
-    ctx.fillStyle = "rgba(255,255,255,0.55)";
-    ctx.fillText(isPlaying ? "小球落在琴键上，跟着歌声跳舞" : "选择一首歌，看小球从天空落下", W / 2, y + fs * 0.75);
-    ctx.restore();
+    if (idx < 0) {
+      // 未到歌词或没有歌词
+      var msg = lyrics.length ? "" : (isPlaying ? "未加载歌词 · 点下方「歌词」选 .lrc 文件" : "选择音乐，看小球从天空落下");
+      if (!msg && lyrics.length) msg = "♪ " + songName + " ♪";
+      ctx.font = "bold " + mainFs + "px 'Microsoft YaHei',sans-serif";
+      ctx.fillStyle = "rgba(255,255,255,0.92)";
+      ctx.fillText(msg, cx, cy0);
+      return;
+    }
+
+    // 前一行（小字）
+    if (idx - 1 >= 0) {
+      ctx.font = subFs + "px 'Microsoft YaHei',sans-serif";
+      ctx.fillStyle = "rgba(255,255,255,0.45)";
+      ctx.fillText(lyrics[idx - 1].text, cx, cy0 - mainFs * 0.92);
+    }
+    // 当前行（大字高亮，随鼓点微放大）
+    var scale = 1 + bass * 0.05;
+    ctx.font = "bold " + Math.round(mainFs * scale) + "px 'Microsoft YaHei',sans-serif";
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(lyrics[idx].text, cx, cy0 + mainFs * 0.1);
+    // 后一行（小字）
+    if (idx + 1 < lyrics.length) {
+      ctx.font = subFs + "px 'Microsoft YaHei',sans-serif";
+      ctx.fillStyle = "rgba(255,255,255,0.45)";
+      ctx.fillText(lyrics[idx + 1].text, cx, cy0 + mainFs * 1.1);
+    }
   }
 
   /* ========== 主循环 ========== */
@@ -434,14 +472,11 @@
       mid = mid / (44 * 255);
       high = high / (80 * 255);
       bass = Math.pow(bass, 1.35);
-      mid = Math.pow(mid, 1.15);
-      high = Math.pow(high, 1.15);
     }
     bassSm += (bass - bassSm) * 0.22;
     midSm += (mid - midSm) * 0.28;
     highSm += (high - highSm) * 0.28;
 
-    // 生成下落的小球：能量越高掉得越快
     var rate = isPlaying ? (0.02 + bassSm * 0.30) : 0.012;
     spawnAcc += rate;
     while (spawnAcc >= 1) { spawnAcc -= 1; spawnBall(bassSm); }
@@ -449,7 +484,7 @@
     drawBackground(t);
     updateBalls(t);
     for (var j = 0; j < balls.length; j++) drawBall(balls[j], t);
-    drawKeyboard(t, bassSm, midSm);
+    drawKeyboard(t, bassSm);
     drawLyrics(t, bassSm);
 
     requestAnimationFrame(loop);
