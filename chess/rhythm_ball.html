@@ -278,59 +278,77 @@
   layoutBlacks();
   window.addEventListener("resize", layoutBlacks);
 
-  /* ========== 下落小球 ========== */
-  var balls = [];
-  var MAX_BALLS = 24;
+  /* ========== 节奏小球（一粒，随音乐跳动） ========== */
+  var ball = { x: 0, y: 0, r: 26, vy: 0, squash: 0, glow: 0 };
 
-  function spawnBall(bass) {
-    if (balls.length >= MAX_BALLS) return;
-    var x = keyX0 + 8 + rand() * (keyW * WHITE_N - 16);
-    var r = 7 + rand() * 14 + bass * 5;
-    balls.push({
-      x: x, y: -20 - rand() * 60,
-      vy: 0.6 + rand() * 0.6,
-      g: 0.32 + bass * 0.28,
-      r: r, hue: rand() * 360,
-      hit: -1, bounce: 0, alpha: 1, seed: rand() * 100
-    });
+  function layoutBall() {
+    ball.x = W / 2;
+    ball.r = Math.max(20, Math.min(W * 0.055, H * 0.045));
+    ball.y = keyTop - ball.r;
   }
+  layoutBall();
+  window.addEventListener("resize", layoutBall);
 
-  function updateBalls(time) {
-    for (var i = balls.length - 1; i >= 0; i--) {
-      var b = balls[i];
-      if (b.hit < 0) {
-        b.vy += b.g;
-        b.y += b.vy;
-        if (b.y >= keyTop - b.r && b.y - b.vy < keyTop - b.r) {
-          var idx = Math.floor((b.x - keyX0) / keyW);
-          if (idx >= 0 && idx < WHITE_N) { b.hit = idx; flash[idx] = 1; press[idx] = 1; }
-        }
-      } else {
-        if (b.bounce < 1) { b.vy = -b.vy * 0.45; b.bounce++; b.y = keyTop - b.r; }
-        else { b.alpha -= 0.06; b.y += 0.4; }
-      }
-      if (b.alpha <= 0 || b.y > H + 40) { balls.splice(i, 1); continue; }
-      if (b.hit >= 0) {
-        flash[b.hit] = Math.max(0, flash[b.hit] - 0.055);
-        press[b.hit] = Math.max(0, press[b.hit] - 0.09);
-      }
+  function updateOneBall(bass) {
+    // 节奏强 → 跳得高；节奏弱 → 落回琴键
+    var jumpH = bass * (H * 0.20);
+    var targetY = keyTop - ball.r - jumpH;
+    ball.vy += (targetY - ball.y) * 0.07;
+    ball.vy *= 0.58;
+    ball.y += ball.vy;
+    if (ball.y > keyTop - ball.r) {
+      ball.y = keyTop - ball.r;
+      ball.vy = 0;
     }
+    // 落键瞬间：琴键发光 + 球体压扁
+    var onKey = ball.y >= keyTop - ball.r - 1.5 && ball.vy <= 0.5;
+    if (onKey && bass > 0.02) {
+      var idx = Math.floor((ball.x - keyX0) / keyW);
+      if (idx >= 0 && idx < WHITE_N) {
+        flash[idx] = Math.min(1, flash[idx] + 0.35);
+        press[idx] = Math.min(1, press[idx] + 0.3);
+      }
+      ball.squash = Math.min(0.32, ball.squash + 0.12);
+      ball.glow = Math.min(1, ball.glow + 0.28);
+    }
+    ball.squash *= 0.86;
+    ball.glow *= 0.9;
   }
 
-  function drawBall(b, time) {
-    if (b.alpha <= 0) return;
-    var a = Math.min(1, b.alpha);
-    var g = ctx.createRadialGradient(b.x - b.r * 0.3, b.y - b.r * 0.35, b.r * 0.12, b.x, b.y, b.r);
-    g.addColorStop(0, "hsla(" + b.hue + ",100%,82%," + a.toFixed(3) + ")");
-    g.addColorStop(0.6, "hsla(" + b.hue + ",95%,62%," + a.toFixed(3) + ")");
-    g.addColorStop(1, "hsla(" + b.hue + ",90%,35%," + a.toFixed(3) + ")");
+  function drawOneBall(bass) {
+    var r = ball.r;
+    var sq = ball.squash;
+    var rx = r * (1 + sq * 0.5);
+    var ry = r * (1 - sq * 0.32);
+    var yc = ball.y + sq * r * 0.3;
+    // 光晕（透明径向渐变，不用 shadowBlur）
+    if (ball.glow > 0.03) {
+      var hg = ctx.createRadialGradient(ball.x, yc, r * 0.4, ball.x, yc, r * 2.2);
+      hg.addColorStop(0, "hsla(210,100%,72%," + (ball.glow * 0.28).toFixed(3) + ")");
+      hg.addColorStop(1, "hsla(210,100%,72%,0)");
+      ctx.fillStyle = hg;
+      ctx.beginPath();
+      ctx.arc(ball.x, yc, r * 2.2, 0, 6.2832);
+      ctx.fill();
+    }
+    // 金属质感球体
+    var g = ctx.createRadialGradient(ball.x - rx * 0.3, yc - ry * 0.38, rx * 0.12, ball.x, yc, rx);
+    g.addColorStop(0, "hsla(210,40%,94%,1)");
+    g.addColorStop(0.5, "hsla(210,45%,66%,1)");
+    g.addColorStop(1, "hsla(215,55%,34%,1)");
     ctx.fillStyle = g;
     ctx.beginPath();
-    ctx.arc(b.x, b.y, b.r, 0, 6.2832);
+    ctx.ellipse(ball.x, yc, rx, ry, 0, 0, 6.2832);
     ctx.fill();
-    ctx.fillStyle = "rgba(255,255,255," + (0.5 * a).toFixed(3) + ")";
+    // 高光点
+    ctx.fillStyle = "rgba(255,255,255,0.9)";
     ctx.beginPath();
-    ctx.arc(b.x - b.r * 0.32, b.y - b.r * 0.35, b.r * 0.2, 0, 6.2832);
+    ctx.ellipse(ball.x - rx * 0.32, yc - ry * 0.4, rx * 0.2, ry * 0.15, -0.5, 0, 6.2832);
+    ctx.fill();
+    // 底部反光
+    ctx.fillStyle = "rgba(255,255,255,0.16)";
+    ctx.beginPath();
+    ctx.ellipse(ball.x + rx * 0.3, yc + ry * 0.5, rx * 0.4, ry * 0.11, 0.3, 0, 6.2832);
     ctx.fill();
   }
 
@@ -411,7 +429,7 @@
   function drawLyrics(time, bass) {
     var idx = currentLyricIdx();
     var cx = W / 2;
-    var cy0 = keyTop - 190;                 // 歌词区中心基线
+    var cy0 = keyTop - 215;                 // 歌词区中心基线
     var mainFs = Math.max(22, Math.round(Math.min(W * 0.052, H * 0.055)));
     var subFs = Math.max(14, Math.round(mainFs * 0.62));
 
@@ -456,7 +474,6 @@
   /* ========== 主循环 ========== */
   var lastT = 0;
   var bassSm = 0, midSm = 0, highSm = 0;
-  var spawnAcc = 0;
 
   function loop(t) {
     var dt = Math.min(50, t - lastT || 16);
@@ -473,17 +490,13 @@
       high = high / (80 * 255);
       bass = Math.pow(bass, 1.35);
     }
-    bassSm += (bass - bassSm) * 0.22;
+    bassSm += (bass - bassSm) * 0.24;
     midSm += (mid - midSm) * 0.28;
     highSm += (high - highSm) * 0.28;
 
-    var rate = isPlaying ? (0.02 + bassSm * 0.30) : 0.012;
-    spawnAcc += rate;
-    while (spawnAcc >= 1) { spawnAcc -= 1; spawnBall(bassSm); }
-
     drawBackground(t);
-    updateBalls(t);
-    for (var j = 0; j < balls.length; j++) drawBall(balls[j], t);
+    updateOneBall(bassSm);
+    drawOneBall(bassSm);
     drawKeyboard(t, bassSm);
     drawLyrics(t, bassSm);
 
