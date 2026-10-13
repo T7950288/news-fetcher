@@ -195,7 +195,7 @@
 
   // ===== 3D 泡泡球系统 =====
   // 伪 3D：每个球有 (x,y,z)，透视投影 sx = x*F/z, 近大远小、按 z 排序绘制
-  const FOCAL = 2.2;          // 透视焦距系数
+  const FOCAL = 1.8;          // 透视焦距系数
   let balls = [];
   let particles = [];
   let stars = [];
@@ -216,7 +216,7 @@
     balls = [];
     for (let i = 0; i < BALL_COUNT; i++) {
       balls.push({
-        x: rand(-1, 1), y: rand(-0.6, 0.8), z: rand(0.35, 1.6),
+        x: rand(-0.5, 0.5), y: rand(-0.25, 0.6), z: rand(0.8, 2.0),
         baseR: rand(0.05, 0.16),
         hue: rand(0, 360),
         phase: Math.random() * 6.28,
@@ -324,7 +324,7 @@
       const bright = 55 + beat * 40 + midLevel * 15;
 
       ctx.save();
-      ctx.globalAlpha = Math.min(0.95, 0.45 + (1.2 - z) * 0.5);
+      ctx.globalAlpha = Math.min(0.95, 0.55 + (2.0 - z) * 0.4);
       ctx.shadowColor = `hsla(${hue}, 90%, 70%, 0.9)`;
       ctx.shadowBlur = r * (0.6 + beat * 1.6);
       // 球体：左上高光径向渐变（彩虹泡泡）
