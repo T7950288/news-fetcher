@@ -6,34 +6,30 @@
 <title>音乐球</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-  html,body { width:100%; height:100%; overflow:hidden; background:#060b1d; font-family:"Microsoft YaHei","PingFang SC",sans-serif; color:#fff; user-select:none; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#9fd3f2; font-family:"Microsoft YaHei","PingFang SC",sans-serif; color:#fff; user-select:none; }
   #cv { position:fixed; inset:0; width:100%; height:100%; display:block; }
 
   #back {
     position:fixed; left:14px; top:12px; z-index:30;
-    background:rgba(255,255,255,.14); color:#fff;
-    border:1px solid rgba(255,255,255,.25); border-radius:20px;
+    background:rgba(20,40,80,.35); color:#fff;
+    border:1px solid rgba(255,255,255,.4); border-radius:20px;
     padding:8px 16px; font-size:15px; cursor:pointer; line-height:1;
   }
-  #back:active { background:rgba(255,255,255,.32); }
-
-  #hud {
-    position:fixed; left:14px; top:58px; z-index:30;
-    font-size:12px; color:rgba(255,255,255,.65); letter-spacing:1px;
-  }
+  #back:active { background:rgba(20,40,80,.6); }
 
   #title {
-    position:fixed; left:50%; top:9%; transform:translateX(-50%); z-index:30;
+    position:fixed; left:50%; top:4.5%; transform:translateX(-50%); z-index:30;
     text-align:center; pointer-events:none;
   }
-  #title h1 { font-size:min(9vw,44px); font-weight:800; letter-spacing:6px;
-    background:linear-gradient(180deg,#fff,#8fd0ff); -webkit-background-clip:text; background-clip:text; color:transparent; }
-  #title p { margin-top:8px; font-size:min(3.6vw,15px); color:rgba(255,255,255,.8); letter-spacing:1px; }
+  #title h1 { font-size:min(8vw,38px); font-weight:800; letter-spacing:8px;
+    color:#fff; text-shadow:0 2px 10px rgba(30,70,140,.45); }
+  #title p { margin-top:6px; font-size:min(3.2vw,13px); color:rgba(255,255,255,.92);
+    text-shadow:0 1px 6px rgba(30,70,140,.4); letter-spacing:1px; }
 
   #overlay {
     position:fixed; inset:0; z-index:20; display:flex; flex-direction:column;
-    align-items:center; justify-content:center; gap:18px;
-    background:radial-gradient(ellipse at center, rgba(10,20,50,.52) 0%, rgba(3,6,18,.78) 100%);
+    align-items:center; justify-content:center; gap:16px;
+    background:radial-gradient(ellipse at center, rgba(120,180,230,.10) 0%, rgba(40,90,160,.30) 100%);
     transition:opacity .45s;
   }
   #overlay.hidden { opacity:0; pointer-events:none; }
@@ -42,39 +38,39 @@
     background:linear-gradient(135deg,#2f7bff,#5b4dff); color:#fff;
     border:none; border-radius:30px; padding:15px 38px;
     font-size:min(4.5vw,18px); font-weight:700; letter-spacing:2px; cursor:pointer;
-    box-shadow:0 6px 22px rgba(70,100,255,.45);
+    box-shadow:0 6px 22px rgba(40,90,200,.45);
   }
   #pickBtn:active { transform:scale(.96); }
-  #hint { font-size:min(3.4vw,14px); color:rgba(255,255,255,.65); text-align:center; line-height:1.8; }
+  #hint { font-size:min(3.4vw,14px); color:rgba(255,255,255,.95); text-align:center; line-height:1.9;
+    text-shadow:0 1px 5px rgba(20,50,110,.5); }
 
   #ctrl {
     position:fixed; left:50%; bottom:26px; transform:translateX(-50%); z-index:30;
     display:flex; align-items:center; gap:10px; white-space:nowrap;
   }
   .cb {
-    background:rgba(255,255,255,.14); color:#fff;
-    border:1px solid rgba(255,255,255,.28); border-radius:22px;
+    background:rgba(20,50,110,.35); color:#fff;
+    border:1px solid rgba(255,255,255,.45); border-radius:22px;
     padding:10px 20px; font-size:14px; cursor:pointer; letter-spacing:1px; line-height:1;
   }
-  .cb:active { background:rgba(255,255,255,.34); }
+  .cb:active { background:rgba(20,50,110,.6); }
   .cb:disabled { opacity:.4; cursor:default; }
-  #st { font-size:12px; color:rgba(255,255,255,.55); padding:0 4px; }
+  #st { font-size:12px; color:rgba(255,255,255,.9); padding:0 4px; text-shadow:0 1px 4px rgba(20,50,110,.5); }
 </style>
 </head>
 <body>
 <canvas id="cv"></canvas>
 
 <div id="back">返回游戏</div>
-<div id="hud"></div>
 
 <div id="title">
   <h1>音乐球</h1>
-  <p>上传音乐，彩虹泡泡在 3D 空间里随鼓点舞动</p>
+  <p>3D 琴键随鼓点舞动</p>
 </div>
 
 <div id="overlay">
   <button id="pickBtn">选择音乐开始</button>
-  <div id="hint">支持 MP3 / M4A / WAV 等常见音频<br>选一首你喜欢的歌，看泡泡跳舞</div>
+  <div id="hint">支持 MP3 / M4A / WAV 等常见音频<br>选一首你喜欢的歌，看琴键和泡泡跳舞</div>
 </div>
 
 <div id="ctrl">
@@ -106,25 +102,54 @@
   window.addEventListener("resize", resize);
   resize();
 
-  /* ========== 球群（永远在画面内） ========== */
-  var FOCAL = 1.8;
-  var N = 40;
-  var balls = [];
-  var seedRand = Math.random;
+  var rand = Math.random;
 
-  function makeBall() {
-    return {
-      x: -0.5 + seedRand() * 1.0,      // 横向 ±0.5
-      y: -0.15 + seedRand() * 0.55,    // 纵向 -0.15 ~ 0.40（保证不出屏）
-      z: 0.8 + seedRand() * 1.2,       // 纵深 0.8 ~ 2.0
-      baseR: 0.07 + seedRand() * 0.13, // 基础半径
-      hue: seedRand() * 360,
-      speed: 0.6 + seedRand() * 0.9,
-      seed: seedRand() * 100,
-      bob: 0, puls: 1
-    };
+  /* ========== 泡泡（彩虹球，围绕琴键） ========== */
+  var balls = [];
+  for (var i = 0; i < 22; i++) {
+    balls.push({
+      x: rand() * 0.9 + 0.05,      // 横向 0.05~0.95（比例）
+      y: 0.12 + rand() * 0.55,     // 纵向 0.12~0.67（上部与琴键间）
+      z: 0.8 + rand() * 1.2,
+      baseR: 0.05 + rand() * 0.1,
+      hue: rand() * 360,
+      speed: 0.6 + rand() * 0.9,
+      seed: rand() * 100,
+      vx: (rand() - 0.5) * 0.00012,
+      vy: (rand() - 0.5) * 0.00008
+    });
   }
-  for (var i = 0; i < N; i++) balls.push(makeBall());
+
+  /* ========== 3D 琴键（错落摆放） ========== */
+  // 7 个白键：x,y 为画面比例中心；w 键宽比；h 键高比；rot 小角度；depth 厚度
+  var keys = [];
+  var notes = ["do", "re", "mi", "fa", "sol", "la", "si"];
+  var layout = [
+    { x: 0.30, y: 0.78, w: 0.135, h: 0.30, rot: -0.07, d: 0.16 },
+    { x: 0.48, y: 0.60, w: 0.155, h: 0.34, rot: 0.03,  d: 0.20 },
+    { x: 0.66, y: 0.80, w: 0.125, h: 0.28, rot: 0.08,  d: 0.15 },
+    { x: 0.17, y: 0.52, w: 0.120, h: 0.26, rot: -0.12, d: 0.14 },
+    { x: 0.84, y: 0.55, w: 0.130, h: 0.28, rot: 0.12,  d: 0.15 },
+    { x: 0.36, y: 0.38, w: 0.110, h: 0.24, rot: -0.05, d: 0.13 },
+    { x: 0.62, y: 0.36, w: 0.115, h: 0.25, rot: 0.06,  d: 0.13 }
+  ];
+  for (var k = 0; k < layout.length; k++) {
+    keys.push({
+      x: layout[k].x, y: layout[k].y, w: layout[k].w, h: layout[k].h,
+      rot: layout[k].rot, d: layout[k].d,
+      note: notes[k], hue: (k / layout.length) * 360,
+      seed: rand() * 100
+    });
+  }
+
+  /* ========== 云朵 ========== */
+  var clouds = [];
+  for (var c = 0; c < 5; c++) {
+    clouds.push({
+      x: rand() * 1.2 - 0.1, y: 0.06 + rand() * 0.3,
+      s: 0.5 + rand() * 1.0, v: 0.00004 + rand() * 0.00006
+    });
+  }
 
   /* ========== 音频 ========== */
   var audio = null, audioCtx = null, analyser = null, srcNode = null;
@@ -139,7 +164,6 @@
   var playBtn = document.getElementById("playBtn");
   var pauseBtn = document.getElementById("pauseBtn");
   var st = document.getElementById("st");
-  var hud = document.getElementById("hud");
 
   function loadAudio(file) {
     if (!file) return;
@@ -160,7 +184,7 @@
         if (!srcNode) {
           srcNode = audioCtx.createMediaElementSource(audio);
           analyser = audioCtx.createAnalyser();
-          analyser.fftSize = 256;
+          analyser.fftSize = 512;
           srcNode.connect(analyser);
           analyser.connect(audioCtx.destination);
           freq = new Uint8Array(analyser.frequencyBinCount);
@@ -202,87 +226,142 @@
     if (fileInput.files && fileInput.files[0]) loadAudio(fileInput.files[0]);
   });
 
-  /* ========== 渲染 ========== */
-  function drawBackground(time) {
-    // 深蓝渐变背景
+  /* ========== 渲染：天空 + 云 ========== */
+  function drawSky(time) {
     var g = ctx.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0, "#0a1330");
-    g.addColorStop(0.5, "#0a0f26");
-    g.addColorStop(1, "#050918");
+    g.addColorStop(0, "#8ecbf2");
+    g.addColorStop(0.55, "#bfe3f8");
+    g.addColorStop(1, "#e8f6fe");
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, W, H);
 
-    // 星空（静态小点，随音乐微闪）
-    var starN = 90;
-    for (var i = 0; i < starN; i++) {
-      var sx = ((i * 61) % 100) / 100 * W;
-      var sy = ((i * 37) % 100) / 100 * H;
-      var tw = 0.35 + 0.65 * Math.abs(Math.sin(time * 0.0012 + i * 1.7));
-      ctx.fillStyle = "rgba(255,255,255," + (0.25 * tw).toFixed(3) + ")";
-      ctx.fillRect(sx, sy, 2, 2);
-    }
-  }
-
-  function project(px, py, pz) {
-    var k = FOCAL / pz;
-    return { sx: px * W * 0.4 * k + W / 2, sy: py * H * 0.42 * k + H * 0.55, k: k };
-  }
-
-  function drawBall(b, time, bass, mid) {
-    var bounce = bass;                    // 鼓点能量
-    var puls = 1 + bounce * 0.7;          // 脉冲放大
-    var sway = mid * 0.1 * Math.sin(time * 0.003 * b.speed + b.seed);
-    var idle = isPlaying ? 0 : 0.025 * Math.sin(time * 0.0015 + b.seed * 6);
-    var x = b.x + sway;
-    var y = b.y - bounce * 0.45 + idle;
-    var z = b.z;
-    var p = project(x, y, z);
-
-    var r = Math.max(4, b.baseR * p.k * 330 * puls);
-    var bright = 62 + bounce * 35 + mid * 12;
-    if (bright > 100) bright = 100;
-
-    // 远球淡、近球实
-    var a = 0.55 + (2.0 - z) * 0.42;
-    if (a > 0.98) a = 0.98;
-
-    // 球体：径向渐变（亮心 → 深边），加高光点，不用阴影特效
-    var g = ctx.createRadialGradient(
-      p.sx - r * 0.3, p.sy - r * 0.35, r * 0.15,
-      p.sx, p.sy, r
-    );
-    g.addColorStop(0, "hsla(" + b.hue + ",100%," + (bright + 22) + "%," + a.toFixed(3) + ")");
-    g.addColorStop(0.55, "hsla(" + b.hue + ",95%," + bright + "%," + a.toFixed(3) + ")");
-    g.addColorStop(1, "hsla(" + b.hue + ",90%," + Math.max(12, bright - 40) + "%," + a.toFixed(3) + ")");
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(p.sx, p.sy, r, 0, 6.2832);
-    ctx.fill();
-
-    // 高光小点（增强球体立体感）
-    ctx.fillStyle = "rgba(255,255,255," + (0.5 * a).toFixed(3) + ")";
-    ctx.beginPath();
-    ctx.arc(p.sx - r * 0.32, p.sy - r * 0.36, r * 0.18, 0, 6.2832);
-    ctx.fill();
-  }
-
-  /* ========== 底部琴键 ========== */
-  function drawKeys(time, mid, high) {
-    var keyN = 10;
-    var gap = 5;
-    var totalW = keyN * 26 + (keyN - 1) * gap;
-    var x0 = (W - totalW) / 2;
-    var y0 = H - 56;
-    var glow = (mid + high) * 0.5;
-    for (var i = 0; i < keyN; i++) {
-      var lit = 0.12 + glow * (0.75 + 0.25 * Math.sin(time * 0.006 + i * 0.8));
-      var hueK = (i / keyN) * 300;
-      ctx.fillStyle = "hsla(" + hueK + ",85%," + Math.round(18 + lit * 55) + "%," + (0.5 + lit * 0.5).toFixed(3) + ")";
-      var rw = 6;
+    // 云朵
+    for (var i = 0; i < clouds.length; i++) {
+      var cl = clouds[i];
+      cl.x += cl.v * 16;
+      if (cl.x > 1.25) cl.x = -0.25;
+      var cx = cl.x * W;
+      var cy = cl.y * H;
+      var s = cl.s * Math.min(W, H) * 0.0011;
+      ctx.fillStyle = "rgba(255,255,255,0.75)";
       ctx.beginPath();
-      ctx.roundRect ? ctx.roundRect(x0 + i * (26 + gap), y0, 26, 30, rw) : ctx.rect(x0 + i * (26 + gap), y0, 26, 30);
+      ctx.ellipse(cx, cy, 90 * s, 32 * s, 0, 0, 6.2832);
+      ctx.ellipse(cx - 60 * s, cy + 12 * s, 55 * s, 24 * s, 0, 0, 6.2832);
+      ctx.ellipse(cx + 62 * s, cy + 10 * s, 60 * s, 26 * s, 0, 0, 6.2832);
+      ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,0.4)";
+      ctx.beginPath();
+      ctx.ellipse(cx, cy + 26 * s, 90 * s, 18 * s, 0, 0, 6.2832);
       ctx.fill();
     }
+  }
+
+  /* ========== 渲染：3D 琴键 ========== */
+  function drawKey(k, time, bass, mid, idx) {
+    var bounce = bass * (0.5 + 0.5 * Math.sin(time * 0.008 + k.seed));
+    var jump = Math.max(0, bounce) * 60;         // 鼓点弹跳（px）
+    var pulse = 1 + Math.max(0, bass) * 0.10;    // 放大脉冲
+    var sway = mid * 0.04 * Math.sin(time * 0.004 + k.seed * 3);
+    var idle = isPlaying ? 0 : 0.010 * Math.sin(time * 0.0015 + k.seed * 5);
+
+    var cx = (k.x + sway) * W;
+    var cy = (k.y - 0.06 * bounce - idle) * H;
+    var w = k.w * W * pulse;
+    var h = k.h * H * pulse;
+    var depth = k.d * H * pulse;
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(k.rot + sway * 0.4);
+
+    // —— 侧面（厚度，立体感）——
+    ctx.fillStyle = "#7c8694";
+    ctx.beginPath();
+    ctx.moveTo(-w / 2, 0);
+    ctx.lineTo(w / 2, 0);
+    ctx.lineTo(w / 2 + depth * 0.35, depth);
+    ctx.lineTo(-w / 2 + depth * 0.35, depth);
+    ctx.closePath();
+    ctx.fill();
+
+    // —— 底面阴影面（更立体）——
+    ctx.fillStyle = "#9aa4b0";
+    ctx.beginPath();
+    ctx.moveTo(-w / 2, 0);
+    ctx.lineTo(-w / 2 + depth * 0.35, depth);
+    ctx.lineTo(-w / 2 + depth * 0.35 + w, depth);
+    ctx.lineTo(w / 2, 0);
+    ctx.closePath();
+    ctx.fill();
+
+    // —— 正面（白色渐变 + 顶部亮条）——
+    var lit = 0.15 + Math.max(0, bass) * 0.5 + mid * 0.15;
+    if (lit > 0.9) lit = 0.9;
+    var fg = ctx.createLinearGradient(0, -h, 0, 0);
+    fg.addColorStop(0, "#ffffff");
+    fg.addColorStop(0.7, "#f2f6fb");
+    fg.addColorStop(1, "#dbe3ee");
+    ctx.fillStyle = fg;
+    ctx.beginPath();
+    ctx.moveTo(-w / 2, -h);
+    ctx.lineTo(w / 2, -h);
+    ctx.lineTo(w / 2, 0);
+    ctx.lineTo(-w / 2, 0);
+    ctx.closePath();
+    ctx.fill();
+
+    // 键缝（左右细线）
+    ctx.strokeStyle = "rgba(120,135,155,0.55)";
+    ctx.lineWidth = Math.max(1, w * 0.018);
+    ctx.beginPath();
+    ctx.moveTo(-w / 2, -h); ctx.lineTo(-w / 2, 0);
+    ctx.moveTo(w / 2, -h); ctx.lineTo(w / 2, 0);
+    ctx.stroke();
+
+    // 发光描边（模拟光效，不用阴影）
+    ctx.strokeStyle = "rgba(120,190,255," + (0.25 + lit * 0.55).toFixed(3) + ")";
+    ctx.lineWidth = Math.max(2, w * 0.03);
+    ctx.beginPath();
+    ctx.moveTo(-w / 2, -h); ctx.lineTo(w / 2, -h); ctx.lineTo(w / 2, 0); ctx.lineTo(-w / 2, 0);
+    ctx.closePath();
+    ctx.stroke();
+
+    // —— 音符文字（白键上）——
+    ctx.fillStyle = "rgba(60,85,120," + (0.55 + lit * 0.45).toFixed(3) + ")";
+    ctx.font = "bold " + Math.round(h * 0.34) + "px 'Microsoft YaHei',sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(k.note, 0, -h * 0.45);
+
+    ctx.restore();
+  }
+
+  /* ========== 渲染：彩虹泡泡 ========== */
+  function drawBall(b, time, bass, mid) {
+    var bounce = Math.max(0, bass);
+    var puls = 1 + bounce * 0.6;
+    var idle = isPlaying ? 0 : 0.02 * Math.sin(time * 0.0016 + b.seed * 6);
+    var x = (b.x + b.vx * time * 0.05) * W;
+    var y = (b.y + b.vy * time * 0.05 - bounce * 0.06 - idle) * H;
+    var kk = 1.8 / b.z;
+    var r = Math.max(4, b.baseR * kk * 340 * puls);
+    var a = 0.5 + (2.0 - b.z) * 0.4;
+    if (a > 0.95) a = 0.95;
+    var bright = 58 + bounce * 35;
+
+    var g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.35, r * 0.12, x, y, r);
+    g.addColorStop(0, "hsla(" + b.hue + ",100%," + (bright + 22) + "%," + a.toFixed(3) + ")");
+    g.addColorStop(0.6, "hsla(" + b.hue + ",92%," + bright + "%," + a.toFixed(3) + ")");
+    g.addColorStop(1, "hsla(" + b.hue + ",85%," + Math.max(15, bright - 35) + "%," + a.toFixed(3) + ")");
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, 6.2832);
+    ctx.fill();
+
+    ctx.fillStyle = "rgba(255,255,255," + (0.45 * a).toFixed(3) + ")";
+    ctx.beginPath();
+    ctx.arc(x - r * 0.3, y - r * 0.34, r * 0.16, 0, 6.2832);
+    ctx.fill();
   }
 
   /* ========== 主循环 ========== */
@@ -293,31 +372,28 @@
     var dt = Math.min(50, t - lastT || 16);
     lastT = t;
 
-    // 频谱 → 能量
     var bass = 0, mid = 0, high = 0;
     if (isPlaying && analyser && freq) {
       analyser.getByteFrequencyData(freq);
-      for (var i = 0; i < 12; i++) bass += freq[i];
-      for (var i = 12; i < 40; i++) mid += freq[i];
-      for (var i = 40; i < 90; i++) high += freq[i];
-      bass = bass / (12 * 255);
-      mid = mid / (28 * 255);
-      high = high / (50 * 255);
-      bass = Math.pow(bass, 1.25);
-      mid = Math.pow(mid, 1.2);
-      high = Math.pow(high, 1.2);
+      for (var i = 0; i < 16; i++) bass += freq[i];
+      for (var i = 16; i < 60; i++) mid += freq[i];
+      for (var i = 60; i < 140; i++) high += freq[i];
+      bass = bass / (16 * 255);
+      mid = mid / (44 * 255);
+      high = high / (80 * 255);
+      bass = Math.pow(bass, 1.3);
+      mid = Math.pow(mid, 1.15);
+      high = Math.pow(high, 1.15);
     }
-    // 平滑
-    bassSm += (bass - bassSm) * 0.25;
-    midSm += (mid - midSm) * 0.3;
-    highSm += (high - highSm) * 0.3;
+    bassSm += (bass - bassSm) * 0.22;
+    midSm += (mid - midSm) * 0.28;
+    highSm += (high - highSm) * 0.28;
 
-    drawBackground(t);
+    drawSky(t);
+    // 泡泡画在琴键后面（先画球）
     for (var j = 0; j < balls.length; j++) drawBall(balls[j], t, bassSm, midSm);
-    drawKeys(t, midSm, highSm);
-
-    // HUD 小字
-    hud.textContent = isPlaying ? ("♫ " + fileName + "　·　BASS " + Math.round(bassSm * 100)) : "";
+    // 琴键（主体）
+    for (var kk = 0; kk < keys.length; kk++) drawKey(keys[kk], t, bassSm, midSm, kk);
 
     requestAnimationFrame(loop);
   }
