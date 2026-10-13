@@ -442,7 +442,7 @@
     highSm += (high - highSm) * 0.28;
 
     // 生成下落的小球：能量越高掉得越快
-    var rate = isPlaying ? (0.018 + bassSm * 0.30) : 0.006;
+    var rate = isPlaying ? (0.02 + bassSm * 0.30) : 0.012;
     spawnAcc += rate;
     while (spawnAcc >= 1) { spawnAcc -= 1; spawnBall(bassSm); }
 
