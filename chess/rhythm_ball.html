@@ -173,6 +173,7 @@
       audio = new Audio();
       audio.preload = "auto";
       audio.loop = true;
+      audio.volume = 1.0;
     }
     if (!audioCtx) {
       try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
@@ -185,8 +186,12 @@
           srcNode = audioCtx.createMediaElementSource(audio);
           analyser = audioCtx.createAnalyser();
           analyser.fftSize = 512;
+          // 音量增益：放大 1.5 倍，让音乐更响
+          var gainNode = audioCtx.createGain();
+          gainNode.gain.value = 1.5;
           srcNode.connect(analyser);
-          analyser.connect(audioCtx.destination);
+          analyser.connect(gainNode);
+          gainNode.connect(audioCtx.destination);
           freq = new Uint8Array(analyser.frequencyBinCount);
         }
         audioCtx.resume && audioCtx.resume();
