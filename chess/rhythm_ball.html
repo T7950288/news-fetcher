@@ -45,7 +45,7 @@
   #overlay {
     position: fixed; inset: 0; z-index: 20;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    background: radial-gradient(ellipse at center, rgba(20,40,90,0.72) 0%, rgba(5,10,30,0.94) 100%);
+    background: radial-gradient(ellipse at center, rgba(20,40,90,0.55) 0%, rgba(5,10,30,0.85) 100%);
     transition: opacity 0.4s;
     text-align: center; padding: 0 24px;
   }
@@ -202,7 +202,7 @@
   let flashAlpha = 0;
   let beatPhase = 0;          // 鼓点相位（驱动跳动）
   let score = 0, combo = 0, bestCombo = 0;
-  const BALL_COUNT = 30;
+  const BALL_COUNT = 40;
 
   function rand(a, b) { return a + Math.random() * (b - a); }
 
@@ -217,7 +217,7 @@
     for (let i = 0; i < BALL_COUNT; i++) {
       balls.push({
         x: rand(-0.5, 0.5), y: rand(-0.25, 0.6), z: rand(0.8, 2.0),
-        baseR: rand(0.05, 0.16),
+        baseR: rand(0.07, 0.2),
         hue: rand(0, 360),
         phase: Math.random() * 6.28,
         speed: rand(0.6, 1.4),
@@ -311,20 +311,21 @@
       // 鼓点跳动：bass 驱动 y 上跳 + 半径膨胀
       const bounce = beat * (0.5 + 0.5 * Math.sin(b.phase + b.seed));
       const puls = 1 + beat * 0.7 * (0.5 + 0.5 * Math.sin(beatPhase * b.speed + b.seed));
-      // 中频轻摇
+      // 中频轻摇 + 空闲微浮动
       const sway = midLevel * 0.12 * Math.sin(beatPhase * 0.8 * b.speed + b.seed);
+      const idle = (isPlaying ? 0 : 0.03 * Math.sin(beatPhase * 0.5 * b.speed + b.seed));
       const x = b.x + sway;
-      const y = b.y - bounce * 0.55;
+      const y = b.y - bounce * 0.55 + idle;
       const z = b.z;
 
       const p = project(x, y, z);
       const r = Math.max(3, b.baseR * p.k * 320 * puls);
       // 鼓点强时亮色偏移
       const hue = (b.hue + trebleLevel * 60) % 360;
-      const bright = 55 + beat * 40 + midLevel * 15;
+      const bright = 62 + beat * 40 + midLevel * 15;
 
       ctx.save();
-      ctx.globalAlpha = Math.min(0.95, 0.55 + (2.0 - z) * 0.4);
+      ctx.globalAlpha = Math.min(0.98, 0.65 + (2.0 - z) * 0.35);
       ctx.shadowColor = `hsla(${hue}, 90%, 70%, 0.9)`;
       ctx.shadowBlur = r * (0.6 + beat * 1.6);
       // 球体：左上高光径向渐变（彩虹泡泡）
