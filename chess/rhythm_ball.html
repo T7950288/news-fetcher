@@ -7,26 +7,16 @@
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3CradialGradient id='g' cx='35%25' cy='35%25' r='65%25'%3E%3Cstop offset='0%25' stop-color='%23ffffff'/%3E%3Cstop offset='50%25' stop-color='%237fd4ff'/%3E%3Cstop offset='100%25' stop-color='%238a5cff'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='32' cy='32' r='28' fill='url(%23g)'/%3E%3C/svg%3E">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; overflow: hidden; background: #0a1230; font-family: "PingFang SC", "Microsoft YaHei", sans-serif; color: #fff; }
+  html, body { height: 100%; overflow: hidden; background: #070b20; font-family: "PingFang SC", "Microsoft YaHei", sans-serif; color: #fff; }
 
   canvas { display: block; width: 100vw; height: 100vh; }
 
-  /* 顶部HUD */
+  /* 顶部 HUD */
   #hud {
     position: fixed; top: 0; left: 0; right: 0;
     display: flex; justify-content: space-between; align-items: flex-start;
     padding: 60px 20px 16px; z-index: 10; pointer-events: none;
   }
-  #backBtn {
-    position: fixed; top: 12px; left: 12px; z-index: 30;
-    border: 1px solid rgba(140,200,255,0.25);
-    background: rgba(10,20,50,0.6); backdrop-filter: blur(12px);
-    color: #fff; border-radius: 999px;
-    padding: 8px 14px; font-size: 14px; cursor: pointer;
-    text-decoration: none; display: flex; align-items: center; gap: 6px;
-    transition: background 0.2s;
-  }
-  #backBtn:hover { background: rgba(20,40,80,0.8); }
   .hud-box {
     background: rgba(10, 20, 50, 0.45);
     backdrop-filter: blur(12px);
@@ -39,21 +29,34 @@
   #combo { color: #7fd4ff; transition: transform 0.1s; }
   #combo.bump { transform: scale(1.25); }
 
+  /* 返回按钮 */
+  #backBtn {
+    position: fixed; top: 12px; left: 12px; z-index: 30;
+    border: 1px solid rgba(140,200,255,0.25);
+    background: rgba(10,20,50,0.6); backdrop-filter: blur(12px);
+    color: #fff; border-radius: 999px;
+    padding: 8px 14px; font-size: 14px; cursor: pointer;
+    text-decoration: none; display: flex; align-items: center; gap: 6px;
+    transition: background 0.2s;
+  }
+  #backBtn:hover { background: rgba(20,40,80,0.8); }
+
   /* 中央开始遮罩 */
   #overlay {
     position: fixed; inset: 0; z-index: 20;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    background: radial-gradient(ellipse at center, rgba(20,40,90,0.7) 0%, rgba(5,10,30,0.92) 100%);
+    background: radial-gradient(ellipse at center, rgba(20,40,90,0.72) 0%, rgba(5,10,30,0.94) 100%);
     transition: opacity 0.4s;
+    text-align: center; padding: 0 24px;
   }
   #overlay.hidden { opacity: 0; pointer-events: none; }
   #overlay h1 {
-    font-size: 42px; font-weight: 800; letter-spacing: 6px;
-    background: linear-gradient(135deg, #7fd4ff, #c89bff, #ff9bd2);
+    font-size: 44px; font-weight: 800; letter-spacing: 8px;
+    background: linear-gradient(135deg, #7fd4ff, #c89bff, #ff9bd2, #ffd43b);
     -webkit-background-clip: text; background-clip: text; color: transparent;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
   }
-  #overlay p { font-size: 14px; opacity: 0.7; margin-bottom: 32px; letter-spacing: 2px; }
+  #overlay p { font-size: 14px; opacity: 0.7; margin-bottom: 36px; letter-spacing: 2px; line-height: 1.8; }
   .big-btn {
     border: none; cursor: pointer; color: #fff;
     background: linear-gradient(135deg, #4a9eff, #8a5cff);
@@ -71,6 +74,7 @@
     background: rgba(10, 20, 50, 0.55); backdrop-filter: blur(12px);
     padding: 10px 14px; border-radius: 999px;
     border: 1px solid rgba(140, 200, 255, 0.2);
+    max-width: calc(100vw - 24px);
   }
   .ctrl-btn {
     border: none; cursor: pointer; color: #fff;
@@ -110,7 +114,7 @@
 
   <div id="overlay">
     <h1>音乐球</h1>
-    <p>上传音乐，让小球跟着鼓点跳起来</p>
+    <p>上传音乐，彩虹泡泡在 3D 空间里随鼓点舞动</p>
     <button class="big-btn" id="startBtn">选择音乐开始</button>
   </div>
 
@@ -154,7 +158,6 @@
   let freqData = null, timeData = null;
   let audio = null, isPlaying = false, muted = false;
   let bassLevel = 0, midLevel = 0, trebleLevel = 0;
-  let lastBassPeak = 0;
 
   function initAudio(file) {
     if (!audioCtx) {
@@ -182,61 +185,57 @@
     if (!analyser || !freqData) { bassLevel = midLevel = trebleLevel = 0; return; }
     analyser.getByteFrequencyData(freqData);
     const n = freqData.length;
-    // 低频(鼓点): 0-10%
     let b = 0; for (let i = 0; i < n * 0.1; i++) b += freqData[i];
     bassLevel = (b / (n * 0.1)) / 255;
-    // 中频: 10-50%
     let m = 0; for (let i = n * 0.1; i < n * 0.5; i++) m += freqData[i];
     midLevel = (m / (n * 0.4)) / 255;
-    // 高频: 50-100%
     let t = 0; for (let i = n * 0.5; i < n; i++) t += freqData[i];
     trebleLevel = (t / (n * 0.5)) / 255;
   }
 
-  // ===== 游戏状态 =====
-  let score = 0, combo = 0, bestCombo = 0;
-  let ball = { x: 0, y: 0, vy: 0, r: 22, baseY: 0, groundY: 0, glow: 20, hue: 200 };
+  // ===== 3D 泡泡球系统 =====
+  // 伪 3D：每个球有 (x,y,z)，透视投影 sx = x*F/z, 近大远小、按 z 排序绘制
+  const FOCAL = 2.2;          // 透视焦距系数
+  let balls = [];
   let particles = [];
-  let keys = [];
-  let clouds = [];
+  let stars = [];
   let flashAlpha = 0;
+  let beatPhase = 0;          // 鼓点相位（驱动跳动）
+  let score = 0, combo = 0, bestCombo = 0;
+  const BALL_COUNT = 30;
+
+  function rand(a, b) { return a + Math.random() * (b - a); }
 
   function initScene() {
-    ball.x = W / 2;
-    ball.groundY = H * 0.72;
-    ball.baseY = ball.groundY;
-    ball.y = ball.baseY;
-    ball.vy = 0;
-    // 透视琴键: 从近到远排列
-    keys = [];
-    const keyCount = 14;
-    for (let i = 0; i < keyCount; i++) {
-      const t = i / (keyCount - 1); // 0=近, 1=远
-      keys.push({
-        t,
-        y: ball.groundY - t * H * 0.45,
-        width: (1 - t) * W * 0.18 + 20,
-        height: (1 - t) * 18 + 6,
-        hue: 200 + t * 80,
-        phase: Math.random() * Math.PI * 2,
-        lit: 0
-      });
+    // 背景星星
+    stars = [];
+    for (let i = 0; i < 80; i++) {
+      stars.push({ x: Math.random() * W, y: Math.random() * H, r: rand(0.5, 1.8), tw: rand(0.002, 0.01), ph: Math.random() * 6.28 });
     }
-    // 云
-    clouds = [];
-    for (let i = 0; i < 6; i++) {
-      clouds.push({
-        x: Math.random() * W,
-        y: Math.random() * H * 0.4,
-        r: 60 + Math.random() * 100,
-        speed: 0.1 + Math.random() * 0.2,
-        alpha: 0.08 + Math.random() * 0.1
+    // 泡泡球：分布在锥形空间（z 从近到远）
+    balls = [];
+    for (let i = 0; i < BALL_COUNT; i++) {
+      balls.push({
+        x: rand(-1, 1), y: rand(-0.6, 0.8), z: rand(0.35, 1.6),
+        baseR: rand(0.05, 0.16),
+        hue: rand(0, 360),
+        phase: Math.random() * 6.28,
+        speed: rand(0.6, 1.4),
+        bob: 0, puls: 0, seed: Math.random() * 100
       });
     }
     particles = [];
     score = 0; combo = 0; bestCombo = 0;
     scoreEl.textContent = "0";
     comboEl.textContent = "0";
+  }
+
+  // 透视投影
+  function project(px, py, pz) {
+    const k = FOCAL / pz;
+    const sx = px * W * 0.4 * k + W / 2;
+    const sy = py * H * 0.42 * k + H * 0.56;
+    return { sx: sx, sy: sy, k: k };
   }
 
   // ===== 输入事件 =====
@@ -268,133 +267,124 @@
 
   // ===== 粒子 =====
   function spawnParticles(x, y, power) {
-    const count = Math.floor(power * 12) + 3;
+    const count = Math.floor(power * 10) + 3;
     for (let i = 0; i < count; i++) {
       particles.push({
-        x, y,
-        vx: (Math.random() - 0.5) * (4 + power * 8),
-        vy: -Math.random() * (3 + power * 6),
+        x: x, y: y,
+        vx: (Math.random() - 0.5) * (3 + power * 7),
+        vy: -Math.random() * (3 + power * 5),
         life: 1,
-        size: 2 + Math.random() * 3,
-        hue: ball.hue + Math.random() * 60
+        size: rand(1.5, 4),
+        hue: rand(0, 360)
       });
     }
   }
 
   // ===== 绘制 =====
-  function drawBackground() {
+  function drawBackground(t) {
     const g = ctx.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0, "#0a1230");
-    g.addColorStop(0.5, "#1a2a6a");
-    g.addColorStop(1, "#4a6aaa");
+    g.addColorStop(0, "#070b20");
+    g.addColorStop(0.5, "#131b4a");
+    g.addColorStop(1, "#2a1e6e");
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, W, H);
 
-    // 云
-    clouds.forEach(c => {
-      c.x += c.speed;
-      if (c.x - c.r > W) c.x = -c.r;
-      const cg = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, c.r);
-      cg.addColorStop(0, `rgba(200,220,255,${c.alpha})`);
-      cg.addColorStop(1, "rgba(200,220,255,0)");
-      ctx.fillStyle = cg;
+    // 星星
+    ctx.save();
+    stars.forEach(s => {
+      const a = 0.35 + 0.4 * Math.sin(t * s.tw * 100 + s.ph);
+      ctx.globalAlpha = a;
+      ctx.fillStyle = "#cfd8ff";
       ctx.beginPath();
-      ctx.ellipse(c.x, c.y, c.r, c.r * 0.4, 0, 0, Math.PI * 2);
+      ctx.arc(s.x, s.y, s.r, 0, 6.28);
       ctx.fill();
     });
-
-    // 远山
-    ctx.beginPath();
-    ctx.moveTo(0, H * 0.55);
-    for (let x = 0; x <= W; x += 30) {
-      ctx.lineTo(x, H * 0.55 + Math.sin(x * 0.008) * 25 + Math.cos(x * 0.02) * 10);
-    }
-    ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath();
-    ctx.fillStyle = "rgba(30,50,100,0.5)";
-    ctx.fill();
+    ctx.restore();
   }
 
-  function drawKeys() {
-    keys.forEach((k, i) => {
-      const energy = isPlaying ? bassLevel : 0;
-      // 随机亮起来模拟琴键被按
-      k.lit = Math.max(0, k.lit - 0.05);
-      const wave = Math.sin(Date.now() * 0.004 + k.phase) * 0.5 + 0.5;
-      const glow = wave * energy * 1.5;
-      const scale = 1 + glow * 0.08;
+  function drawBalls() {
+    // 更新并排序（远→近）
+    const beat = isPlaying ? Math.pow(bassLevel, 1.4) : 0;
+    beatPhase += 0.05;
+    const sorted = balls.slice().sort((a, b) => b.z - a.z);
+    sorted.forEach(b => {
+      // 鼓点跳动：bass 驱动 y 上跳 + 半径膨胀
+      const bounce = beat * (0.5 + 0.5 * Math.sin(b.phase + b.seed));
+      const puls = 1 + beat * 0.7 * (0.5 + 0.5 * Math.sin(beatPhase * b.speed + b.seed));
+      // 中频轻摇
+      const sway = midLevel * 0.12 * Math.sin(beatPhase * 0.8 * b.speed + b.seed);
+      const x = b.x + sway;
+      const y = b.y - bounce * 0.55;
+      const z = b.z;
+
+      const p = project(x, y, z);
+      const r = Math.max(3, b.baseR * p.k * 320 * puls);
+      // 鼓点强时亮色偏移
+      const hue = (b.hue + trebleLevel * 60) % 360;
+      const bright = 55 + beat * 40 + midLevel * 15;
 
       ctx.save();
-      ctx.translate(k.x || W/2, k.y);
-      ctx.translate(W / 2, k.y);
-      ctx.scale(scale, scale);
-      ctx.fillStyle = `hsla(${k.hue}, 60%, ${30 + glow * 30}%, ${0.7 + k.t * 0.3})`;
-      ctx.shadowColor = `hsla(${k.hue}, 80%, 70%, 0.9)`;
-      ctx.shadowBlur = glow * 30;
-      const kw = k.width, kh = k.height;
-      ctx.fillRect(-kw/2, -kh/2, kw, kh);
+      ctx.globalAlpha = Math.min(0.95, 0.45 + (1.2 - z) * 0.5);
+      ctx.shadowColor = `hsla(${hue}, 90%, 70%, 0.9)`;
+      ctx.shadowBlur = r * (0.6 + beat * 1.6);
+      // 球体：左上高光径向渐变（彩虹泡泡）
+      const hg = ctx.createRadialGradient(p.sx - r * 0.35, p.sy - r * 0.4, r * 0.1, p.sx, p.sy, r);
+      hg.addColorStop(0, "#ffffff");
+      hg.addColorStop(0.25, `hsla(${(hue + 40) % 360}, 95%, ${bright + 25}%, 1)`);
+      hg.addColorStop(0.7, `hsla(${hue}, 85%, ${bright}%, 1)`);
+      hg.addColorStop(1, `hsla(${(hue - 45 + 360) % 360}, 80%, ${Math.max(20, bright - 30)}%, 1)`);
+      ctx.fillStyle = hg;
+      ctx.beginPath();
+      ctx.arc(p.sx, p.sy, r, 0, 6.28);
+      ctx.fill();
+      // 高光点
+      ctx.globalAlpha = 0.9;
+      ctx.fillStyle = "rgba(255,255,255,0.85)";
+      ctx.beginPath();
+      ctx.arc(p.sx - r * 0.3, p.sy - r * 0.35, Math.max(1.2, r * 0.16), 0, 6.28);
+      ctx.fill();
       ctx.restore();
     });
   }
 
-  function drawBall() {
-    if (isPlaying) {
-      // 重力
-      ball.vy += 0.5;
-      ball.y += ball.vy;
-      // 落地检测
-      if (ball.y >= ball.groundY) {
-        ball.y = ball.groundY;
-        // 每次落地根据bass强度弹跳
-        const power = bassLevel;
-        ball.vy = -(5 + power * 15);
-        ball.glow = 30 + power * 50;
-        // 计分
-        combo++;
-        bestCombo = Math.max(bestCombo, combo);
-        score += Math.floor(10 + power * 50 + combo * 2);
-        scoreEl.textContent = score;
-        comboEl.textContent = combo;
-        comboEl.classList.add("bump");
-        setTimeout(() => comboEl.classList.remove("bump"), 100);
-        // 粒子
-        if (power > 0.25) spawnParticles(ball.x, ball.groundY, power);
-        flashAlpha = Math.min(0.3, power * 0.4);
-      }
-    } else {
-      ball.y += (ball.baseY - ball.y) * 0.1;
+  function drawKeys(t) {
+    // 底部 3D 透视琴键
+    const n = 16;
+    const beat = isPlaying ? bassLevel : 0;
+    for (let i = 0; i < n; i++) {
+      const tt = i / (n - 1);
+      const yBase = H * 0.86;
+      const y = yBase - tt * H * 0.06;
+      const kw = (1 - tt * 0.5) * (W / n) * 1.6;
+      const wave = Math.sin(t * 0.004 + i * 0.7) * 0.5 + 0.5;
+      const glow = wave * beat * 1.6;
+      const hue = 200 + tt * 120 + glow * 40;
+      ctx.save();
+      ctx.fillStyle = `hsla(${hue}, 60%, ${26 + glow * 30}%, ${0.5 + tt * 0.35})`;
+      ctx.shadowColor = `hsla(${hue}, 85%, 70%, 0.8)`;
+      ctx.shadowBlur = glow * 24;
+      ctx.fillRect(i * (W / n), y, kw, 4 + tt * 8);
+      ctx.restore();
     }
+  }
 
-    ball.glow *= 0.95;
-    ball.hue = 200 + midLevel * 120;
+  function drawParticles() {
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx; p.y += p.vy; p.vy += 0.14;
+      p.life -= 0.024;
+      if (p.life <= 0) { particles.splice(i, 1); continue; }
+      ctx.save();
+      ctx.globalAlpha = p.life;
+      ctx.fillStyle = `hsla(${p.hue}, 90%, 75%, 1)`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * p.life + 0.5, 0, 6.28);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
 
-    // 地面光晕
-    const groundGlow = ctx.createRadialGradient(ball.x, ball.groundY + 2, 0, ball.x, ball.groundY + 2, 80);
-    groundGlow.addColorStop(0, `hsla(${ball.hue}, 90%, 70%, ${0.3 + bassLevel * 0.4})`);
-    groundGlow.addColorStop(1, `hsla(${ball.hue}, 90%, 70%, 0)`);
-    ctx.fillStyle = groundGlow;
-    ctx.beginPath();
-    ctx.ellipse(ball.x, ball.groundY + 2, 80, 18, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // 小球
-    ctx.save();
-    ctx.shadowColor = `hsla(${ball.hue}, 90%, 70%, 1)`;
-    ctx.shadowBlur = ball.glow;
-    const bg = ctx.createRadialGradient(
-      ball.x - ball.r * 0.3, ball.y - ball.r * 0.3, ball.r * 0.1,
-      ball.x, ball.y, ball.r
-    );
-    bg.addColorStop(0, "#ffffff");
-    bg.addColorStop(0.3, `hsla(${ball.hue + 40}, 90%, 85%, 1)`);
-    bg.addColorStop(0.7, `hsla(${ball.hue}, 80%, 65%, 1)`);
-    bg.addColorStop(1, `hsla(${ball.hue - 40}, 70%, 45%, 1)`);
-    ctx.fillStyle = bg;
-    ctx.beginPath();
-    ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-
-    // 闪光
+  function drawFlash() {
     if (flashAlpha > 0.01) {
       ctx.fillStyle = `rgba(255,255,255,${flashAlpha})`;
       ctx.fillRect(0, 0, W, H);
@@ -402,33 +392,42 @@
     }
   }
 
-  function drawParticles() {
-    for (let i = particles.length - 1; i >= 0; i--) {
-      const p = particles[i];
-      p.x += p.vx; p.y += p.vy; p.vy += 0.15;
-      p.life -= 0.025;
-      if (p.life <= 0) { particles.splice(i, 1); continue; }
-      ctx.save();
-      ctx.globalAlpha = p.life;
-      ctx.fillStyle = `hsla(${p.hue}, 90%, 75%, 1)`;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
+  // 鼓点计分：bass 峰值时刻
+  function beatScoring() {
+    if (!isPlaying) return;
+    if (bassLevel > 0.5 && flashAlpha < 0.15) {
+      flashAlpha = Math.min(0.28, bassLevel * 0.35);
+      combo++;
+      bestCombo = Math.max(bestCombo, combo);
+      score += Math.floor(10 + bassLevel * 60 + combo * 2);
+      scoreEl.textContent = score;
+      comboEl.textContent = combo;
+      comboEl.classList.add("bump");
+      setTimeout(() => comboEl.classList.remove("bump"), 100);
+      // 从底部喷射彩虹粒子
+      for (let i = 0; i < 2; i++) {
+        spawnParticles(W / 2 + rand(-W * 0.3, W * 0.3), H * 0.85, bassLevel);
+      }
+    } else if (bassLevel < 0.2 && combo > 0) {
+      combo = 0;
+      comboEl.textContent = "0";
     }
   }
 
-  function loop() {
+  function loop(now) {
+    const t = now || performance.now();
     updateLevels();
-    drawBackground();
-    drawKeys();
+    beatScoring();
+    drawBackground(t);
+    drawBalls();
     drawParticles();
-    drawBall();
+    drawKeys(t);
+    drawFlash();
     requestAnimationFrame(loop);
   }
 
   initScene();
-  loop();
+  requestAnimationFrame(loop);
 })();
 </script>
 </body>
