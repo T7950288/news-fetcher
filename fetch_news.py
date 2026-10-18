@@ -365,8 +365,7 @@ SPORT_SKIP_WORDS = [
 # 花体字(数学字母符号区间)与大小写/连字符混合(如 LiVe-WORLD-CUP)能绕过词边界匹配, 必须正则层拦截。
 EXTRA_SKIP_RE = [
     r"[\U0001D400-\U0001D7FF]",              # 数学花体/双线字母(盗播链接伪装用)
-    r"live\s*stream", r"livestream", r"live\s*free", r"free\s*stream",
-    r"\blive\s+event\b", r"\bwatch\s+live\b",
+    r"live\s*stream\s+(online|free|hd|4k)", r"livestreams", r"live\s*free", r"free\s*stream",
     r"world[- ]cup[- ]2026", r"live[- ]world[- ]cup",
     r"mass\s+shooting", r"school\s+shooting", r"\bshooting\b", r"\bgunman\b",
     r"mass\s+casualty",
