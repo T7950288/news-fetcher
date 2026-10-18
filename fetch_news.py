@@ -395,7 +395,8 @@ def skip_news(title, desc, lang, url="", media=""):
                 return True
     # v9.15: 体育/娱乐专有词——词边界匹配, 防 "inflation" 误中 "nfl"、"child marriage" 误中 "marriage"
     for w in SPORT_SKIP_WORDS:
-        if re.search(r"(?<![a-z0-9])" + re.escape(w) + r"(?![a-z0-9])", t):
+        # v9.32c: 词尾允许复数s——否则 World Championships/match reports/final scores 等复数绕过
+        if re.search(r"(?<![a-z0-9])" + re.escape(w) + r"s?(?![a-z0-9])", t):
             return True
     # v9.32: 伪装字体/直播邀约/枪击事故/体育评论——正则级兜底
     for pat in EXTRA_SKIP_RE:
@@ -874,6 +875,13 @@ def final_sweep(arts):
         m = (a.get("source") or "").lower()
         if "universidad de cordoba" in m or "universidad de córdoba" in m:
             continue
+        # v9.32c: 历史条目同样完整重扫(体育词库+复数/媒体黑名单/URL版块)——清掉规则升级前的漏网
+        try:
+            if skip_news(a.get("title_orig") or "", (a.get("content_orig") or "")[:600],
+                         a.get("_lang", "en"), a.get("url", ""), a.get("source", "")):
+                continue
+        except Exception:
+            pass
         out.append(a)
     return out
 
