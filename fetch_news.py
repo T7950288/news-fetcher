@@ -383,6 +383,8 @@ SPORT_SKIP_WORDS = [
     # v9.32d: 补漏——马拉松/格斗/摔跤/冠军类(用户反馈晚间热榜 阿姆斯特丹马拉松/空手道/摔跤 3条体育漏网)
     "marathon", "karate", "judo", "taekwondo", "wrestling", "boxer",
     "world title", "champion",
+    # v9.34.1: 吉尼斯世界纪录/纪录类(引体向上世界纪录等猎奇体育)
+    "guinness", "world record", "chin-up",
 ]
 
 
