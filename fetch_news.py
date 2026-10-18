@@ -72,7 +72,9 @@ def _lazy_load():
 
 _GN_client = None
 def decode_google_urls(urls):
-    """批量解码 Google News RSS 链接 -> 真实媒体URL(顺序对应, 失败为None)"""
+    """批量解码 Google News RSS 链接 -> 真实媒体URL(顺序对应, 失败为None)
+    v9.34: 总预算25s + 单条5s线程超时——google-news-api 限流时不再死等(此前连续多轮
+    卡在 Rate limit reached, waiting 直到看门狗强退)"""
     if not urls:
         return []
     global _GN_client
@@ -82,20 +84,35 @@ def decode_google_urls(urls):
             return [None] * len(urls)
         if _GN_client is None:
             _GN_client = _GN.GoogleNewsClient(language="en", country="US")
-        out = []
-        for u in urls:
-            try:
-                d = _GN_client.decode_url(u)
-                r = (d or {}).get("url") if isinstance(d, dict) else d
-                if r and "news.google.com" not in str(r):
-                    out.append(str(r))
-                else:
-                    out.append(None)
-            except Exception:
-                out.append(None)
-        return out
     except Exception:
         return [None] * len(urls)
+    from concurrent.futures import ThreadPoolExecutor as _TPE
+
+    def _one(u):
+        try:
+            d = _GN_client.decode_url(u)
+            r = (d or {}).get("url") if isinstance(d, dict) else d
+            if r and "news.google.com" not in str(r):
+                return str(r)
+        except Exception:
+            pass
+        return None
+
+    out = []
+    t0 = time.time()
+    _te = _TPE(4)
+    try:
+        for u in urls:
+            if time.time() - t0 > 25:
+                out.extend([None] * (len(urls) - len(out)))
+                break
+            try:
+                out.append(_te.submit(_one, u).result(timeout=5))
+            except Exception:
+                out.append(None)
+    finally:
+        _te.shutdown(wait=False)
+    return out
 
 _wayback_calls = [0]
 WAYBACK_CALL_LIMIT = 40
@@ -1647,7 +1664,8 @@ def main():
             return a
         pool = fetch_rss_pool()  # v7.9: 全量RSS池并行抓一次
         DIAG["rss_domains"] = len(pool)
-        uniq = list(ex.map(enrich, uniq))
+        # v9.34: 全文增强限量前80条(uniq已按时间倒序, 即最新80条)——逐条decode/反查累积限流会死等
+        list(ex.map(enrich, uniq[:80]))
     full_n = sum(1 for a in uniq if a.get("_full"))
     agency_n = sum(1 for a in uniq if a.get("agency"))
     china_n = sum(1 for a in uniq if a.get("_china"))
