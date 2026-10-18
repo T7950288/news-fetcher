@@ -713,7 +713,7 @@ def fetch_one(url, source, country, hint, is_google=False):
     if is_google and source == "GOOGLE_TOP":
         max_per = 200  # v9.24: 热榜源实际返回~38条含10-01 03:32的更早条目, 30截断把36h窗口内的旧条目砍掉; 放开
     if is_google and source in ("GOOGLE_CHINA", "GOOGLE_WORLD", "GOOGLE_BUSINESS", "GOOGLE_TECH"):
-        max_per = 200  # v9.20: when=7d搜索源按相关度排序, 前60条仍只覆盖~20h; 放宽到200拿回36h内旧条目
+        max_per = 120  # v9.33: 分类源聚焦, 120条已覆盖36h窗口; 原200条x4源=800条触发翻译限流
     urls = url if isinstance(url, list) else [url]
     content = None
     now = datetime.now(CST)
@@ -1491,10 +1491,10 @@ def agency_full_text(a):
 def main():
     import signal
     def _wd(signum, frame):
-        print("WATCHDOG: 9min timeout, force exit")
+        print("WATCHDOG: 12min timeout, force exit")
         os._exit(1)
     signal.signal(signal.SIGALRM, _wd)
-    signal.alarm(540)  # 9 分钟强制结束, 防止卡死拖垮定时队列
+    signal.alarm(720)  # v9.33.1: 12 分钟强制结束(480条翻译需要), 防止卡死拖垮定时队列
     t0 = time.time()
     # v9.38: 识别本次抓取的触发方式, 写入 news.json 的 updated_by (网页展示用)
     #   定时自动 = GitHub Actions schedule 每15分钟; 手动更新 = 页面点"更新"按钮;
