@@ -160,10 +160,13 @@ SOURCE_RANK = {
 # v9.18: 热榜RSS只返回最近~14h条目, 36h窗口形同虚设; 搜索RSS加 when=7d 参数拉回更早新闻,
 #        再靠脚本内 129600s(36h) 过滤裁出正好36h窗口 —— 时间跨度才能真正到36h
 #        (Google News RSS 的 when 支持 1h/1d/7d/30d, 不支持 2d, 用7d最稳)
+# v9.33: 改用 Google News 官方分类源(世界/财经/科技)——体育娱乐在源头即被分类排除,
+# 不再从综合热榜捞取后再靠关键词过滤(关键词过滤仍保留作兜底)。China搜索源保留(用户重视涉华新闻)。
 FEEDS = [
-    ("https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en", "GOOGLE_TOP", "US", "world", True),
+    ("https://news.google.com/rss/headlines/section/topic/WORLD?hl=en-US&gl=US&ceid=US:en", "GOOGLE_WORLD", "US", "world", True),
+    ("https://news.google.com/rss/headlines/section/topic/BUSINESS?hl=en-US&gl=US&ceid=US:en", "GOOGLE_BUSINESS", "US", "finance", True),
+    ("https://news.google.com/rss/headlines/section/topic/TECHNOLOGY?hl=en-US&gl=US&ceid=US:en", "GOOGLE_TECH", "US", "tech", True),
     ("https://news.google.com/rss/search?q=China&hl=en-US&gl=US&ceid=US:en&when=7d", "GOOGLE_CHINA", "CN", "world", True),
-    ("https://news.google.com/rss/search?q=world&hl=en-US&gl=US&ceid=US:en&when=7d", "GOOGLE_WORLD", "US", "world", True),
 ]
 
 # Google热门源: 真实媒体名 -> 国家
@@ -198,6 +201,8 @@ GOOGLE_SKIP_SOURCES = {
     "instyle", "teen vogue", "brides", "the knot", "dlisted",
     # v9.31: 补漏——攀岩/户外/垂直类体育媒体(用户反馈"TODAY AT THE ASIAN GAMES"来自worldclimbing)
     "worldclimbing", "climbing.com", "rockclimbing", "outdoor", "backcountry",
+    # v9.32d: 田径官方媒体(阿姆斯特丹马拉松来自worldathletics.org)
+    "worldathletics", "world athletics",
     # v9.32: 伪冒大学名的盗播垃圾源(用户反馈"科尔多瓦大学UCO"3条全是盗播直播链接)
     "universidad de córdoba", "universidad de cordoba",
     "skiamerica", "snowboarder", "freeskier", "powder",
@@ -358,6 +363,9 @@ SPORT_SKIP_WORDS = [
     "swimming", "cycling race", "skiing", "snowboard", "skateboard",
     "cricket world cup", "rugby world cup", "fifa", "uefa", "nba finals",
     "playoff", "semi-final", "final score", "match report", "highlights",
+    # v9.32d: 补漏——马拉松/格斗/摔跤/冠军类(用户反馈晚间热榜 阿姆斯特丹马拉松/空手道/摔跤 3条体育漏网)
+    "marathon", "karate", "judo", "taekwondo", "wrestling", "boxer",
+    "world title", "champion",
 ]
 
 
@@ -704,7 +712,7 @@ def fetch_one(url, source, country, hint, is_google=False):
     max_per = 30  # v6 照搬当时热榜前30
     if is_google and source == "GOOGLE_TOP":
         max_per = 200  # v9.24: 热榜源实际返回~38条含10-01 03:32的更早条目, 30截断把36h窗口内的旧条目砍掉; 放开
-    if is_google and source in ("GOOGLE_CHINA", "GOOGLE_WORLD"):
+    if is_google and source in ("GOOGLE_CHINA", "GOOGLE_WORLD", "GOOGLE_BUSINESS", "GOOGLE_TECH"):
         max_per = 200  # v9.20: when=7d搜索源按相关度排序, 前60条仍只覆盖~20h; 放宽到200拿回36h内旧条目
     urls = url if isinstance(url, list) else [url]
     content = None
