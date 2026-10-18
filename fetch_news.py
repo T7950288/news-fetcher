@@ -198,6 +198,8 @@ GOOGLE_SKIP_SOURCES = {
     "instyle", "teen vogue", "brides", "the knot", "dlisted",
     # v9.31: 补漏——攀岩/户外/垂直类体育媒体(用户反馈"TODAY AT THE ASIAN GAMES"来自worldclimbing)
     "worldclimbing", "climbing.com", "rockclimbing", "outdoor", "backcountry",
+    # v9.32: 伪冒大学名的盗播垃圾源(用户反馈"科尔多瓦大学UCO"3条全是盗播直播链接)
+    "universidad de córdoba", "universidad de cordoba",
     "skiamerica", "snowboarder", "freeskier", "powder",
 }
 
@@ -359,6 +361,19 @@ SPORT_SKIP_WORDS = [
 ]
 
 
+# v9.32: 伪装字体/直播邀约/枪击事故/体育评论——正则级兜底。
+# 花体字(数学字母符号区间)与大小写/连字符混合(如 LiVe-WORLD-CUP)能绕过词边界匹配, 必须正则层拦截。
+EXTRA_SKIP_RE = [
+    r"[\U0001D400-\U0001D7FF]",              # 数学花体/双线字母(盗播链接伪装用)
+    r"live\s*stream", r"livestream", r"live\s*free", r"free\s*stream",
+    r"\blive\s+event\b", r"\bwatch\s+live\b",
+    r"world[- ]cup[- ]2026", r"live[- ]world[- ]cup",
+    r"mass\s+shooting", r"school\s+shooting", r"\bshooting\b", r"\bgunman\b",
+    r"mass\s+casualty",
+    r"ted\s+lasso", r"sports\s+world",
+]
+
+
 SKIP_URL_PARTS = [
     "/kultur/", "/panorama/", "/vermischtes/", "/tvshowbiz/", "/femail/", "/sport",
     "/culture/", "/film/", "/music/", "/books/", "/lifeandstyle/", "/football/",
@@ -382,6 +397,10 @@ def skip_news(title, desc, lang, url="", media=""):
     # v9.15: 体育/娱乐专有词——词边界匹配, 防 "inflation" 误中 "nfl"、"child marriage" 误中 "marriage"
     for w in SPORT_SKIP_WORDS:
         if re.search(r"(?<![a-z0-9])" + re.escape(w) + r"(?![a-z0-9])", t):
+            return True
+    # v9.32: 伪装字体/直播邀约/枪击事故/体育评论——正则级兜底
+    for pat in EXTRA_SKIP_RE:
+        if re.search(pat, t):
             return True
     u = (url or "").lower()
     for part in SKIP_URL_PARTS:
@@ -844,6 +863,20 @@ def gitee_get():
         except Exception:
             continue
     raise RuntimeError("no gitee file available")
+
+
+# v9.32: 保存前全库复查——除新抓拦截外, 把已入库的历史违规条目(盗播直播/枪击事故/伪装字体/伪冒大学源)一并清出
+def final_sweep(arts):
+    out = []
+    for a in arts:
+        t = (((a.get("title_orig") or "") + " " + (a.get("title_zh") or "")) + " " + (a.get("content_orig") or "")[:400]).lower()
+        if any(re.search(p, t) for p in EXTRA_SKIP_RE):
+            continue
+        m = (a.get("source") or "").lower()
+        if "universidad de cordoba" in m or "universidad de córdoba" in m:
+            continue
+        out.append(a)
+    return out
 
 
 def github_get():
@@ -1784,6 +1817,8 @@ def main():
             sys.exit(1)
         else:
             print(f"WARNING: 本轮仅 {len(merged2)} 条(线上 {old_n} 条), 仍然上传")
+    # v9.32: 全库复查, 清除历史残留的盗播/事故/伪装条目
+    merged2 = final_sweep(merged2)
     new_data = {"version": "1.0", "updated_at": now.isoformat(),
                 "updated_by": DIAG.get("updated_by", "定时自动"),
                 "articles": merged2,
