@@ -385,6 +385,8 @@ SPORT_SKIP_WORDS = [
     "world title", "champion",
     # v9.34.1: 吉尼斯世界纪录/纪录类(引体向上世界纪录等猎奇体育)
     "guinness", "world record", "chin-up",
+    # v9.35: 天气灾害类(用户不要天气新闻; storm/flood易误伤政治语境, 只加具体灾害名词)
+    "hurricane", "typhoon", "cyclone", "tornado", "earthquake", "landslide",
 ]
 
 
