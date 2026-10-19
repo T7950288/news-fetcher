@@ -955,15 +955,18 @@ def github_put(data):
     body = {"message": "auto update", "content": b64}
     if sha:
         body["sha"] = sha
-    try:
-        req = urllib.request.Request(base, data=json.dumps(body).encode(), headers=h, method="PUT")
-        with urllib.request.urlopen(req, timeout=60) as r:
-            json.loads(r.read())
-        print("github sync OK")
-        return True
-    except Exception as e:
-        print("github sync ERR", e)
-        return False
+    for _i in range(3):
+        try:
+            req = urllib.request.Request(base, data=json.dumps(body).encode(), headers=h, method="PUT")
+            with urllib.request.urlopen(req, timeout=60) as r:
+                json.loads(r.read())
+            print("github sync OK")
+            return True
+        except Exception as e:
+            # v9.35.1: GitHub API 偶发 502/5xx 整轮失败(2026-10-19 09:18 因502丢一轮), 等8秒重试
+            print(f"github sync ERR (retry {_i+1}/3): {e}")
+            time.sleep(8)
+    return False
 
 
 # v9.30: 备份文件定时清理——仓库根只保留最近 BACKUP_KEEP_DAYS 天的 fetch_news_backup_*/index_backup_*,
