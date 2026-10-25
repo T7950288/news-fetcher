@@ -946,6 +946,15 @@ if os.path.exists("decode_request.txt"):
             if _m: _result["tweet_url"] = _m.group(0)
             _m2 = _re.search(r'https?://(?!news\.google)[^\s"\'<>]+', _html)
             if _m2 and "google" not in _m2.group(0): _result["orig_url"] = _m2.group(0)
+            _m3 = _re.search(r'data-n-a="([^"]+)"', _html)
+            if _m3:
+                try:
+                    _nav = _up.unquote(_m3.group(1))
+                    _result["data_na"] = _nav
+                    _mx = _re.search(r'https?://[^\s"\'<>]+', _nav)
+                    if _mx: _result["orig_url"] = _mx.group(0)
+                except Exception as _e:
+                    _result["na_err"] = str(_e)
         except Exception as _e:
             _result["fetch_err"] = str(_e)
         _turl = _result.get("tweet_url")
