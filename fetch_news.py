@@ -931,6 +931,55 @@ def github_get():
     return data, info["sha"]
 
 
+# v9.36: decode_request 辅助模式——仓库根存在 decode_request.txt 时, 只解码其中URL并回写 decode_result.txt 后退出
+if os.path.exists("decode_request.txt"):
+    try:
+        import re as _re, urllib.parse as _up
+        _req_url = open("decode_request.txt", encoding="utf-8").read().strip()
+        _result = {"request": _req_url}
+        try:
+            _req = urllib.request.Request(_req_url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
+            _resp = urllib.request.urlopen(_req, timeout=25)
+            _result["final_url"] = _resp.geturl()
+            _html = _resp.read().decode("utf-8", "ignore")
+            _m = _re.search(r'https?://(?:x\.com|twitter\.com)/[^\s"\'<>]+', _html)
+            if _m: _result["tweet_url"] = _m.group(0)
+            _m2 = _re.search(r'https?://(?!news\.google)[^\s"\'<>]+', _html)
+            if _m2 and "google" not in _m2.group(0): _result["orig_url"] = _m2.group(0)
+        except Exception as _e:
+            _result["fetch_err"] = str(_e)
+        _turl = _result.get("tweet_url")
+        if _turl:
+            try:
+                _oe = urllib.request.urlopen(urllib.request.Request("https://publish.twitter.com/oembed?url=" + _up.quote(_turl, safe=""), headers={"User-Agent": "Mozilla/5.0"}), timeout=25)
+                _od = json.loads(_oe.read().decode("utf-8", "ignore"))
+                _result["oembed_html"] = _od.get("html", "")
+            except Exception as _e:
+                _result["oembed_err"] = str(_e)
+        _txt = json.dumps(_result, ensure_ascii=False, indent=1)
+        try:
+            _tok = os.environ.get("GITHUB_TOKEN")
+            _h = {"Authorization": "Bearer " + _tok, "Accept": "application/vnd.github+json", "User-Agent": "x", "Content-Type": "application/json"}
+            _b64 = base64.b64encode(_txt.encode("utf-8")).decode()
+            _base = "https://api.github.com/repos/T7950288/news-fetcher/contents/decode_result.txt"
+            _sha = None
+            try:
+                with urllib.request.urlopen(urllib.request.Request(_base, headers=_h), timeout=20) as _r:
+                    _sha = json.loads(_r.read()).get("sha")
+            except Exception:
+                _sha = None
+            _body = {"message": "decode result", "content": _b64}
+            if _sha: _body["sha"] = _sha
+            _req2 = urllib.request.Request(_base, data=json.dumps(_body).encode(), headers=_h, method="PUT")
+            with urllib.request.urlopen(_req2, timeout=60) as _r:
+                _result["written"] = True
+        except Exception as _e:
+            _result["write_err"] = str(_e)
+        print("DECODE RESULT:", _txt)
+    except Exception as _e:
+        print("DECODE FATAL:", _e)
+    sys.exit(0)
+
 def github_put(data):
     """v9.6: 同步写 news.json 到 GitHub 仓库根。网页版(Pages)从 GitHub raw 读数据,
        绕开 Gitee 匿名 API 401 风控(2026-09-23 起 Gitee 匿名读开始返回401)。
