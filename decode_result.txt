@@ -1,0 +1,4 @@
+{
+ "request": "https://news.google.com/rss/articles/CBMibEFVX3lxTE1wTF9qQ3MxYm9WUTA0QzltQ0hVMHlaZ3o2S0wzeG5pdUFQWVdqTk1jTzVzSmh5cGt0aGZZdVBfeHVVR25JdEpRR2JDTTgzR012eGRTVGRGWmlFZ1hBcDlxbnI5bHFpbGw0cGFWdA?oc=5",
+ "final_url": "https://news.google.com/rss/articles/CBMibEFVX3lxTE1wTF9qQ3MxYm9WUTA0QzltQ0hVMHlaZ3o2S0wzeG5pdUFQWVdqTk1jTzVzSmh5cGt0aGZZdVBfeHVVR25JdEpRR2JDTTgzR012eGRTVGRGWmlFZ1hBcDlxbnI5bHFpbGw0cGFWdA?oc=5&hl=en-US&gl=US&ceid=US:en"
+}
