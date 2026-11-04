@@ -108,11 +108,10 @@
       (v.dealer === s ? '<span class="chip dealer">庄</span>' : '') +
       '<span class="chip">' + esc(tag) + '</span>' +
       '<span class="score">' + (v.scores[s] >= 0 ? '+' : '') + v.scores[s] + '</span></div>' +
-      '<div class="seatLine"><span class="lbl">花</span>' + flowerHTML(v.flowers[s]) + '</div>' +
-      '<div class="seatLine"><span class="lbl">副露</span>' +
-        (v.melds[s].length ? v.melds[s].map(meldHTML).join('') : '<span class="dim">—</span>') + '</div>' +
-      '<div class="seatLine handmini"><span class="lbl">手牌</span>' + hand +
+      '<div class="seatLine handmini">' + hand +
         '<span class="dim">' + (v.handsCount[s] || 0) + ' 张</span></div>' +
+      '<div class="seatLine"><span class="lbl">花</span>' + flowerHTML(v.flowers[s]) +
+        (v.melds[s].length ? v.melds[s].map(meldHTML).join('') : '') + '</div>' +
       '</div>';
   }
 
@@ -178,20 +177,20 @@
     var phaseText = {
       idle: '未开局', opening: '开局 / 抢金', play: '行牌', claim: '等待应答', end: '本局结束'
     }[v.phase] || v.phase;
+    var goldTile = (v.gold === null || v.gold === undefined)
+      ? '<span class="dim">—</span>' : tileHTML(v.gold);
     $('centerInfo').innerHTML =
-      '<div class="goldBox"><span class="lbl">本局金</span>' +
-        (v.gold === null || v.gold === undefined ? '<span class="dim">—</span>' : tileHTML(v.gold)) +
+      '<div class="hudItem"><span>本局金</span>' + goldTile +
         '<small>金可替代任意牌</small></div>' +
-      '<div class="metaGrid">' +
-        '<div><span>阶段</span><b>' + esc(phaseText) + '</b></div>' +
-        '<div><span>局数</span><b>第 ' + v.round + ' 局</b></div>' +
-        '<div><span>牌墙</span><b>' + v.wallLeft + ' 张</b></div>' +
-        '<div><span>连庄</span><b>' + v.lianzhuang +
-          (v.dealerWins === 1 ? '（站顶）' : '') + '</b></div>' +
-        '<div><span>轮到</span><b>' + (v.turn + 1) + ' 号位</b></div>' +
-        '<div><span>计分</span><b class="' + (F.getScoring().ready ? 'ok' : 'pending') + '">' +
-          (F.getScoring().ready ? '已启用' : '待定·不计分') + '</b></div>' +
-      '</div>';
+      '<div class="hudItem"><span>阶段</span><b>' + esc(phaseText) + '</b></div>' +
+      '<div class="hudItem"><span>局数</span><b>第 ' + v.round + ' 局</b></div>' +
+      '<div class="hudItem"><span>牌墙</span><b>' + v.wallLeft + ' 张</b></div>' +
+      '<div class="hudItem"><span>连庄</span><b>' + v.lianzhuang +
+        (v.dealerWins === 1 ? '（站顶）' : '') + '</b></div>' +
+      '<div class="hudItem"><span>轮到</span><b>' + (v.turn + 1) + ' 号位</b></div>' +
+      '<div class="hudItem"><span>计分</span><b class="' + (F.getScoring().ready ? 'ok' : 'pending') + '">' +
+        (F.getScoring().ready ? '已启用' : '待定·不计分') + '</b></div>';
+    $('goldStand').innerHTML = '<span class="cap">本局金</span>' + goldTile;
     $('river').innerHTML = riverHTML();
     $('actionBar').innerHTML = actionsHTML();
 

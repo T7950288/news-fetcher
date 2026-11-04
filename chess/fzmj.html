@@ -11,9 +11,12 @@
     --muted: #6b7787; --brand: #2b6cb0; --brand-soft: #eaf2fc;
     --gold: #c9971f; --red: #c0392b; --green: #1e8e5a; --blue: #1f6fb2;
     --shadow: 0 1px 3px rgba(20, 35, 55, .08), 0 6px 18px rgba(20, 35, 55, .05);
+    --felt: #0d6249; --felt-lite: #178c65; --felt-dark: #073d2f;
+    --wood: #54371f; --wood-lite: #a6783f; --tile-face: #fdfbf4;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--text);
+  body { margin: 0; color: var(--text); min-height: 100vh;
+    background: radial-gradient(ellipse at 50% -10%, #1d3b31 0%, #122821 45%, #0b1b16 100%);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
     font-size: 14px; line-height: 1.55; }
   button, input { font-family: inherit; font-size: inherit; }
@@ -22,18 +25,21 @@
   .lbl { color: var(--muted); font-size: 12px; margin-right: 6px; }
 
   header { display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
-    padding: 12px 22px; background: var(--panel); border-bottom: 1px solid var(--line); }
+    padding: 10px 22px; background: rgba(8, 26, 20, .92); color: #eaf5ee;
+    border-bottom: 1px solid rgba(150, 220, 185, .18); }
   header h1 { font-size: 18px; margin: 0; letter-spacing: .4px; }
-  header h1 span { color: var(--brand); }
-  .sub { color: var(--muted); font-size: 12px; }
-  .badge { padding: 3px 10px; border-radius: 999px; font-size: 12px; border: 1px solid var(--line); }
-  .badge.ok { background: #e8f6ee; color: #167348; border-color: #bfe6cf; }
-  .badge.bad { background: #fdeceb; color: #a5322a; border-color: #f5c9c5; }
-  .badge.muted { background: #f1f4f8; color: var(--muted); }
+  header h1 span { color: #7fd8b0; }
+  .sub { color: #a9c8ba; font-size: 12px; }
+  .sub b { color: #eaf5ee; }
+  .badge { padding: 3px 10px; border-radius: 999px; font-size: 12px;
+    border: 1px solid rgba(255, 255, 255, .18); }
+  .badge.ok { background: #124c37; color: #8fe6bb; border-color: #1d7a55; }
+  .badge.bad { background: #5a2220; color: #ffb3a9; border-color: #8a3530; }
+  .badge.muted { background: rgba(255, 255, 255, .09); color: #b9d3c7; }
   .spacer { flex: 1; }
 
-  main { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 16px;
-    padding: 16px 22px 28px; align-items: start; max-width: 1500px; margin: 0 auto; }
+  main { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 14px;
+    padding: 14px 18px 24px; align-items: start; max-width: 1500px; margin: 0 auto; }
   @media (max-width: 1080px) { main { grid-template-columns: 1fr; } }
 
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
@@ -41,75 +47,136 @@
   .card h2 { font-size: 14px; margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
   .card h2 small { font-weight: 400; color: var(--muted); font-size: 12px; }
 
-  /* 牌面 */
+  /* 牌面：CSS 2.5D 立体牌；tileHTML() 输出结构保持不变 */
   .tile { position: relative; display: inline-flex; flex-direction: column; align-items: center;
     justify-content: center; width: 34px; height: 46px; margin: 2px; flex: none;
-    background: #fff; border: 1px solid #d6dde7; border-bottom-width: 3px; border-radius: 6px;
-    box-shadow: 0 2px 3px rgba(20,35,55,.10); vertical-align: middle; user-select: none; }
-  .tile b { font-size: 19px; line-height: 1; font-weight: 700; }
-  .tile i { font-size: 11px; font-style: normal; margin-top: 2px; opacity: .85; }
+    background: linear-gradient(158deg, #fffef9 0%, #f8f0dc 56%, #e9dcc0 100%);
+    border: 1px solid #d3c7a9; border-bottom: 4px solid #b9ab88; border-radius: 6px;
+    box-shadow: 0 2px 0 #d8cdb0, 0 6px 9px rgba(0,0,0,.30), inset 0 2px 2px rgba(255,255,255,.9);
+    vertical-align: middle; user-select: none;
+    transform: rotateX(13deg); transform-origin: 50% 100%;
+    transition: transform .14s, box-shadow .14s; }
+  .tile::after { content: ''; position: absolute; left: 1px; right: 1px; top: 1px; height: 38%;
+    background: linear-gradient(180deg, rgba(255,255,255,.72), rgba(255,255,255,0));
+    border-radius: 5px 5px 0 0; pointer-events: none; z-index: 0; }
+  .tile b { font-size: 19px; line-height: 1; font-weight: 700; position: relative; z-index: 1;
+    text-shadow: 0 1px 0 rgba(255,255,255,.75); }
+  .tile i { font-size: 11px; font-style: normal; margin-top: 2px; opacity: .9;
+    position: relative; z-index: 1; }
   .tile.s0 b, .tile.s0 i { color: var(--red); }
   .tile.s1 b, .tile.s1 i { color: var(--blue); }
   .tile.s2 b, .tile.s2 i { color: var(--green); }
-  .tile.small { width: 25px; height: 34px; margin: 1px; border-radius: 4px; }
+  .tile.small { width: 25px; height: 34px; margin: 1px; border-radius: 4px; border-bottom-width: 3px; }
   .tile.small b { font-size: 13px; } .tile.small i { font-size: 8px; margin-top: 1px; }
-  .tile.flower { background: #fff8e6; border-color: #ecd9a8; color: #8a6412; font-size: 12px; font-weight: 600; }
+  .tile.flower { background: linear-gradient(158deg, #fff9ea, #f0dcae);
+    border-color: #e3cd94; border-bottom-color: #c9ac6d; color: #8a6412;
+    font-size: 12px; font-weight: 600; }
+  .tile.flower::after { display: none; }
   .tile.flower.small { font-size: 10px; }
-  .tile.gold { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(201,151,31,.20), 0 2px 4px rgba(20,35,55,.12); }
+  .tile.gold { border-color: var(--gold);
+    box-shadow: 0 0 0 2px rgba(201,151,31,.35), 0 2px 0 #d8cdb0, 0 7px 12px rgba(0,0,0,.32); }
   .tile em { position: absolute; top: -6px; right: -5px; font-style: normal; font-size: 9px;
-    background: var(--gold); color: #fff; border-radius: 8px; padding: 0 4px; line-height: 14px; }
-  .tile.back { background: repeating-linear-gradient(45deg, #2f5d7c 0 6px, #35688b 6px 12px);
-    border-color: #24455e; }
-  .tile.clickable { cursor: pointer; transition: transform .12s, box-shadow .12s; }
-  .tile.clickable:hover { transform: translateY(-7px); box-shadow: 0 6px 14px rgba(20,35,55,.20); }
+    background: var(--gold); color: #fff; border-radius: 8px; padding: 0 4px;
+    line-height: 14px; z-index: 2; }
+  .tile.back { background: repeating-linear-gradient(45deg, #2f7a66 0 6px, #2a6c5a 6px 12px);
+    border-color: #1d5749; border-bottom-color: #123f34; }
+  .tile.back::after { background: linear-gradient(180deg, rgba(255,255,255,.20), rgba(255,255,255,0)); }
+  .tile.clickable { cursor: pointer; }
+  .tile.clickable:hover { transform: rotateX(0deg) translateY(-9px);
+    box-shadow: 0 2px 0 #d8cdb0, 0 12px 18px rgba(0,0,0,.38), 0 0 0 2px #7fd8b0; }
   .tile.selected { outline: 2px solid var(--brand); }
 
-  /* 牌桌 */
-  .tableGrid { display: grid; gap: 10px;
-    grid-template-columns: 1fr 1.25fr 1fr;
-    grid-template-areas: "top top top" "left center right" "bottom bottom bottom"; }
-  #seat0 { grid-area: bottom; } #seat1 { grid-area: right; }
-  #seat2 { grid-area: top; } #seat3 { grid-area: left; }
-  #centerBox { grid-area: center; }
-  .seatPanel { background: #fafbfd; border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; }
-  .seatPanel.active { border-color: var(--brand); box-shadow: 0 0 0 2px var(--brand-soft); }
-  .seatHead { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin-bottom: 6px; }
-  .seatHead strong { font-size: 13px; }
+  /* 牌桌场景：绿绒桌面 + 木边 + 四家围坐 + 中央牌河（纯 CSS，无图片依赖） */
+  .tableScene { margin-bottom: 14px; }
+  .hudBar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+    background: rgba(7, 30, 23, .88); border: 1px solid rgba(150, 220, 185, .22);
+    border-radius: 10px; padding: 7px 10px; margin-bottom: 10px; }
+  .hudItem { display: flex; align-items: center; gap: 5px; font-size: 12px;
+    background: rgba(255, 255, 255, .07); border-radius: 7px;
+    padding: 3px 8px; color: #eaf5ee; }
+  .hudItem > span { color: #9fc4b4; }
+  .hudItem b { color: #fff; font-weight: 600; }
+  .hudItem b.ok { color: #7fe0ae; } .hudItem b.pending { color: #ffcf70; }
+  .hudItem small { color: #9fc4b4; font-size: 11px; }
+  .hudItem .tile { margin: 0; width: 26px; height: 34px; }
+  .hudItem .tile b { font-size: 13px; } .hudItem .tile i { font-size: 8px; }
+
+  .feltFrame { position: relative; padding: 13px; border-radius: 22px;
+    background: linear-gradient(150deg, #8a6038, var(--wood) 48%, #7a5230);
+    box-shadow: inset 0 2px 0 rgba(255,255,255,.18), inset 0 -3px 8px rgba(0,0,0,.35),
+                0 14px 30px rgba(0,0,0,.38); }
+  .feltFrame::before { content: ''; position: absolute; inset: 5px; border-radius: 18px;
+    border: 1px solid rgba(255, 225, 180, .22); pointer-events: none; }
+  .felt { position: relative; height: clamp(250px, 40vh, 330px); border-radius: 12px;
+    overflow: hidden;
+    background: radial-gradient(ellipse at 50% 32%, var(--felt-lite) 0%, var(--felt) 52%, var(--felt-dark) 100%);
+    box-shadow: inset 0 0 70px rgba(0,0,0,.40), inset 0 0 0 2px rgba(150,230,195,.16); }
+  .felt::before { content: ''; position: absolute; inset: 7px; border-radius: 9px;
+    border: 9px solid rgba(5, 46, 35, .48);
+    box-shadow: inset 0 0 0 2px rgba(160,235,200,.12); pointer-events: none; }
+  .felt::after { content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse at 50% 45%, rgba(255,255,255,.10), rgba(255,255,255,0) 62%); }
+
+  .seatSlot { position: absolute; z-index: 3; width: 214px; }
+  .seatTop { top: 12px; left: 50%; transform: translateX(-50%); }
+  .seatLeft { left: 12px; top: 50%; transform: translateY(-50%); width: 178px; }
+  .seatRight { right: 12px; top: 50%; transform: translateY(-50%); width: 178px; }
+  .seatBottom { bottom: 10px; left: 50%; transform: translateX(-50%); }
+
+  .seatPanel { background: rgba(5, 34, 26, .82); border: 1px solid rgba(150, 220, 185, .28);
+    border-radius: 10px; padding: 6px 9px; color: #eaf5ee; }
+  .seatPanel.active { border-color: #ffd166;
+    box-shadow: 0 0 0 2px rgba(255,209,102,.32), 0 0 22px rgba(255,209,102,.30); }
+  .seatHead { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 4px; }
+  .seatHead strong { font-size: 12.5px; color: #fff; }
   .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #9aa6b5; flex: none; }
-  .dot.d0 { background: var(--brand); } .dot.d1 { background: #8b5cf6; }
-  .dot.d2 { background: #e08a1e; } .dot.d3 { background: var(--green); }
-  .chip { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: #eef2f7; color: var(--muted); }
-  .chip.dealer { background: #fdeee0; color: #a35b12; }
-  .score { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 600; color: var(--brand); }
-  .seatLine { display: flex; align-items: center; gap: 3px; flex-wrap: wrap; min-height: 30px; }
-  .seatLine .lbl { min-width: 30px; }
-  .handmini .tile.back { opacity: .75; }
+  .dot.d0 { background: #63b3ff; } .dot.d1 { background: #b79bff; }
+  .dot.d2 { background: #ffc25e; } .dot.d3 { background: #6ee0a8; }
+  .chip { font-size: 11px; padding: 1px 7px; border-radius: 999px;
+    background: rgba(255,255,255,.13); color: #cfe6da; }
+  .chip.dealer { background: #f6b93b; color: #4a3000; font-weight: 600; }
+  .score { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 600; color: #9fe6bd; }
+  .seatLine { display: flex; align-items: center; gap: 3px; flex-wrap: wrap; min-height: 24px; }
+  .seatLine .lbl { min-width: 26px; color: #8fb9a7; }
+  .seatLine .dim, .seatPanel .dim { color: #8fb9a7; }
+  .handmini { perspective: 700px; }
+  .handmini .tile.back { margin-left: -12px; opacity: .95; }
+  .handmini .tile.back:first-of-type { margin-left: 1px; }
   .meld { display: inline-flex; align-items: center; gap: 1px; padding: 2px 4px 2px 2px;
-    background: #fff; border: 1px solid var(--line); border-radius: 6px; margin-right: 4px; }
-  .meld u { text-decoration: none; font-size: 10px; color: var(--muted); margin-left: 2px; }
+    background: rgba(255,255,255,.92); border: 1px solid rgba(255,255,255,.5);
+    border-radius: 6px; margin-right: 4px; }
+  .meld u { text-decoration: none; font-size: 10px; color: #5b6b60; margin-left: 2px; }
 
-  #centerBox { display: flex; flex-direction: column; gap: 10px; justify-content: center; }
-  .goldBox { display: flex; align-items: center; gap: 10px; background: #fffaf0;
-    border: 1px solid #f0dfb8; border-radius: 10px; padding: 8px 12px; }
-  .goldBox small { color: var(--muted); font-size: 11px; }
-  .metaGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-  .metaGrid div { background: #fafbfd; border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; }
-  .metaGrid span { display: block; color: var(--muted); font-size: 11px; }
-  .metaGrid b { font-size: 13px; font-weight: 600; }
-  .metaGrid b.pending { color: #b26a10; } .metaGrid b.ok { color: var(--green); }
-
-  .riverRow { margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 10px; }
-  .riverTitle { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
-  #river { display: flex; flex-wrap: wrap; gap: 2px; max-height: 120px; overflow-y: auto; }
+  .riverZone { position: absolute; z-index: 2; top: 50%; left: 50%;
+    transform: translate(-50%, -50%); width: 46%; min-width: 240px; height: 54%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; }
+  .riverZone::before { content: ''; position: absolute; inset: 0; border-radius: 10px;
+    background: rgba(4, 44, 33, .38); border: 1px solid rgba(150,230,195,.16); }
+  .goldStand { position: relative; z-index: 1; display: flex; align-items: center; gap: 7px;
+    background: rgba(255, 236, 190, .14); border: 1px solid rgba(255,209,102,.45);
+    border-radius: 8px; padding: 4px 9px; }
+  .goldStand .cap { font-size: 11px; color: #ffe1a0; }
+  .goldStand .tile { margin: 0; }
+  .goldStand .dim { color: #ffe1a0; }
+  .riverTiles { position: relative; z-index: 1; width: 100%; max-height: 108px;
+    overflow-y: auto; display: flex; flex-wrap: wrap; gap: 3px;
+    align-content: center; justify-content: center; padding: 4px; }
+  .riverTiles .dim { color: #9fc4b4; font-size: 12px; }
   .riverTile { border-left: 3px solid #ccc; padding-left: 2px; }
-  .riverTile.d0 { border-color: var(--brand); } .riverTile.d1 { border-color: #8b5cf6; }
-  .riverTile.d2 { border-color: #e08a1e; } .riverTile.d3 { border-color: var(--green); }
+  .riverTile.d0 { border-color: #63b3ff; } .riverTile.d1 { border-color: #b79bff; }
+  .riverTile.d2 { border-color: #ffc25e; } .riverTile.d3 { border-color: #6ee0a8; }
+  .riverTile .tile { margin: 0; transform: rotateX(4deg); }
 
-  .handRow { margin-top: 14px; background: linear-gradient(180deg, #f8fafc, #eef3f9);
-    border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
-  .handRow .cap { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
-  #myHand { display: flex; flex-wrap: wrap; gap: 1px; min-height: 52px; align-items: center; }
-  #actionBar { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; margin-top: 10px; min-height: 36px; }
+  .handRow { margin-top: 12px; background: linear-gradient(180deg, #2a1c10, #4a3220);
+    border: 1px solid #6b4a2a; border-radius: 12px; padding: 10px 14px;
+    box-shadow: inset 0 2px 0 rgba(255,225,180,.14), 0 8px 20px rgba(0,0,0,.28); }
+  .handRow .cap { color: #e2c89e; font-size: 12px; margin-bottom: 6px; }
+  #myHand { display: flex; flex-wrap: wrap; gap: 3px; min-height: 58px;
+    align-items: flex-end; perspective: 800px; padding-top: 8px; }
+  #myHand .dim { color: #e2c89e; }
+  #actionBar { display: flex; flex-wrap: wrap; gap: 7px; align-items: center;
+    margin-top: 10px; min-height: 36px; }
+  #actionBar .hint, #actionBar .dim { color: #e2c89e; }
   .hint { color: var(--muted); font-size: 12px; }
   .btn { border: 1px solid var(--line); background: #fff; color: var(--text);
     padding: 6px 13px; border-radius: 8px; cursor: pointer; transition: .12s; }
@@ -175,13 +242,25 @@
   .link { color: var(--brand); cursor: pointer; text-decoration: underline; font-size: 12px; }
   /* 返回上一级：纯链接，不依赖脚本，MQTT / CDN 异常时仍可返回 */
   .backBtn { display:inline-flex; align-items:center; gap:6px; flex:none;
-    padding:6px 12px; border:1px solid #c9dcf3; border-radius:8px;
-    background:var(--brand-soft); color:var(--brand); text-decoration:none;
+    padding:6px 12px; border:1px solid rgba(127,216,176,.40); border-radius:8px;
+    background:rgba(127,216,176,.14); color:#a9f0cd; text-decoration:none;
     font-size:13px; font-weight:600; white-space:nowrap; }
-  .backBtn:hover { background:#dbeafb; border-color:#a9c9ee; }
+  .backBtn:hover { background:rgba(127,216,176,.26); border-color:#7fd8b0; }
   .backBtn:active { transform:translateY(1px); }
-  .backAlt { flex:none; color:var(--muted); font-size:12px; text-decoration:none; white-space:nowrap; }
-  .backAlt:hover { color:var(--brand); text-decoration:underline; }
+  .backAlt { flex:none; color:#9fc4b4; font-size:12px; text-decoration:none; white-space:nowrap; }
+  .backAlt:hover { color:#a9f0cd; text-decoration:underline; }
+  @media (max-width:900px) {
+    .seatSlot { width:170px; }
+    .seatLeft, .seatRight { width:148px; }
+    .riverZone { width:52%; min-width:190px; }
+    .felt { height:clamp(230px, 38vh, 290px); }
+  }
+  @media (max-width:640px) {
+    .seatSlot { width:150px; }
+    .seatLeft, .seatRight { width:120px; }
+    .riverZone { width:56%; min-width:160px; }
+    .hudItem { font-size:11px; padding:2px 6px; }
+  }
   @media (max-width:520px) {
     header { padding:10px 12px; gap:10px; }
     header h1 { font-size:16px; }
@@ -202,22 +281,24 @@
 </header>
 
 <main>
-  <!-- 左：牌桌 -->
+  <!-- 左：牌桌场景（绿绒桌面 + 四家围坐 + 中央牌河） -->
   <section>
-    <div id="tableWrap" class="card hidden">
-      <div class="tableGrid">
-        <div id="seat0"></div>
-        <div id="seat1"></div>
-        <div id="seat2"></div>
-        <div id="seat3"></div>
-        <div id="centerBox"><div id="centerInfo"></div></div>
-      </div>
-      <div class="riverRow">
-        <div class="riverTitle">牌河（左侧色条对应打出者）</div>
-        <div id="river"></div>
+    <div id="tableWrap" class="tableScene hidden">
+      <div class="hudBar" id="centerInfo"></div>
+      <div class="feltFrame">
+        <div class="felt">
+          <div id="seat2" class="seatSlot seatTop"></div>
+          <div id="seat3" class="seatSlot seatLeft"></div>
+          <div id="seat1" class="seatSlot seatRight"></div>
+          <div id="seat0" class="seatSlot seatBottom"></div>
+          <div id="centerBox" class="riverZone">
+            <div id="goldStand" class="goldStand"></div>
+            <div id="river" class="riverTiles"></div>
+          </div>
+        </div>
       </div>
       <div class="handRow">
-        <div class="cap">你的手牌 · 点击牌面即打出</div>
+        <div class="cap">你的手牌 · 点击牌面即打出 · 牌河左侧色条对应打出者</div>
         <div id="myHand"></div>
         <div id="actionBar"></div>
       </div>
