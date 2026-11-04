@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Work福州麻将 · 四人联机试做版</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='8' y='4' width='48' height='56' rx='9' fill='%23ffffff' stroke='%232b6cb0' stroke-width='3'/%3E%3Ccircle cx='32' cy='23' r='8' fill='%23c0392b'/%3E%3Ccircle cx='22' cy='41' r='6' fill='%231e8e5a'/%3E%3Ccircle cx='42' cy='41' r='6' fill='%231f6fb2'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #f4f6f9; --panel: #ffffff; --line: #e2e7ee; --text: #1b2430;
+    --muted: #6b7787; --brand: #2b6cb0; --brand-soft: #eaf2fc;
+    --gold: #c9971f; --red: #c0392b; --green: #1e8e5a; --blue: #1f6fb2;
+    --shadow: 0 1px 3px rgba(20, 35, 55, .08), 0 6px 18px rgba(20, 35, 55, .05);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+    font-size: 14px; line-height: 1.55; }
+  button, input { font-family: inherit; font-size: inherit; }
+  .hidden { display: none !important; }
+  .dim { color: var(--muted); }
+  .lbl { color: var(--muted); font-size: 12px; margin-right: 6px; }
+
+  header { display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 12px 22px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 18px; margin: 0; letter-spacing: .4px; }
+  header h1 span { color: var(--brand); }
+  .sub { color: var(--muted); font-size: 12px; }
+  .badge { padding: 3px 10px; border-radius: 999px; font-size: 12px; border: 1px solid var(--line); }
+  .badge.ok { background: #e8f6ee; color: #167348; border-color: #bfe6cf; }
+  .badge.bad { background: #fdeceb; color: #a5322a; border-color: #f5c9c5; }
+  .badge.muted { background: #f1f4f8; color: var(--muted); }
+  .spacer { flex: 1; }
+
+  main { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 16px;
+    padding: 16px 22px 28px; align-items: start; max-width: 1500px; margin: 0 auto; }
+  @media (max-width: 1080px) { main { grid-template-columns: 1fr; } }
+
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    box-shadow: var(--shadow); padding: 14px; margin-bottom: 14px; }
+  .card h2 { font-size: 14px; margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
+  .card h2 small { font-weight: 400; color: var(--muted); font-size: 12px; }
+
+  /* 牌面 */
+  .tile { position: relative; display: inline-flex; flex-direction: column; align-items: center;
+    justify-content: center; width: 34px; height: 46px; margin: 2px; flex: none;
+    background: #fff; border: 1px solid #d6dde7; border-bottom-width: 3px; border-radius: 6px;
+    box-shadow: 0 2px 3px rgba(20,35,55,.10); vertical-align: middle; user-select: none; }
+  .tile b { font-size: 19px; line-height: 1; font-weight: 700; }
+  .tile i { font-size: 11px; font-style: normal; margin-top: 2px; opacity: .85; }
+  .tile.s0 b, .tile.s0 i { color: var(--red); }
+  .tile.s1 b, .tile.s1 i { color: var(--blue); }
+  .tile.s2 b, .tile.s2 i { color: var(--green); }
+  .tile.small { width: 25px; height: 34px; margin: 1px; border-radius: 4px; }
+  .tile.small b { font-size: 13px; } .tile.small i { font-size: 8px; margin-top: 1px; }
+  .tile.flower { background: #fff8e6; border-color: #ecd9a8; color: #8a6412; font-size: 12px; font-weight: 600; }
+  .tile.flower.small { font-size: 10px; }
+  .tile.gold { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(201,151,31,.20), 0 2px 4px rgba(20,35,55,.12); }
+  .tile em { position: absolute; top: -6px; right: -5px; font-style: normal; font-size: 9px;
+    background: var(--gold); color: #fff; border-radius: 8px; padding: 0 4px; line-height: 14px; }
+  .tile.back { background: repeating-linear-gradient(45deg, #2f5d7c 0 6px, #35688b 6px 12px);
+    border-color: #24455e; }
+  .tile.clickable { cursor: pointer; transition: transform .12s, box-shadow .12s; }
+  .tile.clickable:hover { transform: translateY(-7px); box-shadow: 0 6px 14px rgba(20,35,55,.20); }
+  .tile.selected { outline: 2px solid var(--brand); }
+
+  /* 牌桌 */
+  .tableGrid { display: grid; gap: 10px;
+    grid-template-columns: 1fr 1.25fr 1fr;
+    grid-template-areas: "top top top" "left center right" "bottom bottom bottom"; }
+  #seat0 { grid-area: bottom; } #seat1 { grid-area: right; }
+  #seat2 { grid-area: top; } #seat3 { grid-area: left; }
+  #centerBox { grid-area: center; }
+  .seatPanel { background: #fafbfd; border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; }
+  .seatPanel.active { border-color: var(--brand); box-shadow: 0 0 0 2px var(--brand-soft); }
+  .seatHead { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin-bottom: 6px; }
+  .seatHead strong { font-size: 13px; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #9aa6b5; flex: none; }
+  .dot.d0 { background: var(--brand); } .dot.d1 { background: #8b5cf6; }
+  .dot.d2 { background: #e08a1e; } .dot.d3 { background: var(--green); }
+  .chip { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: #eef2f7; color: var(--muted); }
+  .chip.dealer { background: #fdeee0; color: #a35b12; }
+  .score { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 600; color: var(--brand); }
+  .seatLine { display: flex; align-items: center; gap: 3px; flex-wrap: wrap; min-height: 30px; }
+  .seatLine .lbl { min-width: 30px; }
+  .handmini .tile.back { opacity: .75; }
+  .meld { display: inline-flex; align-items: center; gap: 1px; padding: 2px 4px 2px 2px;
+    background: #fff; border: 1px solid var(--line); border-radius: 6px; margin-right: 4px; }
+  .meld u { text-decoration: none; font-size: 10px; color: var(--muted); margin-left: 2px; }
+
+  #centerBox { display: flex; flex-direction: column; gap: 10px; justify-content: center; }
+  .goldBox { display: flex; align-items: center; gap: 10px; background: #fffaf0;
+    border: 1px solid #f0dfb8; border-radius: 10px; padding: 8px 12px; }
+  .goldBox small { color: var(--muted); font-size: 11px; }
+  .metaGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .metaGrid div { background: #fafbfd; border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; }
+  .metaGrid span { display: block; color: var(--muted); font-size: 11px; }
+  .metaGrid b { font-size: 13px; font-weight: 600; }
+  .metaGrid b.pending { color: #b26a10; } .metaGrid b.ok { color: var(--green); }
+
+  .riverRow { margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 10px; }
+  .riverTitle { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+  #river { display: flex; flex-wrap: wrap; gap: 2px; max-height: 120px; overflow-y: auto; }
+  .riverTile { border-left: 3px solid #ccc; padding-left: 2px; }
+  .riverTile.d0 { border-color: var(--brand); } .riverTile.d1 { border-color: #8b5cf6; }
+  .riverTile.d2 { border-color: #e08a1e; } .riverTile.d3 { border-color: var(--green); }
+
+  .handRow { margin-top: 14px; background: linear-gradient(180deg, #f8fafc, #eef3f9);
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+  .handRow .cap { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+  #myHand { display: flex; flex-wrap: wrap; gap: 1px; min-height: 52px; align-items: center; }
+  #actionBar { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; margin-top: 10px; min-height: 36px; }
+  .hint { color: var(--muted); font-size: 12px; }
+  .btn { border: 1px solid var(--line); background: #fff; color: var(--text);
+    padding: 6px 13px; border-radius: 8px; cursor: pointer; transition: .12s; }
+  .btn:hover { border-color: var(--brand); color: var(--brand); }
+  .btn.primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+  .btn.primary:hover { background: #245a94; color: #fff; }
+  .btn.win { background: #c0392b; color: #fff; border-color: #c0392b; }
+  .btn.win:hover { background: #a5322a; color: #fff; }
+  .btn.ghost { background: #f4f6f9; }
+
+  /* 侧栏 */
+  .field { display: flex; gap: 7px; margin-bottom: 8px; }
+  .field input { flex: 1; min-width: 0; padding: 6px 9px; border: 1px solid var(--line);
+    border-radius: 7px; background: #fff; color: var(--text); }
+  .field input:focus, [data-score]:focus { outline: 2px solid var(--brand-soft); border-color: var(--brand); }
+  .btnRow { display: flex; gap: 7px; flex-wrap: wrap; }
+  .roomCode { font-size: 22px; font-weight: 700; letter-spacing: 3px; color: var(--brand);
+    font-variant-numeric: tabular-nums; }
+  #seatList { list-style: none; padding: 0; margin: 8px 0 0; }
+  #seatList li { display: flex; align-items: center; gap: 7px; padding: 4px 0;
+    border-top: 1px solid #f0f3f7; font-size: 12px; }
+  #seatList li .dim { margin-left: auto; font-size: 11px; }
+  #seatList .me { color: var(--brand); font-size: 11px; }
+  #scoreFields { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; }
+  #scoreFields label { display: flex; align-items: center; justify-content: space-between;
+    gap: 5px; font-size: 12px; }
+  #scoreFields input { width: 62px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; }
+  .switch { display: flex; align-items: center; gap: 7px; margin: 4px 0 10px; font-size: 13px; }
+  .notice { background: #fff8e9; border: 1px solid #f2e2bd; color: #7a5a13;
+    border-radius: 8px; padding: 8px 10px; font-size: 12px; margin-top: 10px; }
+  .risk { background: #fdf1f0; border: 1px solid #f3d3cf; color: #8d3a32;
+    border-radius: 8px; padding: 8px 10px; font-size: 12px; }
+  .rules { font-size: 12.5px; color: #35414f; }
+  .rules h3 { font-size: 13px; margin: 12px 0 5px; }
+  .rules ul { margin: 4px 0; padding-left: 18px; }
+  .rules li { margin: 3px 0; }
+  .rules code { background: #f1f4f8; padding: 1px 4px; border-radius: 4px; }
+  .rules table { width: 100%; border-collapse: collapse; margin: 6px 0 10px; }
+  .rules th, .rules td { border: 1px solid #e4e9f0; padding: 4px 6px; text-align: left; vertical-align: top; }
+  .rules th { background: #f4f7fb; font-weight: 600; }
+  .rules td:first-child { white-space: nowrap; }
+  #logList { list-style: none; margin: 0; padding: 0; max-height: 190px; overflow-y: auto;
+    font-size: 12px; }
+  #logList li { padding: 4px 0; border-bottom: 1px solid #f0f3f7; color: #46525f; }
+
+  /* 结算 / 提示 */
+  .overlay { position: fixed; inset: 0; background: rgba(18, 28, 40, .42);
+    display: flex; align-items: center; justify-content: center; z-index: 30; padding: 20px; }
+  .resultCard { background: #fff; border-radius: 14px; padding: 20px 22px; width: min(520px, 100%);
+    box-shadow: 0 20px 60px rgba(10, 20, 35, .25); }
+  .resultCard h3 { margin: 0 0 8px; color: var(--brand); }
+  .resultCard p { color: #46525f; font-size: 13px; margin: 0 0 12px; }
+  .resultGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+  .resultGrid div { background: #f7f9fc; border-radius: 8px; padding: 6px 9px; }
+  .resultGrid span { display: block; color: var(--muted); font-size: 11px; }
+  .resultGrid b { font-size: 13px; }
+  .resultHand { display: flex; flex-wrap: wrap; margin: 12px 0; }
+  .resultFoot { display: flex; justify-content: flex-end; gap: 8px; }
+  #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(12px);
+    background: #1b2430; color: #fff; padding: 9px 18px; border-radius: 999px; font-size: 13px;
+    opacity: 0; pointer-events: none; transition: .2s; z-index: 40; }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .link { color: var(--brand); cursor: pointer; text-decoration: underline; font-size: 12px; }
+  /* 返回上一级：纯链接，不依赖脚本，MQTT / CDN 异常时仍可返回 */
+  .backBtn { display:inline-flex; align-items:center; gap:6px; flex:none;
+    padding:6px 12px; border:1px solid #c9dcf3; border-radius:8px;
+    background:var(--brand-soft); color:var(--brand); text-decoration:none;
+    font-size:13px; font-weight:600; white-space:nowrap; }
+  .backBtn:hover { background:#dbeafb; border-color:#a9c9ee; }
+  .backBtn:active { transform:translateY(1px); }
+  .backAlt { flex:none; color:var(--muted); font-size:12px; text-decoration:none; white-space:nowrap; }
+  .backAlt:hover { color:var(--brand); text-decoration:underline; }
+  @media (max-width:520px) {
+    header { padding:10px 12px; gap:10px; }
+    header h1 { font-size:16px; }
+    .backAlt { display:none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="backBtn" href="index.html" title="返回游戏版块（棋类列表）">← 返回上一级</a>
+  <h1><span>Work</span>福州麻将</h1>
+  <span class="sub">四人联机 · 十六张麻将 · 试做版</span>
+  <span id="connStatus" class="badge muted">未连接</span>
+  <span class="spacer"></span>
+  <a class="backAlt" href="../index.html" target="_top">站点首页</a>
+  <span class="sub">模式：<b id="modeText">未连接</b></span>
+</header>
+
+<main>
+  <!-- 左：牌桌 -->
+  <section>
+    <div id="tableWrap" class="card hidden">
+      <div class="tableGrid">
+        <div id="seat0"></div>
+        <div id="seat1"></div>
+        <div id="seat2"></div>
+        <div id="seat3"></div>
+        <div id="centerBox"><div id="centerInfo"></div></div>
+      </div>
+      <div class="riverRow">
+        <div class="riverTitle">牌河（左侧色条对应打出者）</div>
+        <div id="river"></div>
+      </div>
+      <div class="handRow">
+        <div class="cap">你的手牌 · 点击牌面即打出</div>
+        <div id="myHand"></div>
+        <div id="actionBar"></div>
+      </div>
+    </div>
+
+    <div id="welcomeCard" class="card">
+      <h2>开始</h2>
+      <p class="dim" style="margin:0 0 12px">本地演示无需联网，可立即看到完整牌局；联机需四人各打开邀请链接。</p>
+      <div class="btnRow">
+        <button id="btnLocal" class="btn primary">本地演示（单人试玩）</button>
+        <button id="btnCreate" class="btn">创建联机房间</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 右：侧栏 -->
+  <aside>
+    <div class="card">
+      <h2>房间 <small>房间码即频道</small></h2>
+      <div class="field"><input id="playerName" placeholder="你的昵称" maxlength="16"></div>
+      <div class="roomCode" id="roomCode">—</div>
+      <div class="field" style="margin-top:8px">
+        <input id="inviteLink" readonly placeholder="邀请链接（创建房间后生成）">
+        <button id="btnCopy" class="btn">复制</button>
+      </div>
+      <div class="field">
+        <input id="joinRoom" placeholder="输入房间码加入" maxlength="10">
+        <button id="btnJoin" class="btn">加入房间</button>
+      </div>
+      <ul id="seatList"></ul>
+    </div>
+
+    <div class="card">
+      <h2>计分设置 <small>分值已给齐 · 默认启用</small></h2>
+      <label class="switch"><input type="checkbox" id="scoreReady"> 启用计分（关闭时只判定胜负、不计分）</label>
+      <div id="scoreFields"></div>
+      <div class="btnRow" style="margin-top:10px"><button id="btnScoreReset" class="btn ghost">恢复本轮默认值</button></div>
+      <div class="notice">公式：<b>牌面分 = 基础 1 + 最高一项奖励 + 有效花 × 1</b> → <b>自摸 ×2（点炮 ×1）</b> → <b>往上整到 10 的倍数</b>（5→10、11→20）。点炮与自摸<b>一律三家各付</b>，放炮者不再独付。改上面数值即时生效。</div>
+    </div>
+
+    <div class="card">
+      <h2><span class="link" data-toggle="rulesBody">规则说明（展开/收起）</span></h2>
+      <div id="rulesBody" class="rules hidden">
+        <h3>福州话词表（本轮口述）</h3>
+        <table>
+          <tr><th>说法</th><th>意思</th></tr>
+          <tr><td>坎门</td><td>四家拿完牌后，庄家多摸的那一张（庄 17 张、闲 16 张）</td></tr>
+          <tr><td>补花</td><td>起手的花牌从牌尾补等量牌；补进新花要等四家补完再补第二轮，直到手里全是万筒条</td></tr>
+          <tr><td>开金 / 金</td><td>补花完翻牌尾第一张为「金」，可替任意牌；翻出花牌归庄家并重翻</td></tr>
+          <tr><td>三头金</td><td>就是「三金倒」：手里 3 张金，不看牌型直接胡，通常只能自摸</td></tr>
+          <tr><td>金雀 / 金将</td><td>两张金做将（雀头）——本版按你给的口径，二者同义</td></tr>
+          <tr><td>企顶 / 站庄</td><td>庄家胡牌继续做庄；第一次胡叫「站顶」，通常不计连庄数</td></tr>
+        </table>
+
+        <h3>牌具与花</h3>
+        <ul>
+          <li><b>144 张</b>：万 / 饼 / 条 108 张组牌；东南西北中发白 28 张 + 春夏秋冬梅兰竹菊 8 张，共 <b>36 朵花</b>。<b>字牌算花</b>，只记分、不参与牌型组合。</li>
+          <li>抓齐 4 张一样的花（4 个东）或春夏秋冬 / 梅兰竹菊一套，<b>按 6 朵算</b>；胡牌者<b>明杠算 1 朵、暗杠算 2 朵</b>。</li>
+          <li>可吃（<b>只吃上家</b>）、碰、杠，<b>碰杠优先于吃</b>。</li>
+        </ul>
+
+        <h3>线下特有牌型与奖励分（本轮已给定）</h3>
+        <table>
+          <tr><th>牌型</th><th>判奖励</th></tr>
+          <tr><td>一张花</td><td>胡牌时只有 1 朵花且无杠（或只有 1 个明杠没花）→ <b>20 分</b></td></tr>
+          <tr><td>无花无杠</td><td>一朵花没抓、没开杠 → <b>40 分</b></td></tr>
+          <tr><td>天胡 / 抢金</td><td>庄家开金即成胡；或首巡把金换进即胡 → <b>40 分</b></td></tr>
+          <tr><td>三金倒（三头金）</td><td>手里 3 张金，不看牌型直接胡，通常只能自摸 → <b>50 分</b></td></tr>
+          <tr><td>金将（金雀）</td><td>2 张金做将 → <b>60 分</b></td></tr>
+        </table>
+
+        <h3>已落到代码里的口径</h3>
+        <ul>
+          <li><b>十六张麻将</b>：闲 16 / 庄 17（坎门），胡牌 <code>5 副面子 + 1 对将 = 17 张</code>；有副露按 <code>5 − 副露数</code> 折算。</li>
+          <li><b>补花分轮</b>：四家各补完一轮，本轮补进的新花留到下一轮，直到手上全是万筒条。</li>
+          <li><b>开金</b>：牌尾翻出的指示牌占一张，牌里同牌面余 3 张为金（百搭）。金牌打出时别家不能吃碰杠、也不能胡这张金；打金者本圈只能自摸。</li>
+          <li><b>企顶</b>：庄家首次胡称「站顶」，连庄数仍为 0；第二次起每次 +1；闲家胡则轮庄并清零。</li>
+          <li><b>计分（21:48 给齐、22:01 定稿，默认启用）</b>：<code>每家支付额 = 往上整10(牌面分 × 倍数)</code>，其中 <code>牌面分 = 基础 1 + 最高一项奖励 + 有效花 × 1</code>、倍数 = <b>自摸 2 / 普通胡牌 1</b>；<b>先翻倍、再整 10</b>（5→10、11→20、整十不变）。<b>普通胡牌也是赢三家</b>：不论自摸或点炮，除赢家外三家各付一份，放炮者不再独付。</li>
+        </ul>
+
+        <h3>计分举例</h3>
+        <table>
+          <tr><th>情形</th><th>牌面分</th><th>×倍数</th><th>往上整 10</th><th>每家支付</th><th>赢家合计（3 家）</th></tr>
+          <tr><td>点炮 · 花 4 朵 · 无奖励</td><td>1 + 0 + 4 = 5</td><td>×1 = 5</td><td>10</td><td>10</td><td>30</td></tr>
+          <tr><td>自摸 · 花 4 朵 · 无奖励</td><td>5</td><td>×2 = 10</td><td>10</td><td>10</td><td>30</td></tr>
+          <tr><td>点炮 · 花 10 朵 · 无奖励</td><td>1 + 0 + 10 = 11</td><td>×1 = 11</td><td>20</td><td>20</td><td>60</td></tr>
+          <tr><td>自摸 · 花 10 朵 · 无奖励</td><td>11</td><td>×2 = 22</td><td>30</td><td>30</td><td>90</td></tr>
+          <tr><td>点炮 · 金将 60 · 花 1 朵</td><td>1 + 60 + 1 = 62</td><td>×1 = 62</td><td>70</td><td>70</td><td>210</td></tr>
+          <tr><td>自摸 · 金将 60 · 花 1 朵</td><td>62</td><td>×2 = 124</td><td>130</td><td>130</td><td>390</td></tr>
+        </table>
+        <p style="margin:2px 0;color:var(--muted)">注：牌面 5 时自摸 ×2 得 10，整 10 后仍是 10，因此该例自摸与点炮每家同额——这是「先翻倍再整 10」的正常结果，不是漏算。</p>
+
+        <h3>牌型张数：冲突已解决</h3>
+        <p style="margin:2px 0">上一轮口述里的「一对将 + <b>四副</b>顺子/刻子」（= 14 张）与十六张麻将不相容；你 21:48 再次确认「<b>十六张麻将，闲 16 / 庄 17</b>」，故本版按 <b>5 副面子 + 1 对将 = 17 张</b> 判定。若线下确按 14 张打，起手张数也要一起改，说一句即可。</p>
+
+        <h3>22:01 已确认（不再是待定项）</h3>
+        <ul>
+          <li><b>先翻倍、再往上整 10</b>；<b>普通胡牌也是赢三家</b>（三家各付，放炮者不独付）。</li>
+        </ul>
+
+        <h3>待你补充 / 确认</h3>
+        <ul>
+          <li>多项奖励是否叠加：现按<b>取最高一项</b>（例如天胡且无花无杠，只算 40 分）。</li>
+          <li>抢金 / 天胡 / 三头金是否都按「自摸 ×2」计（现按此处理）；抢金与金将的具体细则你说后面再讲。</li>
+          <li>和局是否计连庄数；留 18 张不抓、明杠多留 1 张 / 暗杠多留 2 张，沿用资料规则，待你确认。</li>
+        </ul>
+
+        <h3>已弃用的资料计法</h3>
+        <p style="color:var(--muted);margin:2px 0">联众 / 百科那套「基础 5 + 花 + 金 + 连庄，平胡 30、三金倒 40、金雀 60、金龙 120、天胡 30」以及游金倍数，<b>全部不采用</b>。</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>对局记录</h2>
+      <ul id="logList"><li class="dim">暂无记录</li></ul>
+    </div>
+
+    <div class="card">
+      <h2>方案 A 的边界</h2>
+      <div class="risk">
+        公共 MQTT 中继上消息<b>明文传输</b>，订阅通配符即可看到全部消息，因此<b>不防作弊</b>；
+        房间只存在于房主浏览器内存，<b>房主关页面或断网整桌就散</b>；中继为第三方公共服务，
+        可用性不受我们控制（已内置 4 个节点自动切换）。熟人娱乐够用，如需防作弊与断线续局，
+        需改用带服务端校验的托管后端。
+      </div>
+    </div>
+  </aside>
+</main>
+
+<div id="resultBox" class="overlay hidden">
+  <div class="resultCard">
+    <div class="resultBody"></div>
+    <div class="resultFoot"></div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"
+        onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js'"></script>
+<script src="fzmj-engine.js"></script>
+<script src="fzmj-app.js"></script>
+</body>
+</html>
