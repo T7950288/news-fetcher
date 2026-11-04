@@ -107,7 +107,7 @@
                 0 14px 30px rgba(0,0,0,.38); }
   .feltFrame::before { content: ''; position: absolute; inset: 5px; border-radius: 18px;
     border: 1px solid rgba(255, 225, 180, .22); pointer-events: none; }
-  .felt { position: relative; height: clamp(250px, 40vh, 330px); border-radius: 12px;
+  .felt { position: relative; height: clamp(300px, 46vh, 390px); border-radius: 12px;
     overflow: hidden;
     background: radial-gradient(ellipse at 50% 32%, var(--felt-lite) 0%, var(--felt) 52%, var(--felt-dark) 100%);
     box-shadow: inset 0 0 70px rgba(0,0,0,.40), inset 0 0 0 2px rgba(150,230,195,.16); }
@@ -116,6 +116,22 @@
     box-shadow: inset 0 0 0 2px rgba(160,235,200,.12); pointer-events: none; }
   .felt::after { content: ''; position: absolute; inset: 0; pointer-events: none;
     background: radial-gradient(ellipse at 50% 45%, rgba(255,255,255,.10), rgba(255,255,255,0) 62%); }
+
+  /* 四边牌墙：纯 CSS 画一叠叠立着的牌背，带透视 */
+  .wall { position: absolute; z-index: 1; pointer-events: none; opacity: .95;
+    border: 2px solid #0b3b2e; border-radius: 4px;
+    background: repeating-linear-gradient(90deg,
+      #2b8168 0 11px, #0e4636 11px 13px, #1d6b55 13px 22px, #0e4636 22px 24px);
+    box-shadow: 0 4px 9px rgba(0,0,0,.42), inset 0 2px 0 rgba(255,255,255,.14),
+                inset 0 -3px 0 rgba(0,0,0,.28); }
+  .wallTop, .wallBottom { left: 13%; right: 13%; height: 16px; }
+  .wallTop { top: 4px; transform: perspective(320px) rotateX(30deg); }
+  .wallBottom { bottom: 4px; transform: perspective(320px) rotateX(-30deg); }
+  .wallLeft, .wallRight { top: 13%; bottom: 13%; width: 16px;
+    background: repeating-linear-gradient(0deg,
+      #2b8168 0 11px, #0e4636 11px 13px, #1d6b55 13px 22px, #0e4636 22px 24px); }
+  .wallLeft { left: 4px; transform: perspective(320px) rotateY(26deg); }
+  .wallRight { right: 4px; transform: perspective(320px) rotateY(-26deg); }
 
   .seatSlot { position: absolute; z-index: 3; width: 214px; }
   .seatTop { top: 12px; left: 50%; transform: translateX(-50%); }
@@ -139,9 +155,13 @@
   .seatLine { display: flex; align-items: center; gap: 3px; flex-wrap: wrap; min-height: 24px; }
   .seatLine .lbl { min-width: 26px; color: #8fb9a7; }
   .seatLine .dim, .seatPanel .dim { color: #8fb9a7; }
-  .handmini { perspective: 700px; }
-  .handmini .tile.back { margin-left: -12px; opacity: .95; }
-  .handmini .tile.back:first-of-type { margin-left: 1px; }
+  /* 别家手牌：立起、只露牌背，重叠成一排 */
+  .seatLine.handmini { perspective: 700px; flex-wrap: nowrap; overflow: hidden; }
+  .seatLine.handmini .tile.back { width: 19px; height: 27px; flex: none;
+    margin-left: -9px; opacity: .97; border-bottom-width: 3px;
+    transform: rotateX(22deg); transform-origin: 50% 100%;
+    box-shadow: 0 2px 0 #0e4636, 0 5px 8px rgba(0,0,0,.48); }
+  .seatLine.handmini .tile.back:first-of-type { margin-left: 1px; }
   .meld { display: inline-flex; align-items: center; gap: 1px; padding: 2px 4px 2px 2px;
     background: rgba(255,255,255,.92); border: 1px solid rgba(255,255,255,.5);
     border-radius: 6px; margin-right: 4px; }
@@ -155,9 +175,21 @@
   .goldStand { position: relative; z-index: 1; display: flex; align-items: center; gap: 7px;
     background: rgba(255, 236, 190, .14); border: 1px solid rgba(255,209,102,.45);
     border-radius: 8px; padding: 4px 9px; }
-  .goldStand .cap { font-size: 11px; color: #ffe1a0; }
+  .goldStand .cap { font-size: 11px; color: #ffe1a0; white-space: nowrap; }
   .goldStand .tile { margin: 0; }
   .goldStand .dim { color: #ffe1a0; }
+  /* 中央骰子：两颗，纯 CSS 点数 */
+  .diceTray { display: flex; align-items: center; gap: 5px; margin-left: 3px;
+    padding-left: 8px; border-left: 1px solid rgba(255,209,102,.35); }
+  .diceTray .cap { font-size: 11px; }
+  .die { position: relative; display: inline-block; flex: none;
+    width: 23px; height: 23px; border-radius: 5px;
+    background: linear-gradient(145deg, #fffdf6 0%, #e8dfca 100%);
+    box-shadow: inset 0 -2px 3px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.9),
+                0 3px 6px rgba(0,0,0,.42); }
+  .die i { position: absolute; width: 5px; height: 5px; border-radius: 50%;
+    background: #b3352b; transform: translate(-50%, -50%);
+    box-shadow: inset 0 1px 1px rgba(0,0,0,.25); }
   .riverTiles { position: relative; z-index: 1; width: 100%; max-height: 108px;
     overflow-y: auto; display: flex; flex-wrap: wrap; gap: 3px;
     align-content: center; justify-content: center; padding: 4px; }
@@ -253,7 +285,7 @@
     .seatSlot { width:170px; }
     .seatLeft, .seatRight { width:148px; }
     .riverZone { width:52%; min-width:190px; }
-    .felt { height:clamp(230px, 38vh, 290px); }
+    .felt { height:clamp(270px, 42vh, 330px); }
   }
   @media (max-width:640px) {
     .seatSlot { width:150px; }
@@ -283,10 +315,14 @@
 <main>
   <!-- 左：牌桌场景（绿绒桌面 + 四家围坐 + 中央牌河） -->
   <section>
-    <div id="tableWrap" class="tableScene hidden">
+    <div id="tableWrap" class="tableScene">
       <div class="hudBar" id="centerInfo"></div>
       <div class="feltFrame">
         <div class="felt">
+          <div class="wall wallTop"></div>
+          <div class="wall wallBottom"></div>
+          <div class="wall wallLeft"></div>
+          <div class="wall wallRight"></div>
           <div id="seat2" class="seatSlot seatTop"></div>
           <div id="seat3" class="seatSlot seatLeft"></div>
           <div id="seat1" class="seatSlot seatRight"></div>
@@ -305,10 +341,10 @@
     </div>
 
     <div id="welcomeCard" class="card">
-      <h2>开始</h2>
-      <p class="dim" style="margin:0 0 12px">本地演示无需联网，可立即看到完整牌局；联机需四人各打开邀请链接。</p>
+      <h2>开始 <small>上方牌桌已摆好，可直接看效果</small></h2>
+      <p class="dim" style="margin:0 0 12px">进页面即为静态预览牌桌（不联网、不加载任何外部库）。点下面按钮开一局可操作的本地试玩；联机则把邀请链接发给另外三人。</p>
       <div class="btnRow">
-        <button id="btnLocal" class="btn primary">本地演示（单人试玩）</button>
+        <button id="btnLocal" class="btn primary">开始本地试玩 / 重新开局</button>
         <button id="btnCreate" class="btn">创建联机房间</button>
       </div>
     </div>
@@ -436,9 +472,9 @@
 </div>
 <div id="toast"></div>
 
-<script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"
-        onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js'"></script>
-<script src="fzmj-engine.js"></script>
-<script src="fzmj-app.js"></script>
+<!-- MQTT 库不再同步加载：仅当点「创建联机房间 / 加入房间」时由 fzmj-app.js 异步按需加载。
+     首屏看牌桌、本地试玩均为零外部依赖，不受 CDN 超时影响。 -->
+<script src="fzmj-engine.js?v=3"></script>
+<script src="fzmj-app.js?v=3"></script>
 </body>
 </html>

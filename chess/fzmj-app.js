@@ -17,6 +17,12 @@
   ];
   var TOPIC_PREFIX = 'workbuddy/fzmj/v1/';
   var SEAT_LABEL = ['自己（南）', '右家（西）', '对家（北）', '左家（东）'];
+  /* 联机库按需加载：jsdelivr 优先（国内可达性通常好于 unpkg），unpkg 兜底，各 6 秒超时。
+     首屏与本地试玩完全不触发，因此进页面不再被外部 CDN 阻塞。 */
+  var MQTT_CDNS = [
+    'https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js',
+    'https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js'
+  ];
 
   var S = {
     mode: 'idle',            // idle | local | host | client
@@ -29,6 +35,8 @@
     seq: -1, lastMsgAt: 0,
     timers: {}, switchTimer: null,
     botFill: true,
+    preview: false,         // 首屏静态预览桌：只摆牌、不自动推进机器人
+    mqttWaiters: null,      // 按需加载期间的回调队列
     toastTimer: null
   };
 
@@ -90,6 +98,25 @@
     return list.map(function (t) { return tileHTML(t, { small: true }); }).join('');
   }
 
+  /* 中央骰子（场景装饰，固定点数；不参与判定，避免影响既有状态机） */
+  var DICE_PIPS = {
+    1: [[50, 50]],
+    2: [[27, 27], [73, 73]],
+    3: [[27, 27], [50, 50], [73, 73]],
+    4: [[27, 27], [73, 27], [27, 73], [73, 73]],
+    5: [[27, 27], [73, 27], [50, 50], [27, 73], [73, 73]],
+    6: [[27, 25], [73, 25], [27, 50], [73, 50], [27, 75], [73, 75]]
+  };
+  function dieHTML(n) {
+    return '<span class="die">' + DICE_PIPS[n].map(function (p) {
+      return '<i style="left:' + p[0] + '%;top:' + p[1] + '%"></i>';
+    }).join('') + '</span>';
+  }
+  function diceHTML(a, b) {
+    return '<span class="diceTray"><span class="cap">骰</span>' +
+           dieHTML(a || 3) + dieHTML(b || 5) + '</span>';
+  }
+
   function seatPanel(s) {
     var v = S.view, isMe = (s === v.seat);
     var name = S.names[s] || (isMe ? '你' : (s + 1) + ' 号位');
@@ -100,7 +127,7 @@
       hand = '<span class="dim">手牌见下方</span>';
     } else {
       var n = v.handsCount[s] || 0, backs = '';
-      for (var i = 0; i < Math.min(n, 18); i++) backs += tileHTML(0, { back: true, small: true });
+      for (var i = 0; i < Math.min(n, 16); i++) backs += tileHTML(0, { back: true, small: true });
       hand = backs || '<span class="dim">—</span>';
     }
     return '<div class="seatPanel pos' + s + (v.turn === s && v.phase !== 'end' ? ' active' : '') + '">' +
@@ -190,7 +217,7 @@
       '<div class="hudItem"><span>轮到</span><b>' + (v.turn + 1) + ' 号位</b></div>' +
       '<div class="hudItem"><span>计分</span><b class="' + (F.getScoring().ready ? 'ok' : 'pending') + '">' +
         (F.getScoring().ready ? '已启用' : '待定·不计分') + '</b></div>';
-    $('goldStand').innerHTML = '<span class="cap">本局金</span>' + goldTile;
+    $('goldStand').innerHTML = '<span class="cap">本局金</span>' + goldTile + diceHTML();
     $('river').innerHTML = riverHTML();
     $('actionBar').innerHTML = actionsHTML();
 
@@ -210,7 +237,8 @@
 
   function renderRoomPanel() {
     $('roomCode').textContent = S.room || '—';
-    $('inviteLink').value = S.room ? inviteURL(S.room) : '';
+    // 本地演示/预览不生成假邀请链接，避免用户误以为已联机
+    $('inviteLink').value = (S.room && S.mode !== 'local') ? inviteURL(S.room) : '';
     var rows = [];
     for (var s = 0; s < 4; s++) {
       var nm = S.names[s] || (S.control[s] === 'bot' ? '机器人托管' : '空位');
@@ -403,6 +431,50 @@
     else hostRefresh();
   }
 
+  /* ---------- MQTT 库按需加载（仅在用户真正要联机时才触发） ---------- */
+  function loadMqtt(cb) {
+    if (window.mqtt) { cb(true); return; }
+    if (S.mqttWaiters) { S.mqttWaiters.push(cb); return; }
+    S.mqttWaiters = [cb];
+    var idx = 0, done = false;
+    function finish(okFlag) {
+      if (done) return;
+      done = true;
+      var list = S.mqttWaiters || [];
+      S.mqttWaiters = null;
+      list.forEach(function (fn) { fn(okFlag); });
+    }
+    function tryNext() {
+      if (idx >= MQTT_CDNS.length) {
+        status('联机组件加载失败', 'bad');
+        toast('联机组件加载失败，请检查网络后重试');
+        finish(false);
+        return;
+      }
+      var url = MQTT_CDNS[idx++];
+      var sc = document.createElement('script');
+      var settled = false;
+      var timer = setTimeout(function () {
+        if (settled) return;
+        settled = true; sc.onload = sc.onerror = null; tryNext();
+      }, 6000);
+      sc.onload = function () {
+        if (settled) return;
+        settled = true; clearTimeout(timer);
+        if (window.mqtt) finish(true); else tryNext();
+      };
+      sc.onerror = function () {
+        if (settled) return;
+        settled = true; clearTimeout(timer); tryNext();
+      };
+      sc.async = true;
+      sc.src = url;
+      document.head.appendChild(sc);
+    }
+    status('正在加载联机组件…', 'muted');
+    tryNext();
+  }
+
   /* ---------- MQTT 连接 ---------- */
   function connectBroker(idx, onReady) {
     if (!window.mqtt) { status('MQTT 库未加载', 'bad'); toast('MQTT 库加载失败，请检查网络'); return; }
@@ -561,20 +633,22 @@
   }
 
   /* ---------- 模式启动 ---------- */
-  function startLocal() {
+  function startLocal(preview) {
     stopAll();
+    S.preview = !!preview;
     S.mode = 'local'; S.room = '本地演示'; S.seat = 0;
     S.seats = [S.cid, null, null, null];
     S.names = ['你', '机器人 2', '机器人 3', '机器人 4'];
     S.game = F.createGame();
     F.startRound(S.game);
     syncControl();
-    status('本地演示（无需联网）', 'ok');
+    status(preview ? '牌桌预览（未联网）' : '本地演示（无需联网）', preview ? 'muted' : 'ok');
     localRefresh();
-    setTimeout(function () { pump(); localRefresh(); }, 240);
+    if (!preview) setTimeout(function () { pump(); localRefresh(); }, 240);
   }
   function startHost() {
     stopAll();
+    S.preview = false;
     S.room = randRoom();
     S.mode = 'host'; S.seat = 0;
     S.seats = [S.cid, null, null, null];
@@ -584,9 +658,13 @@
     syncControl();
     $('roomCode').textContent = S.room;
     history.replaceState(null, '', inviteURL(S.room));
-    connectBroker(S.brokerIdx, function () {
-      hostRefresh();
-      toast('房间已创建，把邀请链接发给另外三人');
+    var hostRoom = S.room;
+    loadMqtt(function (okFlag) {
+      if (!okFlag || S.mode !== 'host' || S.room !== hostRoom) return;
+      connectBroker(S.brokerIdx, function () {
+        hostRefresh();
+        toast('房间已创建，把邀请链接发给另外三人');
+      });
     });
   }
   function startClient(room) {
@@ -598,9 +676,13 @@
     S.view = null;
     renderRoomPanel();
     history.replaceState(null, '', inviteURL(S.room));
-    connectBroker(S.brokerIdx, function () {
-      publish(T('ctrl/join'), { cid: S.cid, name: S.name });
-      status('已连接，等待房主分配座位', 'muted');
+    var clientRoom = S.room;
+    loadMqtt(function (okFlag) {
+      if (!okFlag || S.mode !== 'client' || S.room !== clientRoom) return;
+      connectBroker(S.brokerIdx, function () {
+        publish(T('ctrl/join'), { cid: S.cid, name: S.name });
+        status('已连接，等待房主分配座位', 'muted');
+      });
     });
   }
   function stopAll() {
@@ -661,7 +743,7 @@
 
   /* ---------- 事件绑定 ---------- */
   function bind() {
-    $('btnLocal').addEventListener('click', startLocal);
+    $('btnLocal').addEventListener('click', function () { startLocal(false); });
     $('btnCreate').addEventListener('click', function () {
       S.name = $('playerName').value.trim() || '房主';
       startHost();
@@ -736,10 +818,13 @@
     renderRoomPanel();
     var q = new URLSearchParams(location.search).get('room');
     if (q) { $('joinRoom').value = q.toUpperCase(); toast('检测到邀请房间 ' + q.toUpperCase() + '，点「加入房间」即可'); }
-    status('未连接', 'muted');
-    // 本地演示定时推进，避免真人未操作卡住
+    // 首屏直接摆好一张静态预览牌桌：进页面立刻可见绿绒桌面 / 四家围坐 / 牌河 / 金牌，
+    // 全部为本地计算，不请求任何外部库，因此不再有「点进去半天白屏」的问题。
+    startLocal(true);
+    // 本地演示定时推进（预览桌保持静止），避免真人未操作卡住
     clearInterval(S.timers.demo);
     S.timers.demo = setInterval(function () {
+      if (S.preview) return;
       if (S.mode !== 'local' || !S.game || S.game.phase === 'end') return;
       var v = S.view;
       if (!v) return;
