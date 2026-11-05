@@ -102,20 +102,31 @@
   .hudItem .tile b { font-size: 13px; } .hudItem .tile i { font-size: 8px; }
 
   .feltFrame { position: relative; padding: 13px; border-radius: 22px;
-    background: linear-gradient(150deg, #8a6038, var(--wood) 48%, #7a5230);
-    box-shadow: inset 0 2px 0 rgba(255,255,255,.18), inset 0 -3px 8px rgba(0,0,0,.35),
+    background:
+      repeating-linear-gradient(94deg, rgba(255,235,200,.05) 0 2px, rgba(60,30,10,.08) 2px 5px, rgba(0,0,0,0) 5px 15px),
+      linear-gradient(150deg, #9a6c40 0%, var(--wood) 45%, #6d4626 100%);
+    box-shadow: inset 0 2px 0 rgba(255,255,255,.20), inset 0 -3px 8px rgba(0,0,0,.38),
                 0 14px 30px rgba(0,0,0,.38); }
   .feltFrame::before { content: ''; position: absolute; inset: 5px; border-radius: 18px;
     border: 1px solid rgba(255, 225, 180, .22); pointer-events: none; }
+  /* 桌面 2.5D 透视：坐在下家位置看牌桌，近大远小；细密点阵模拟绒布纤维 */
   .felt { position: relative; height: clamp(300px, 46vh, 390px); border-radius: 12px;
     overflow: hidden;
-    background: radial-gradient(ellipse at 50% 32%, var(--felt-lite) 0%, var(--felt) 52%, var(--felt-dark) 100%);
+    transform: perspective(1100px) rotateX(9deg); transform-origin: 50% 100%;
+    background-color: var(--felt);
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(255,255,255,.055) 1px, rgba(255,255,255,0) 1.7px),
+      radial-gradient(ellipse at 50% 30%, rgba(255,255,255,.10), rgba(255,255,255,0) 58%),
+      radial-gradient(ellipse at 50% 32%, var(--felt-lite) 0%, var(--felt) 52%, var(--felt-dark) 100%);
+    background-size: 5px 5px, 100% 100%, 100% 100%;
     box-shadow: inset 0 0 70px rgba(0,0,0,.40), inset 0 0 0 2px rgba(150,230,195,.16); }
   .felt::before { content: ''; position: absolute; inset: 7px; border-radius: 9px;
     border: 9px solid rgba(5, 46, 35, .48);
     box-shadow: inset 0 0 0 2px rgba(160,235,200,.12); pointer-events: none; }
   .felt::after { content: ''; position: absolute; inset: 0; pointer-events: none;
-    background: radial-gradient(ellipse at 50% 45%, rgba(255,255,255,.10), rgba(255,255,255,0) 62%); }
+    background:
+      radial-gradient(ellipse at 50% 40%, rgba(255,255,255,.09), rgba(255,255,255,0) 58%),
+      radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0) 54%, rgba(0,0,0,.34) 100%); }
 
   /* 四边牌墙：纯 CSS 画一叠叠立着的牌背，带透视 */
   .wall { position: absolute; z-index: 1; pointer-events: none; opacity: .95;
@@ -142,7 +153,8 @@
   .seatPanel { background: rgba(5, 34, 26, .82); border: 1px solid rgba(150, 220, 185, .28);
     border-radius: 10px; padding: 6px 9px; color: #eaf5ee; }
   .seatPanel.active { border-color: #ffd166;
-    box-shadow: 0 0 0 2px rgba(255,209,102,.32), 0 0 22px rgba(255,209,102,.30); }
+    box-shadow: 0 0 0 2px rgba(255,209,102,.32), 0 0 22px rgba(255,209,102,.30);
+    animation: seatGlow 1.9s ease-in-out infinite; }
   .seatHead { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 4px; }
   .seatHead strong { font-size: 12.5px; color: #fff; }
   .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #9aa6b5; flex: none; }
@@ -191,13 +203,27 @@
     background: #b3352b; transform: translate(-50%, -50%);
     box-shadow: inset 0 1px 1px rgba(0,0,0,.25); }
   .riverTiles { position: relative; z-index: 1; width: 100%; max-height: 108px;
-    overflow-y: auto; display: flex; flex-wrap: wrap; gap: 3px;
-    align-content: center; justify-content: center; padding: 4px; }
+    overflow-y: auto; display: flex; flex-direction: column; flex-wrap: nowrap;
+    gap: 4px; justify-content: center; padding: 4px; }
   .riverTiles .dim { color: #9fc4b4; font-size: 12px; }
-  .riverTile { border-left: 3px solid #ccc; padding-left: 2px; }
+  /* 牌河按四家分区：每人面前一条，接近真实牌桌的摆放 */
+  .riverRow { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; width: 100%;
+    padding: 2px 0; border-bottom: 1px dashed rgba(150,230,195,.14); }
+  .riverRow:last-child { border-bottom: 0; }
+  .riverSeat { flex: none; width: 15px; height: 15px; border-radius: 50%;
+    font-size: 10px; line-height: 15px; text-align: center; font-weight: 700;
+    color: #06281e; margin-right: 4px; }
+  .riverSeat.d0 { background: #63b3ff; } .riverSeat.d1 { background: #b79bff; }
+  .riverSeat.d2 { background: #ffc25e; } .riverSeat.d3 { background: #6ee0a8; }
+  .riverTile { border-left: 3px solid #ccc; padding-left: 2px; display: inline-block;
+    animation: dropIn .22s ease-out; }
   .riverTile.d0 { border-color: #63b3ff; } .riverTile.d1 { border-color: #b79bff; }
   .riverTile.d2 { border-color: #ffc25e; } .riverTile.d3 { border-color: #6ee0a8; }
   .riverTile .tile { margin: 0; transform: rotateX(4deg); }
+  @keyframes dropIn { from { opacity: 0; transform: translateY(-9px) scale(.86); }
+                      to { opacity: 1; transform: none; } }
+  @keyframes seatGlow { 0%, 100% { box-shadow: 0 0 0 2px rgba(255,209,102,.28), 0 0 18px rgba(255,209,102,.20); }
+                        50% { box-shadow: 0 0 0 2px rgba(255,209,102,.58), 0 0 32px rgba(255,209,102,.44); } }
 
   .handRow { margin-top: 12px; background: linear-gradient(180deg, #2a1c10, #4a3220);
     border: 1px solid #6b4a2a; border-radius: 12px; padding: 10px 14px;
@@ -474,7 +500,7 @@
 
 <!-- MQTT 库不再同步加载：仅当点「创建联机房间 / 加入房间」时由 fzmj-app.js 异步按需加载。
      首屏看牌桌、本地试玩均为零外部依赖，不受 CDN 超时影响。 -->
-<script src="fzmj-engine.js?v=3"></script>
-<script src="fzmj-app.js?v=3"></script>
+<script src="fzmj-engine.js?v=4"></script>
+<script src="fzmj-app.js?v=4"></script>
 </body>
 </html>

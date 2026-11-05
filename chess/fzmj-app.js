@@ -142,15 +142,19 @@
       '</div>';
   }
 
+  /* 牌河按四家分区渲染：每人面前一条，座位色点标识，接近真实牌桌的摆放 */
   function riverHTML() {
-    var v = S.view, all = [];
-    v.discards.forEach(function (d, s) {
-      d.forEach(function (t, i) { all.push({ s: s, t: t, i: i }); });
+    var v = S.view, rows = [];
+    (v.discards || []).forEach(function (d, s) {
+      if (!d || !d.length) return;
+      rows.push('<div class="riverRow">' +
+        '<span class="riverSeat d' + s + '">' + (s + 1) + '</span>' +
+        d.map(function (t) {
+          return '<span class="riverTile d' + s + '">' + tileHTML(t, { small: true }) + '</span>';
+        }).join('') + '</div>');
     });
-    if (!all.length) return '<span class="dim">牌河为空</span>';
-    return all.map(function (x) {
-      return '<span class="riverTile d' + x.s + '">' + tileHTML(x.t, { small: true }) + '</span>';
-    }).join('');
+    if (!rows.length) return '<span class="dim">牌河为空</span>';
+    return rows.join('');
   }
 
   function actionsHTML() {
