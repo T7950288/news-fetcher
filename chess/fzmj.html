@@ -87,9 +87,9 @@
   .tile.selected { outline: 2px solid var(--brand); }
 
   /* 牌桌场景：绿绒桌面 + 木边 + 四家围坐 + 中央牌河（纯 CSS，无图片依赖）
-     宽屏下限定最大宽度并居中，避免桌面被拉成横向长条；窄屏（手机）不受影响 */
-  .tableScene { max-width: 780px; margin: 0 auto 14px; }
-  #welcomeCard { max-width: 780px; margin-left: auto; margin-right: auto; }
+     麻将桌是正方形：牌桌区限宽居中，绿绒面固定 1:1；窄屏（手机）不受影响 */
+  .tableScene { max-width: 660px; margin: 0 auto 14px; }
+  #welcomeCard { max-width: 660px; margin-left: auto; margin-right: auto; }
   .hudBar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
     background: rgba(7, 30, 23, .88); border: 1px solid rgba(150, 220, 185, .22);
     border-radius: 10px; padding: 7px 10px; margin-bottom: 10px; }
@@ -122,11 +122,11 @@
       radial-gradient(ellipse at 50% 32%, var(--felt-lite) 0%, var(--felt) 52%, var(--felt-dark) 100%);
     background-size: 5px 5px, 100% 100%, 100% 100%;
     box-shadow: inset 0 0 70px rgba(0,0,0,.40), inset 0 0 0 2px rgba(150,230,195,.16); }
-  /* 高度随宽度联动：宽屏桌面保持约 1.8:1，不再出现「横向太长」；
-     上限兼顾矮窗口一屏可看全；不支持 aspect-ratio 的浏览器沿用上面的固定高度 */
+  /* 正方形牌桌：绿绒面 1:1，边长上限 560px 居中嵌在木框里；
+     不支持 aspect-ratio 的浏览器沿用上面的固定高度作为降级 */
   @supports (aspect-ratio: 1 / 1) {
-    .felt { height: auto; aspect-ratio: 1.8 / 1;
-      min-height: 300px; max-height: min(420px, 52vh); }
+    .felt { width: min(100%, 560px); margin: 0 auto;
+      height: auto; aspect-ratio: 1 / 1; min-height: 0; max-height: none; }
   }
   .felt::before { content: ''; position: absolute; inset: 7px; border-radius: 9px;
     border: 9px solid rgba(5, 46, 35, .48);
@@ -237,8 +237,10 @@
     border: 1px solid #6b4a2a; border-radius: 12px; padding: 10px 14px;
     box-shadow: inset 0 2px 0 rgba(255,225,180,.14), 0 8px 20px rgba(0,0,0,.28); }
   .handRow .cap { color: #e2c89e; font-size: 12px; margin-bottom: 6px; }
-  #myHand { display: flex; flex-wrap: wrap; gap: 3px; min-height: 58px;
+  #myHand { display: flex; flex-wrap: wrap; gap: 2px; min-height: 58px;
     align-items: flex-end; perspective: 800px; padding-top: 8px; }
+  /* 正方形桌面收窄后，手牌牌面略缩，保证 17 张仍排成一行 */
+  #myHand .tile { width: 31px; height: 42px; margin: 1px; }
   #myHand .dim { color: #e2c89e; }
   #actionBar { display: flex; flex-wrap: wrap; gap: 7px; align-items: center;
     margin-top: 10px; min-height: 36px; }
@@ -315,12 +317,18 @@
   .backBtn:active { transform:translateY(1px); }
   .backAlt { flex:none; color:#9fc4b4; font-size:12px; text-decoration:none; white-space:nowrap; }
   .backAlt:hover { color:#a9f0cd; text-decoration:underline; }
+  /* 正方形桌面下缩窄左右两家与中央牌河，避免三者水平重叠 */
+  @media (min-width:901px) {
+    .seatLeft, .seatRight { width:132px; }
+    .riverZone { width:44%; min-width:190px; height:46%; }
+  }
   @media (max-width:900px) {
     .seatSlot { width:170px; }
     .seatLeft, .seatRight { width:148px; }
     .riverZone { width:52%; min-width:190px; }
-    /* 手机 / 窄屏沿用原有高度，保持已确认正常的效果 */
-    .felt { height:clamp(270px, 42vh, 330px); min-height:0; max-height:none; aspect-ratio:auto; }
+    /* 手机 / 窄屏沿用原有高度与满宽，保持已确认正常的效果 */
+    .felt { height:clamp(270px, 42vh, 330px); min-height:0; max-height:none;
+      aspect-ratio:auto; width:auto; margin:0; }
   }
   @media (max-width:640px) {
     .seatSlot { width:150px; }
@@ -351,26 +359,27 @@
   <!-- 左：牌桌场景（绿绒桌面 + 四家围坐 + 中央牌河） -->
   <section>
     <div id="tableWrap" class="tableScene">
-      <div class="hudBar" id="centerInfo"></div>
+      <!-- 静态占位：脚本尚未下载完（Pages 慢）时不至于出现「空桌面」，init() 执行后整体覆盖 -->
+      <div class="hudBar" id="centerInfo"><span class="hudItem"><span>状态</span><b>正在载入牌桌…</b></span></div>
       <div class="feltFrame">
         <div class="felt">
           <div class="wall wallTop"></div>
           <div class="wall wallBottom"></div>
           <div class="wall wallLeft"></div>
           <div class="wall wallRight"></div>
-          <div id="seat2" class="seatSlot seatTop"></div>
-          <div id="seat3" class="seatSlot seatLeft"></div>
-          <div id="seat1" class="seatSlot seatRight"></div>
-          <div id="seat0" class="seatSlot seatBottom"></div>
+          <div id="seat2" class="seatSlot seatTop"><div class="seatPanel"><span class="dim">等待入座…</span></div></div>
+          <div id="seat3" class="seatSlot seatLeft"><div class="seatPanel"><span class="dim">等待入座…</span></div></div>
+          <div id="seat1" class="seatSlot seatRight"><div class="seatPanel"><span class="dim">等待入座…</span></div></div>
+          <div id="seat0" class="seatSlot seatBottom"><div class="seatPanel"><span class="dim">等待入座…</span></div></div>
           <div id="centerBox" class="riverZone">
-            <div id="goldStand" class="goldStand"></div>
-            <div id="river" class="riverTiles"></div>
+            <div id="goldStand" class="goldStand"><span class="cap">本局金</span><span class="dim">载入中</span></div>
+            <div id="river" class="riverTiles"><span class="dim">牌河为空</span></div>
           </div>
         </div>
       </div>
       <div class="handRow">
         <div class="cap">你的手牌 · 点击牌面即打出 · 牌河左侧色条对应打出者</div>
-        <div id="myHand"></div>
+        <div id="myHand"><span class="dim">正在摆牌…</span></div>
         <div id="actionBar"></div>
       </div>
     </div>
@@ -509,7 +518,7 @@
 
 <!-- MQTT 库不再同步加载：仅当点「创建联机房间 / 加入房间」时由 fzmj-app.js 异步按需加载。
      首屏看牌桌、本地试玩均为零外部依赖，不受 CDN 超时影响。 -->
-<script src="fzmj-engine.js?v=5"></script>
-<script src="fzmj-app.js?v=5"></script>
+<script src="fzmj-engine.js?v=6"></script>
+<script src="fzmj-app.js?v=6"></script>
 </body>
 </html>

@@ -808,13 +808,19 @@
   }
 
   function init() {
-    S.cid = localStorage.getItem('wfzmj_cid') || randCid();
-    localStorage.setItem('wfzmj_cid', S.cid);
-    S.name = localStorage.getItem('wfzmj_name') || '';
+    // 隐私模式 / 禁用存储时访问 localStorage 会抛 SecurityError；
+    // 用内存值兜底，避免整个初始化中断、桌面只剩空壳。
+    var LS = {
+      get: function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+      set: function (k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+    };
+    S.cid = LS.get('wfzmj_cid') || randCid();
+    LS.set('wfzmj_cid', S.cid);
+    S.name = LS.get('wfzmj_name') || '';
     $('playerName').value = S.name;
     $('playerName').addEventListener('change', function () {
       S.name = this.value.trim() || '玩家';
-      localStorage.setItem('wfzmj_name', S.name);
+      LS.set('wfzmj_name', S.name);
     });
     buildScorePanel();
     syncScorePanel(F.getScoring());
