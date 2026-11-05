@@ -39,7 +39,7 @@
   .spacer { flex: 1; }
 
   main { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 14px;
-    padding: 14px 18px 24px; align-items: start; max-width: 1500px; margin: 0 auto; }
+    padding: 14px 18px 24px; align-items: start; max-width: 1160px; margin: 0 auto; }
   @media (max-width: 1080px) { main { grid-template-columns: 1fr; } }
 
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
@@ -86,8 +86,10 @@
     box-shadow: 0 2px 0 #d8cdb0, 0 12px 18px rgba(0,0,0,.38), 0 0 0 2px #7fd8b0; }
   .tile.selected { outline: 2px solid var(--brand); }
 
-  /* 牌桌场景：绿绒桌面 + 木边 + 四家围坐 + 中央牌河（纯 CSS，无图片依赖） */
-  .tableScene { margin-bottom: 14px; }
+  /* 牌桌场景：绿绒桌面 + 木边 + 四家围坐 + 中央牌河（纯 CSS，无图片依赖）
+     宽屏下限定最大宽度并居中，避免桌面被拉成横向长条；窄屏（手机）不受影响 */
+  .tableScene { max-width: 780px; margin: 0 auto 14px; }
+  #welcomeCard { max-width: 780px; margin-left: auto; margin-right: auto; }
   .hudBar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
     background: rgba(7, 30, 23, .88); border: 1px solid rgba(150, 220, 185, .22);
     border-radius: 10px; padding: 7px 10px; margin-bottom: 10px; }
@@ -120,6 +122,12 @@
       radial-gradient(ellipse at 50% 32%, var(--felt-lite) 0%, var(--felt) 52%, var(--felt-dark) 100%);
     background-size: 5px 5px, 100% 100%, 100% 100%;
     box-shadow: inset 0 0 70px rgba(0,0,0,.40), inset 0 0 0 2px rgba(150,230,195,.16); }
+  /* 高度随宽度联动：宽屏桌面保持约 1.8:1，不再出现「横向太长」；
+     上限兼顾矮窗口一屏可看全；不支持 aspect-ratio 的浏览器沿用上面的固定高度 */
+  @supports (aspect-ratio: 1 / 1) {
+    .felt { height: auto; aspect-ratio: 1.8 / 1;
+      min-height: 300px; max-height: min(420px, 52vh); }
+  }
   .felt::before { content: ''; position: absolute; inset: 7px; border-radius: 9px;
     border: 9px solid rgba(5, 46, 35, .48);
     box-shadow: inset 0 0 0 2px rgba(160,235,200,.12); pointer-events: none; }
@@ -311,7 +319,8 @@
     .seatSlot { width:170px; }
     .seatLeft, .seatRight { width:148px; }
     .riverZone { width:52%; min-width:190px; }
-    .felt { height:clamp(270px, 42vh, 330px); }
+    /* 手机 / 窄屏沿用原有高度，保持已确认正常的效果 */
+    .felt { height:clamp(270px, 42vh, 330px); min-height:0; max-height:none; aspect-ratio:auto; }
   }
   @media (max-width:640px) {
     .seatSlot { width:150px; }
@@ -500,7 +509,7 @@
 
 <!-- MQTT 库不再同步加载：仅当点「创建联机房间 / 加入房间」时由 fzmj-app.js 异步按需加载。
      首屏看牌桌、本地试玩均为零外部依赖，不受 CDN 超时影响。 -->
-<script src="fzmj-engine.js?v=4"></script>
-<script src="fzmj-app.js?v=4"></script>
+<script src="fzmj-engine.js?v=5"></script>
+<script src="fzmj-app.js?v=5"></script>
 </body>
 </html>
