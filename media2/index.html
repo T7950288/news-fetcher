@@ -94,6 +94,12 @@
                border-bottom:1px solid #eee; }
   .list-head span { font-size:13px; color:#666; }
   .list-head button { border:none; background:none; color:#a50e0e; font-size:13px; cursor:pointer; padding:6px; }
+  .list-actions { display:flex; align-items:center; gap:4px; flex:none; }
+  .list-head .restore { color:#1a3a6c; display:none; }
+  #fileList li .fdel { flex:none; width:28px; height:28px; border:none; border-radius:8px; background:transparent;
+                       color:#a50e0e; font-size:17px; line-height:1; cursor:pointer; padding:0; }
+  #fileList li .fdel:hover { background:#fdecec; }
+  #fileList li .fdel:active { background:#f8dcdc; }
   #fileList { list-style:none; max-height:52vh; overflow-y:auto; -webkit-overflow-scrolling:touch; }
   #fileList li { display:flex; align-items:center; gap:10px; padding:13px 14px; border-bottom:1px solid #f3f4f6;
                  cursor:pointer; }
@@ -108,6 +114,10 @@
   .empty p { margin-top:6px; font-size:12px; color:#bbb; }
   .hint { margin-top:10px; font-size:12px; color:#888; text-align:center; }
   .hint b { color:#1a3a6c; }
+  .toast { position:fixed; left:50%; bottom:24px; transform:translate(-50%,8px); background:rgba(20,20,20,.86);
+           color:#fff; font-size:13px; padding:9px 16px; border-radius:20px; max-width:82vw; text-align:center;
+           opacity:0; pointer-events:none; transition:opacity .18s, transform .18s; z-index:9999; }
+  .toast.show { opacity:1; transform:translate(-50%,0); }
   /* 手机端：更宽的可点区域 */
   @media (max-width:768px){
     .site-header { padding:12px 14px; }
@@ -151,6 +161,7 @@
     .txt-btn { padding:5px 10px; font-size:12px; white-space:nowrap; flex:none; }
     #fileList li { padding:15px 14px; }
     #fileList li .fname { font-size:15px; }
+    #fileList li .fdel { display:none; }   /* 单项删除仅电脑端使用，手机端保持原样 */
   }
   /* 电脑端：视频左侧顶格、按钮竖排右侧、名称栏隐藏，一屏内看全 */
   @media (min-width:769px){
@@ -245,7 +256,10 @@
   <div class="list-panel" id="listPanel">
     <div class="list-head">
       <span id="listCount">共 0 个文件</span>
-      <button id="clearBtn">清空列表</button>
+      <div class="list-actions">
+        <button id="restoreBtn" class="restore" type="button" title="恢复已移除的文件显示（不涉及硬盘文件）">恢复</button>
+        <button id="clearBtn">清空列表</button>
+      </div>
     </div>
     <ul id="fileList"></ul>
   </div>
@@ -267,6 +281,26 @@
   var cur = -1;
   var loopMode = "list"; // off / one / list
   var folderMode = false;
+
+  /* 电脑端：被单独移除的文件名（只从列表隐藏，绝不删除硬盘文件） */
+  var HIDE_KEY = "media_hidden_v1";
+  var hiddenNames = {};
+  var lastDir = null;
+  function loadHidden(){
+    try{
+      var raw = localStorage.getItem(HIDE_KEY);
+      hiddenNames = raw ? (JSON.parse(raw) || {}) : {};
+    }catch(e){ hiddenNames = {}; }
+  }
+  function saveHidden(){
+    try{ localStorage.setItem(HIDE_KEY, JSON.stringify(hiddenNames)); }catch(e){}
+  }
+  function hiddenCount(){
+    var n = 0;
+    for(var k in hiddenNames){ if(hiddenNames.hasOwnProperty(k)) n++; }
+    return n;
+  }
+  loadHidden();
 
   var AUDIO_EXT = ["mp3","wav","flac","m4a","aac","ogg","opus","wma","ape","amr"];
   var VIDEO_EXT = ["mp4","webm","mkv","mov","avi","m4v","ts","m2ts","flv","3gp","mpg","mpeg"];
@@ -290,6 +324,27 @@
     return (m<10?"0":"")+m+":"+(ss<10?"0":"")+ss;
   }
 
+  /* 轻提示条（不打断播放） */
+  var toastEl = null, toastTimer = null;
+  function toast(msg){
+    if(!toastEl){
+      toastEl = document.createElement("div");
+      toastEl.className = "toast";
+      document.body.appendChild(toastEl);
+    }
+    toastEl.textContent = msg;
+    toastEl.className = "toast show";
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ toastEl.className = "toast"; }, 2400);
+  }
+  function renderRestore(){
+    var btn = document.getElementById("restoreBtn");
+    if(!btn) return;
+    var n = hiddenCount();
+    btn.style.display = n ? "inline-block" : "none";
+    btn.textContent = n ? ("恢复 " + n + " 个") : "恢复";
+  }
+
   /* ===== 播放列表 ===== */
   function renderList(){
     var ul = document.getElementById("fileList");
@@ -303,13 +358,20 @@
       var k = it.kind==="audio" ? "audio" : "video";
       var t = it.kind==="audio" ? "音乐" : "视频";
       return '<li class="'+c+'" data-i="'+i+'"><span class="fkind '+k+'">'+t+'</span>'+
-             '<span class="fname"></span><span class="fsize">'+fmtSize(it.size)+'</span></li>';
+             '<span class="fname"></span><span class="fsize">'+fmtSize(it.size)+'</span>'+
+             '<button class="fdel" type="button" title="从列表移除（不删除硬盘文件）">×</button></li>';
     }).join("");
     var lis = ul.querySelectorAll("li");
     for(var j=0;j<lis.length;j++){
       lis[j].querySelector(".fname").textContent = playlist[j].name;
       lis[j].addEventListener("click", function(){ playAt(parseInt(this.getAttribute("data-i"),10)); });
+      var del = lis[j].querySelector(".fdel");
+      if(del) del.addEventListener("click", function(ev){
+        ev.stopPropagation();
+        removeItem(parseInt(this.parentNode.getAttribute("data-i"),10));
+      });
     }
+    renderRestore();
   }
   function addItems(items, autoPlay){
     for(var i=0;i<items.length;i++){ playlist.push(items[i]); }
@@ -329,6 +391,34 @@
     document.getElementById("seekBar").value = 0;
     setErr(false);
     renderList();
+  }
+
+  /* 电脑端：单个文件从列表移除（只动列表，不删除硬盘文件；下次读取文件夹也不再出现） */
+  function removeItem(i){
+    if(i<0 || i>=playlist.length) return;
+    var it = playlist[i];
+    if(!confirm("从播放列表移除「"+it.name+"」？\n（只从列表移除，不会删除硬盘上的文件）")) return;
+    hiddenNames[it.name] = 1;
+    saveHidden();
+    var wasCur = (i === cur);
+    playlist.splice(i,1);
+    if(wasCur){
+      try{ player.pause(); }catch(e){}
+      var oldUrl = player.src;
+      player.removeAttribute("src");
+      try{ player.load(); }catch(e){}
+      if(oldUrl) setTimeout(function(){ URL.revokeObjectURL(oldUrl); }, 300);
+      document.getElementById("timeTxt").textContent = "00:00 / 00:00";
+      document.getElementById("seekBar").value = 0;
+      setErr(false);
+      cur = -1;
+      updateNow();
+      updatePlayIcon();
+    } else if(cur > i){
+      cur = cur - 1;   /* 当前播放项索引前移，仍在播的还是同一首 */
+    }
+    renderList();
+    toast("已从列表移除「"+it.name+"」，可点「恢复」找回");
   }
 
   /* ===== 播放 ===== */
@@ -478,6 +568,24 @@
     if(playlist.length && !confirm("清空当前文件列表？")) return;
     clearList();
   });
+  document.getElementById("restoreBtn").addEventListener("click", function(){
+    var n = hiddenCount();
+    if(!n) return;
+    var tip = lastDir
+      ? "恢复这 " + n + " 个已移除文件的显示？\n（会重新读取文件夹，正在播放的会停止；不涉及硬盘文件）"
+      : "恢复这 " + n + " 个已移除文件的显示？\n（只恢复列表显示，不涉及硬盘文件）";
+    if(!confirm(tip)) return;
+    hiddenNames = {};
+    saveHidden();
+    if(lastDir){
+      clearList();
+      loadFromDir(lastDir);
+      toast("已恢复显示，正在重新读取文件夹…");
+    }else{
+      renderList();
+      toast("已恢复 " + n + " 个文件，重新读取文件夹后即可看到");
+    }
+  });
 
   /* ===== 电脑端：选择文件夹（File System Access，自动记住） ===== */
   function idbGet(){
@@ -529,12 +637,15 @@
   }
   function showHint(t){ document.getElementById("hint").textContent = t; }
   async function loadFromDir(dir){
+    lastDir = dir;
     var out = [];
     walkDir(dir, out, function(files){
-      files.sort(function(a,b){ return a.name.localeCompare(b.name,"zh"); });
-      addItems(files, false);
+      var shown = files.filter(function(f){ return !hiddenNames[f.name]; });
+      var skipped = files.length - shown.length;
+      shown.sort(function(a,b){ return a.name.localeCompare(b.name,"zh"); });
+      addItems(shown, false);
       folderMode = true;
-      showHint("已读取文件夹："+dir.name+"（"+files.length+" 个音乐/视频文件）");
+      showHint("已读取文件夹："+dir.name+"（"+shown.length+" 个音乐/视频文件"+(skipped? "，已移除 "+skipped+" 个" : "")+"）");
     });
   }
   var isMobile = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
